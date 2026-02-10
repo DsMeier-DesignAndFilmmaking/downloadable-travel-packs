@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
-  Phone, Bus, AlertTriangle, Download, 
-  WifiOff, CheckCircle, RefreshCw, Zap, Droplets, ChevronLeft,
+  Phone, AlertTriangle, Download, 
+  Zap, Droplets, ChevronLeft,
 } from 'lucide-react';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';

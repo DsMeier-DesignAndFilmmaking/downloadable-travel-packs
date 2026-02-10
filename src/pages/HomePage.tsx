@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { cityPacksList } from '../services/cityService';
-import { Search, MapPin, ChevronRight, Globe } from 'lucide-react';
+import { Search, ChevronRight, Globe } from 'lucide-react';
 
 export default function HomePage() {
   return (
