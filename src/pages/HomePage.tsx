@@ -1,44 +1,52 @@
 import { Link } from 'react-router-dom';
 import { cityPacksList } from '../services/cityService';
-import { Search, MapPin, Globe } from 'lucide-react';
+import { Search, MapPin, ChevronRight, Globe } from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="max-w-2xl mx-auto px-6 py-12">
+    <div className="min-h-screen bg-[#F7F7F7] text-[#222222] antialiased">
+      <main className="max-w-xl mx-auto px-6 py-16">
         <header className="mb-12">
-          <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">Travel Packs</h1>
-          <p className="text-slate-400 font-medium">Offline survival guides for the world's top cities.</p>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-10 bg-[#FFDD00] shadow-sm" /> {/* Nat Geo Iconic Portal */}
+            <span className="text-[10px] font-black tracking-[0.3em] uppercase opacity-50">Field Guides 2026</span>
+          </div>
+          <h1 className="text-5xl font-extrabold tracking-tight mb-3">Travel Packs</h1>
+          <p className="text-xl text-slate-500 font-light">Precision survival data for the modern explorer.</p>
         </header>
 
-        <div className="relative mb-8">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+        <div className="relative mb-12 group">
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
-            placeholder="Search 2025 top destinations..." 
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+            placeholder="Search destination..." 
+            className="w-full bg-white border border-slate-200 rounded-2xl py-5 pl-14 pr-6 shadow-sm focus:outline-none focus:ring-4 focus:ring-[#FFDD00]/20 focus:border-[#FFDD00] transition-all placeholder:text-slate-400"
           />
         </div>
 
-        <section className="space-y-4">
-          <h2 className="text-xs font-bold tracking-[0.2em] text-slate-500 uppercase mb-4">Available Packs</h2>
-          <div className="grid gap-3">
+        <section className="space-y-6">
+          <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">Current Catalog</h2>
+          
+          <div className="grid gap-4">
             {cityPacksList.map((city) => (
               <Link 
                 key={city.slug} 
                 to={`/guide/${city.slug}`}
-                className="group flex items-center justify-between bg-white/5 border border-white/10 p-5 rounded-2xl hover:bg-white/10 transition-all active:scale-[0.98]"
+                className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-2xl hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
               >
-                <div className="flex items-center gap-4">
-                  <div className="bg-sky-500/20 text-sky-400 p-3 rounded-xl group-hover:bg-sky-500 group-hover:text-white transition-colors">
-                    <MapPin size={24} />
+                {/* Brand Accent */}
+                <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
+                
+                <div className="flex items-center gap-5">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 group-hover:bg-[#FFDD00]/10 transition-colors">
+                    <Globe size={22} className="text-slate-400 group-hover:text-[#222222]" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">{city.name}</h3>
-                    <p className="text-sm text-slate-500">{city.country}</p>
+                    <h3 className="font-bold text-xl tracking-tight text-[#222222]">{city.name}</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{city.country}</p>
                   </div>
                 </div>
-                <Globe size={20} className="text-slate-700 group-hover:text-slate-400 transition-colors" />
+                <ChevronRight size={20} className="text-slate-300 group-hover:text-[#222222] transition-colors" />
               </Link>
             ))}
           </div>
