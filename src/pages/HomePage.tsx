@@ -97,7 +97,7 @@ export default function HomePage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-xl tracking-tight text-[#222222]">{city.name}</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{city.country}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{city.countryName}</p>
                     </div>
                   </div>
                   <ChevronRight size={20} className="text-slate-300 group-hover:text-[#222222] transition-colors" />

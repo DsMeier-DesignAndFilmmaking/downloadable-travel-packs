@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import CityGuideView from './pages/CityGuideView';
+import PageTransition from './components/PageTransition';
 
 /**
  * Animated Routes Wrapper
@@ -12,12 +13,24 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="popLayout">
+    <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* The key on the Routes is what triggers the exit/enter cycle */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/guide/:slug" element={<CityGuideView />} />
-        <Route path="*" element={<HomePage />} />
+        <Route 
+          path="/" 
+          element={
+            <PageTransition>
+              <HomePage />
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/guide/:slug" 
+          element={
+            <PageTransition>
+              <CityGuideView />
+            </PageTransition>
+          } 
+        />
       </Routes>
     </AnimatePresence>
   );

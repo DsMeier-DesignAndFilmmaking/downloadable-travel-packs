@@ -3,14 +3,42 @@
     {
       "slug": "bangkok-thailand",
       "name": "Bangkok",
-      "country": "Thailand",
+      "countryCode": "TH",
+      "countryName": "Thailand",
       "last_updated": "2026-02-09",
+      "theme": "Chaos and charm: mega-malls, street food, temples, and tuk-tuks. Plan for heat and traffic.",
       "emergency": {
         "police": "191",
+        "medical": "1669",
+        "pharmacy24h": "Boots, Watsons, and hospital pharmacies; 7-Eleven has basics",
         "tourist_police": "1155",
         "ambulance": "1554",
         "health_note": "Bumrungrad International is the top-rated hospital for English speakers."
       },
+      "survival": {
+        "tipping": "Not expected, but rounding up 20-50 THB is appreciated in taxis/cafes",
+        "tapWater": "Not drinkable (use sealed bottles only)",
+        "power": { "type": "Type A & C", "voltage": "220V, 50Hz" },
+        "digitalEntry": "Visa exemption or visa on arrival for many nationals; check evisa.go.th for 2026.",
+        "touristTax": "No national tourist tax as of 2026.",
+        "currentScams": [
+          "The 'Grand Palace is closed today' lie by tuk-tuk drivers",
+          "Unmetered taxis outside major malls (insist on 'Meter, please')",
+          "Bird seed/bracelet 'gifts' that you are then forced to pay for"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "AIS or dtac eSIM at BKK/Suvarnabhumi; buy before leaving airport or use Airalo",
+        "eSimHack": "Airalo and AIS/dtac sell eSIM at BKK; buy before leaving baggage to avoid markup.",
+        "airportHack": "BKK has fast immigration; use Grab from official pickup, avoid touts",
+        "transitHack": "BTS Skytrain and MRT avoid surface traffic; use Chao Phraya boat for riverside areas.",
+        "essentialApps": ["Grab", "Bolt", "Google Maps", "Google Translate"]
+      },
+      "neighborhoods": [
+        { "name": "Sukhumvit", "vibe": "Expat hub, BTS access, malls", "safetyScore": 8 },
+        { "name": "Silom", "vibe": "Business by day, nightlife by night", "safetyScore": 7 },
+        { "name": "Khao San", "vibe": "Backpacker central, loud", "safetyScore": 6 }
+      ],
       "survival_kit": {
         "tap_water": "Not drinkable (use sealed bottles only)",
         "power_plug": "Type A & C (220V, 50Hz)",
@@ -36,14 +64,41 @@
     {
       "slug": "paris-france",
       "name": "Paris",
-      "country": "France",
+      "countryCode": "FR",
+      "countryName": "France",
       "last_updated": "2026-02-09",
+      "theme": "Culture, cafés, and crowds. Book key sights; walk the arrondissements and skip the obvious traps.",
       "emergency": {
         "police": "17",
         "medical": "15",
+        "pharmacy24h": "Pharmacies de garde (rotating); dial 3237 or check paris-pharmacies.gouv.fr",
         "general_eu": "112",
         "health_note": "American Hospital of Paris (Neuilly) is preferred for English speakers."
       },
+      "survival": {
+        "tipping": "Service included (Service Compris). Round up €1-€2 for great service",
+        "tapWater": "Safe and high quality (Eau de Paris fountains are everywhere)",
+        "power": { "type": "Type E", "voltage": "230V, 50Hz" },
+        "digitalEntry": "ETIAS required for visa-exempt non-EU from 2025; EES (Entry/Exit System) at EU borders in 2026.",
+        "touristTax": "City tax (taxe de séjour) on overnight stays; often collected at checkout.",
+        "currentScams": [
+          "The 'Friendship Bracelet' men at Sacré-Cœur (keep hands in pockets)",
+          "The 'Found Ring' scam (they pretend you dropped a gold ring)",
+          "Petition signers who use the distraction to pickpocket"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Orange or Free eSIM; EU roaming applies if you have an EU plan. ETIAS required for non-EU from 2025.",
+        "eSimHack": "Orange Prepaid eSIM at CDG/ORY; Free Mobile shops in city. EU SIMs roam here at no extra cost.",
+        "airportHack": "CDG: use RER B or official taxis; Gare du Nord has Eurostar eGates. Smart Gate / Parafe at CDG/ORY for eligible passports.",
+        "transitHack": "RER B runs to CDG; check for strikes. Bonjour RATP shows real-time Metro/RER.",
+        "essentialApps": ["Citymapper", "Bonjour RATP", "Google Maps", "Lime"]
+      },
+      "neighborhoods": [
+        { "name": "Le Marais", "vibe": "Historic, LGBTQ+ friendly, food", "safetyScore": 8 },
+        { "name": "Montmartre", "vibe": "Artistic, touristy, views", "safetyScore": 7 },
+        { "name": "Saint-Germain", "vibe": "Cafés, bookshops, upscale", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "Safe and high quality (Eau de Paris fountains are everywhere)",
         "power_plug": "Type E (230V, 50Hz)",
@@ -69,13 +124,41 @@
     {
       "slug": "london-uk",
       "name": "London",
-      "country": "United Kingdom",
+      "countryCode": "GB",
+      "countryName": "United Kingdom",
       "last_updated": "2026-02-09",
+      "theme": "The Post-Frictionless Era & The Smart-App Buffer",
       "emergency": {
+        "police": "999",
+        "medical": "999",
+        "pharmacy24h": "NHS 111 for advice; Boots at Victoria and some stations; Superdrug 24h limited",
         "emergency_all": "999",
         "non_emergency": "101",
         "health_note": "NHS 111 (dial 111) for urgent medical advice that isn't life-threatening."
       },
+      "survival": {
+        "tipping": "12.5% service charge often added to restaurant bills. Extra tip not needed",
+        "tapWater": "Safe to drink (can be 'hard' water)",
+        "power": { "type": "G", "voltage": "230V" },
+        "digitalEntry": "UK ETA mandatory as of Feb 25, 2026 (£16 fee). Linked to passport.",
+        "touristTax": "New 5% Visitor Levy on all London overnight stays (approx £10-£15/night).",
+        "currentScams": [
+          "Unlicensed West End rickshaws",
+          "South Bank pickpockets"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "UK eSIM from EE, O2, or Three; EU roaming no longer guaranteed post-Brexit. Check your plan.",
+        "eSimHack": "Airalo or Saily. O2 is the only carrier with free EU roaming fallback.",
+        "airportHack": "Heathrow: Elizabeth Line. Gatwick: Gatwick Express.",
+        "transitHack": "Oyster is dead. Use Contactless/Apple Pay only to benefit from automatic daily price capping.",
+        "essentialApps": ["Citymapper", "Google Maps", "TfL Go", "Uber"]
+      },
+      "neighborhoods": [
+        { "name": "Shoreditch", "vibe": "Creative, nightlife, street food", "safetyScore": 7 },
+        { "name": "South Bank", "vibe": "Culture, Thames, tourist hub", "safetyScore": 8 },
+        { "name": "Notting Hill", "vibe": "Village feel, markets, affluent", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "Safe to drink (can be 'hard' water)",
         "power_plug": "Type G (230V, 50Hz)",
@@ -88,9 +171,8 @@
         "etiquette": "Stand on the RIGHT on escalators. Do not make eye contact on the Tube"
       },
       "scam_alerts": [
-        "Three-card Monte/shell games on Westminster Bridge",
-        "Fake 'Pedicabs' (bicycle rickshaws) charging £100+ for short rides",
-        "Unofficial 'airport transfer' touts in arrivals halls"
+        "Unlicensed West End rickshaws",
+        "South Bank pickpockets"
       ],
       "real_time_hacks": [
         "Use the 'Hopper Fare': Unlimited bus journeys for £1.75 within one hour",
@@ -101,13 +183,39 @@
     {
       "slug": "tokyo-japan",
       "name": "Tokyo",
-      "country": "Japan",
+      "countryCode": "JP",
+      "countryName": "Japan",
       "last_updated": "2026-02-09",
+      "theme": "Bypassing the Chip Shortage & The High-Cost Shift",
       "emergency": {
         "police": "110",
         "medical": "119",
+        "pharmacy24h": "Matsumoto Kiyoshi and Sugi in major areas; convenience stores have basics",
         "health_note": "Few operators speak English; use translation app. Some hospitals require upfront payment."
       },
+      "survival": {
+        "tipping": "Not customary; can be seen as rude. No tipping in taxis or restaurants.",
+        "tapWater": "World-class; safe to drink from taps and many public fountains",
+        "power": { "type": "A/B", "voltage": "100V" },
+        "digitalEntry": "VisitJapanWeb QR mandatory. JESTA pre-clearance required for visa-free entry.",
+        "touristTax": "Departure tax tripled to ¥3,000 as of July 2026.",
+        "currentScams": [
+          "Shinjuku bar touts",
+          "Fake monk donations"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Pre-order eSIM (Ubigi, Sakura, Mobal) or pick up at Haneda/Narita. Pocket WiFi still popular.",
+        "eSimHack": "Use Ubigi or Nomad for best 5G subway coverage; physical SIMs often out of stock.",
+        "airportHack": "Narita: Keisei Skyliner. Haneda: Tokyo Monorail.",
+        "transitHack": "Physical Suica/Pasmo cards are discontinued for tourists. Add Mobile Suica to Apple/Google Wallet before landing.",
+        "essentialApps": ["Google Maps", "Japan Travel by Navitime", "Suica/Pasmo", "Google Translate"]
+      },
+      "neighborhoods": [
+        { "name": "Shibuya", "vibe": "Youth, fashion, crossing", "safetyScore": 9 },
+        { "name": "Shinjuku", "vibe": "Skyscrapers, nightlife, transit hub", "safetyScore": 8 },
+        { "name": "Asakusa", "vibe": "Traditional, temple, market", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "World-class; safe to drink from taps and many public fountains",
         "power_plug": "Type A & B (100V, 50Hz in Tokyo). US plugs work; EU/UK need adapter.",
@@ -120,9 +228,8 @@
         "etiquette": "No phones in priority seats; no talking on trains; queue neatly; no eating while walking"
       },
       "scam_alerts": [
-        "Roppongi/Kabukicho bar touts leading to overpriced drinks and tab",
-        "Fake 'massage' or club invitations with hidden cover charges",
-        "Overpriced 'tourist' restaurants in main districts"
+        "Shinjuku bar touts",
+        "Fake monk donations"
       ],
       "real_time_hacks": [
         "Convenience stores (7-Eleven, Lawson) have excellent cheap meals and free Wi-Fi",
@@ -133,13 +240,40 @@
     {
       "slug": "new-york-us",
       "name": "New York",
-      "country": "United States",
+      "countryCode": "US",
+      "countryName": "United States",
       "last_updated": "2026-02-09",
+      "theme": "Fast, loud, and 24/7. OMNY and apps beat paper tickets; avoid Times Square traps.",
       "emergency": {
         "police": "911",
         "medical": "911",
+        "pharmacy24h": "CVS and Duane Reade 24h in Manhattan; check store locator",
         "health_note": "911 for all emergencies. ER visits are expensive; travel insurance recommended."
       },
+      "survival": {
+        "tipping": "15-20% in restaurants; $1-2 per drink at bars; tip cab/Uber drivers.",
+        "tapWater": "Safe to drink (NYC tap is famously good). Refill at parks and stations.",
+        "power": { "type": "Type A & B", "voltage": "120V, 60Hz" },
+        "digitalEntry": "ESTA for visa-waiver nationals; Global Entry and Mobile Passport for faster CBP at major airports.",
+        "touristTax": "No federal tourist tax; NYC has no city-level overnight levy as of 2026.",
+        "currentScams": [
+          "Fake 'CD' or 'mixtape' handoffs that you're then charged for",
+          "'Free' bracelet or photo with costumed characters in Times Square",
+          "Unofficial ticket sellers and 'skip-the-line' hustlers"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "US eSIM from T-Mobile, Verizon, or Airalo. Most international plans include US.",
+        "eSimHack": "Airalo or T-Mobile eSIM before you fly; MTA app works offline for subway map.",
+        "airportHack": "JFK: AirTrain to LIRR or subway. Newark: NJ Transit or Uber. LaGuardia: bus to subway. Global Entry / Mobile Passport for faster CBP.",
+        "transitHack": "OMNY tap on subway and bus; Citymapper shows real-time MTA and disruptions.",
+        "essentialApps": ["Citymapper", "Google Maps", "MTA", "Uber", "Lyft"]
+      },
+      "neighborhoods": [
+        { "name": "Williamsburg", "vibe": "Hipster, nightlife, waterfront", "safetyScore": 7 },
+        { "name": "Upper East Side", "vibe": "Museums, affluent, quiet", "safetyScore": 9 },
+        { "name": "East Village", "vibe": "Bars, live music, divey", "safetyScore": 7 }
+      ],
       "survival_kit": {
         "tap_water": "Safe to drink (NYC tap is famously good). Refill at parks and stations.",
         "power_plug": "Type A & B (120V, 60Hz). EU/UK need adapter.",
@@ -165,14 +299,41 @@
     {
       "slug": "rome-italy",
       "name": "Rome",
-      "country": "Italy",
+      "countryCode": "IT",
+      "countryName": "Italy",
       "last_updated": "2026-02-09",
+      "theme": "Ancient and chaotic. Book Colosseum and Vatican ahead; drink from nasoni and avoid menu traps.",
       "emergency": {
         "police": "113",
         "medical": "118",
+        "pharmacy24h": "Farmacie di turno (rotating); check 118 or local listings",
         "general_eu": "112",
         "health_note": "112 is the single EU emergency number. Guardia Medica for non-life-threatening."
       },
+      "survival": {
+        "tipping": "Coperto may be on the bill. Round up or 5-10%; no obligation.",
+        "tapWater": "Safe and excellent; use nasoni (street fountains) to refill for free",
+        "power": { "type": "Type L", "voltage": "230V, 50Hz" },
+        "digitalEntry": "ETIAS for visa-exempt non-EU from 2025; EES at Schengen borders in 2026.",
+        "touristTax": "City tax (tassa di soggiorno) on overnight stays; often charged at checkout.",
+        "currentScams": [
+          "'Friendship bracelet' or rosemary forced into your hand then payment demanded",
+          "Gladiators outside Colosseum charging for photos",
+          "Restaurants with no prices or 'tourist menus' with hidden charges"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Italian eSIM (TIM, Vodafone, Iliad). ETIAS required for non-EU from 2025. EU roaming if you have EU plan.",
+        "eSimHack": "TIM or Iliad eSIM at FCO/CTA; Moovit has real-time ATAC and regional transit.",
+        "airportHack": "FCO: Leonardo Express to Termini. Ciampino: bus to Termini. Use eGates (EU/EEA/Schengen) where available.",
+        "transitHack": "ATAC app for metro/bus; validate ticket on first use. FreeNow for taxis.",
+        "essentialApps": ["Moovit", "ATAC", "Google Maps", "FreeNow"]
+      },
+      "neighborhoods": [
+        { "name": "Trastevere", "vibe": "Medieval, nightlife, food", "safetyScore": 8 },
+        { "name": "Monti", "vibe": "Hip, vintage, near Colosseum", "safetyScore": 8 },
+        { "name": "Testaccio", "vibe": "Local, food market, authentic", "safetyScore": 8 }
+      ],
       "survival_kit": {
         "tap_water": "Safe and excellent; use nasoni (street fountains) to refill for free",
         "power_plug": "Type L (230V, 50Hz). Adapter needed for US/UK.",
@@ -198,13 +359,40 @@
     {
       "slug": "barcelona-spain",
       "name": "Barcelona",
-      "country": "Spain",
+      "countryCode": "ES",
+      "countryName": "Spain",
       "last_updated": "2026-02-09",
+      "theme": "Gaudí, beach, and tapas. Book Sagrada Família; watch bags on Metro and La Rambla.",
       "emergency": {
         "police": "112",
         "medical": "112",
+        "pharmacy24h": "Farmacias de guardia (rotating); 010 or check web",
         "health_note": "112 is the single EU emergency number. CatSalut for public health."
       },
+      "survival": {
+        "tipping": "Not expected; round up or small change. Service may be included.",
+        "tapWater": "Safe to drink but often chlorinated; many prefer bottled.",
+        "power": { "type": "Type F", "voltage": "230V, 50Hz" },
+        "digitalEntry": "ETIAS for non-EU from 2025; EES at Schengen borders in 2026.",
+        "touristTax": "Catalonia tourist tax on overnight stays; varies by accommodation type.",
+        "currentScams": [
+          "Pickpockets on La Rambla and Metro (distraction, bump-and-grab)",
+          "'Friendly' strangers offering rosemary or petition then demanding money",
+          "Fake 'police' asking to see wallet or documents"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Spanish eSIM (Vodafone, Orange, Movistar). ETIAS for non-EU from 2025. EU roaming applies.",
+        "eSimHack": "Vodafone or Orange at BCN; TMB app for metro/bus real-time. T-casual at station for 10 journeys.",
+        "airportHack": "BCN: Aerobús or R2 Nord to city. eGates for EU/EEA/Schengen. T-casual at station for 10 journeys.",
+        "transitHack": "TMB app shows live metro/bus; T-casual is cheaper than single tickets for multiple rides.",
+        "essentialApps": ["TMB", "Citymapper", "Google Maps", "Cabify"]
+      },
+      "neighborhoods": [
+        { "name": "Gràcia", "vibe": "Village feel, squares, less touristy", "safetyScore": 8 },
+        { "name": "El Born", "vibe": "Medieval, boutiques, bars", "safetyScore": 7 },
+        { "name": "Eixample", "vibe": "Gaudí, grid, upscale", "safetyScore": 8 }
+      ],
       "survival_kit": {
         "tap_water": "Safe to drink but often chlorinated; many prefer bottled.",
         "power_plug": "Type F (230V, 50Hz). Adapter needed for US/UK.",
@@ -230,13 +418,40 @@
     {
       "slug": "dubai-uae",
       "name": "Dubai",
-      "country": "United Arab Emirates",
+      "countryCode": "AE",
+      "countryName": "United Arab Emirates",
       "last_updated": "2026-02-09",
+      "theme": "Luxury, heat, and ambition. Nol card for transit; dress modestly and avoid street tour touts.",
       "emergency": {
         "police": "999",
         "medical": "998",
+        "pharmacy24h": "Life Pharmacy, Aster; some in malls and near hospitals",
         "health_note": "Private hospitals common; travel insurance recommended. Sharia applies; no PDA in public."
       },
+      "survival": {
+        "tipping": "10-15% in restaurants; AED 5-10 for valet/delivery. Not always expected in hotels.",
+        "tapWater": "Desalinated; technically safe but many prefer bottled. Hotels often provide bottles.",
+        "power": { "type": "Type G", "voltage": "230V, 50Hz" },
+        "digitalEntry": "Visa or visa on arrival for many nationals; eGates for eligible passengers at DXB.",
+        "touristTax": "No federal tourist tax; some hotels add municipality or tourism fees at checkout.",
+        "currentScams": [
+          "Fake luxury goods in souks",
+          "Timeshare and property pitches with 'free' desert safari",
+          "Overpriced tours and activities sold on the street or beach"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Etisalat or du eSIM at DXB; pre-order or buy on arrival. UAE has strict content filtering.",
+        "eSimHack": "Etisalat eSIM at DXB arrivals; RTA Dubai app for Metro/tram/bus and Nol balance.",
+        "airportHack": "DXB: Metro Red Line to city; eGates for eligible nationals. Taxi queue is organised; use Careem for app-based.",
+        "transitHack": "Nol card for Metro, tram, bus; Careem for taxis. RTA app shows real-time services.",
+        "essentialApps": ["Careem", "RTA Dubai", "Google Maps", "Talabat"]
+      },
+      "neighborhoods": [
+        { "name": "Dubai Marina", "vibe": "Waterfront, towers, expat", "safetyScore": 9 },
+        { "name": "Old Dubai", "vibe": "Souks, creek, heritage", "safetyScore": 8 },
+        { "name": "Downtown", "vibe": "Burj Khalifa, mall, luxury", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "Desalinated; technically safe but many prefer bottled. Hotels often provide bottles.",
         "power_plug": "Type G (230V, 50Hz). UK-style. Adapter for US/EU.",
@@ -262,13 +477,40 @@
     {
       "slug": "seoul-south-korea",
       "name": "Seoul",
-      "country": "South Korea",
+      "countryCode": "KR",
+      "countryName": "South Korea",
       "last_updated": "2026-02-09",
+      "theme": "K-pop, tech, and 24/7 energy. T-money and Kakao apps; last subway ~midnight.",
       "emergency": {
         "police": "112",
         "medical": "119",
-        "health_note": "Tourist hotline 1330. Itaewon and Gangnam have hospitals with English-speaking staff."
+        "pharmacy24h": "Yak (약) pharmacies; some 24h in Hongdae, Gangnam. Tourist hotline 1330.",
+        "health_note": "Itaewon and Gangnam have hospitals with English-speaking staff."
       },
+      "survival": {
+        "tipping": "Not expected; can be refused. No tipping in taxis or restaurants.",
+        "tapWater": "Safe (purified); refill at public stations and in subway.",
+        "power": { "type": "Type C & F", "voltage": "220V, 60Hz" },
+        "digitalEntry": "K-ETA for visa-waiver nationals; Smart Entry (eGates) at ICN/GMP when eligible.",
+        "touristTax": "No national tourist or departure tax as of 2026.",
+        "currentScams": [
+          "Overpriced skincare in some tourist areas (compare with Olive Young)",
+          "Bar hostess tabs in Hongdae/Itaewon with unclear pricing",
+          "Unlicensed taxis at airport charging flat high fares"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "KT or SKT eSIM at ICN/GMP; pre-order (Klook, Trazy) or buy on arrival. Korea has excellent 5G.",
+        "eSimHack": "KT or LG U+ eSIM at ICN; KakaoMap and Naver Map have better local detail than Google.",
+        "airportHack": "ICN: AREX to Seoul Station or express bus. GMP: subway to city. Use Smart Entry (eGates) if eligible.",
+        "transitHack": "T-money for subway and bus; KakaoMap shows real-time subway and bus arrivals.",
+        "essentialApps": ["Kakao T", "KakaoMap", "Naver Map", "Google Maps", "Papago"]
+      },
+      "neighborhoods": [
+        { "name": "Hongdae", "vibe": "Youth, nightlife, indie", "safetyScore": 8 },
+        { "name": "Myeongdong", "vibe": "Shopping, skincare, tourist", "safetyScore": 8 },
+        { "name": "Ikseon-dong", "vibe": "Hanok, cafés, hip", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "Safe (purified); refill at public stations and in subway.",
         "power_plug": "Type C & F (220V, 60Hz). Adapter for US flat pins.",
@@ -276,7 +518,7 @@
         "toilets": "Western; clean in subway and malls. Often free."
       },
       "transit_logic": {
-        "primary_app": "Kakao T (taxi), KakaoMap or Naver Map for transit and walking",
+        "primary_app": "Kakao T (taxi), KakaoMap or Naver Map for transit",
         "payment_method": "T-money for subway/bus; cards widely accepted; some small places cash only",
         "etiquette": "Priority seats for elderly; no eating on subway; stand on right on escalators"
       },
@@ -294,13 +536,40 @@
     {
       "slug": "mexico-city-mexico",
       "name": "Mexico City",
-      "country": "Mexico",
+      "countryCode": "MX",
+      "countryName": "Mexico",
       "last_updated": "2026-02-09",
+      "theme": "Altitude, culture, and street food. Uber/diDi over street taxis; bottled water only.",
       "emergency": {
         "police": "911",
         "medical": "911",
+        "pharmacy24h": "Farmacias del Ahorro, Similares; 24h in many areas",
         "health_note": "911 is unified. Private hospitals (e.g. ABC) have English staff; travel insurance advised."
       },
+      "survival": {
+        "tipping": "10-15% in restaurants; round up taxis. Small change for baggers and gas attendants.",
+        "tapWater": "Don't drink. Use bottled water; avoid ice from street vendors. Brush teeth with bottled.",
+        "power": { "type": "Type A & B", "voltage": "127V, 60Hz" },
+        "digitalEntry": "FMM tourist permit (often included in airfare); eGates at MEX for eligible nationals.",
+        "touristTax": "No federal tourist tax; some states or hotels may add local levies.",
+        "currentScams": [
+          "Taxi drivers 'without change' or taking long routes",
+          "Fake police asking to see wallet or 'check' money",
+          "ATM skimmers—use bank lobbies and cover the keypad"
+        ]
+      },
+      "arrival": {
+        "eSimAdvice": "Telcel or Oxxo eSIM; buy at MEX or Oxxo. Data is cheap; US/MX plans often include Mexico.",
+        "eSimHack": "Telcel eSIM at MEX or any Oxxo; Uber/DiDi from official pickup zone only.",
+        "airportHack": "MEX: Uber/diDi from designated area; avoid unlicensed taxis. Benito Juárez has eGates for some nationals. Altitude 2,240m—take it easy day one.",
+        "transitHack": "Metro is cheap but crowded; Uber/DiDi safer for late night. Google Maps works for transit.",
+        "essentialApps": ["Uber", "DiDi", "Google Maps", "WhatsApp", "Rappi"]
+      },
+      "neighborhoods": [
+        { "name": "Roma Norte", "vibe": "Hip, cafés, safe", "safetyScore": 8 },
+        { "name": "Coyoacán", "vibe": "Frida, colonial, markets", "safetyScore": 8 },
+        { "name": "Polanco", "vibe": "Upscale, museums, dining", "safetyScore": 9 }
+      ],
       "survival_kit": {
         "tap_water": "Don't drink. Use bottled water; avoid ice from street vendors. Brush teeth with bottled.",
         "power_plug": "Type A & B (127V, 60Hz). US plugs work.",

@@ -13,3 +13,17 @@ html {
     from { opacity: 0.8; }
     to { opacity: 1; }
   }
+
+  /* Add to index.css */
+.motion-card {
+    will-change: transform, opacity;
+  }
+
+  /* Scam Alert ticker — horizontal scroll */
+  @keyframes scam-ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .scam-ticker {
+    animation: scam-ticker 25s linear infinite;
+  }

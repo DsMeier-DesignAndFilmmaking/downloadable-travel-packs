@@ -39,13 +39,15 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
       : 'https://travelpacks.example.com'
 
   const manifest = {
-    name: `${cityName} Pack`,
+    name: `${cityName} Travel Pack`,
     short_name: `${cityName} Pack`,
+    description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
     start_url: `/guide/${slug}?utm_source=pwa`,
     display: 'standalone' as const,
     scope: '/',
     theme_color: '#0f172a',
     background_color: '#0f172a',
+    prefer_related_applications: false,
     icons: [
       {
         src: `${origin}/vite.svg`,
