@@ -1,23 +1,34 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import CityGuideView from './pages/CityGuideView';
 
 /**
- * App Router Strategy:
- * 1. Root (/) is the search/discovery hub (Web Only).
- * 2. /guide/:slug is the installable Survival Pack (PWA Scoped).
+ * Animated Routes Wrapper
+ * Handles the logic for page transitions
  */
-function App() {
+function AnimatedRoutes() {
+  const location = useLocation();
+
   return (
-    <Router>
-      <Routes>
+    <AnimatePresence mode="popLayout">
+      <Routes location={location} key={location.pathname}>
+        {/* The key on the Routes is what triggers the exit/enter cycle */}
         <Route path="/" element={<HomePage />} />
         <Route path="/guide/:slug" element={<CityGuideView />} />
-        {/* Fallback to Home if route doesn't exist */}
         <Route path="*" element={<HomePage />} />
       </Routes>
-    </Router>
+    </AnimatePresence>
   );
 }
 
-export default App;
+// Ensure this is named 'App' and exported as 'default'
+export default function App() {
+  return (
+    <Router>
+      <ScrollToTop /> 
+      <AnimatedRoutes />
+    </Router>
+  );
+}

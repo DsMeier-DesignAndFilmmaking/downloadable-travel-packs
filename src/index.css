@@ -1,1 +1,15 @@
 @import "tailwindcss";
+
+html {
+    background-color: #F7F7F7; /* Matches your light theme */
+  }
+  
+  /* Add a smooth global fade to the body on mount */
+  body {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0.8; }
+    to { opacity: 1; }
+  }

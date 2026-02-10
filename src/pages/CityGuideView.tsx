@@ -1,25 +1,68 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Phone, AlertTriangle, Download, 
   Zap, Droplets, ChevronLeft,
 } from 'lucide-react';
+import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { MANIFEST_URL } from '@/services/apiConfig';
 
-/** Emergency keys for dynamic tel: link generation */
 const EMERGENCY_KEYS = [
   'police', 'medical', 'ambulance', 'tourist_police', 
   'emergency_all', 'non_emergency', 'general_eu'
 ] as const;
 
+// Staggered Container Orchestration
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2, // Small buffer to ensure mount is complete
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -10,
+    transition: { duration: 0.2, ease: "easeIn" }
+  }
+};
+
+// Individual Element Slide-in with a subtle blur for a "soft" feel
+const itemVariants: Variants = {
+  hidden: { 
+    opacity: 0, 
+    y: 15,
+    filter: "blur(4px)" 
+  },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    filter: "blur(0px)",
+    transition: { 
+      duration: 0.6, 
+      ease: [0.22, 1, 0.36, 1] // Quintic ease-out for that Airbnb "lift"
+    } 
+  },
+};
+
 export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
   const { cityData, isLoading, isOffline, error, refetch } = useCityPack(slug || '');
   const { isInstallable, installPWA, isInstalled } = usePWAInstall();
+  
+  // Local state to prevent "flash of content" before animations can fire
+  const [isReady, setIsReady] = useState(false);
 
-  // Dynamic Manifest Injection for A2HS Scoping (env-aware: DEV = mock JSON, PROD = serverless)
+  useEffect(() => {
+    if (!isLoading && cityData) {
+      setIsReady(true);
+    }
+  }, [isLoading, cityData]);
+
   useEffect(() => {
     if (!slug) return;
     const id = 'tp-v2-dynamic-manifest';
@@ -31,43 +74,67 @@ export default function CityGuideView() {
       document.head.appendChild(link);
     }
     link.href = MANIFEST_URL(slug);
-
-    return () => {
-      const el = document.getElementById(id);
-      if (el) el.remove();
-    };
+    return () => { const el = document.getElementById(id); if (el) el.remove(); };
   }, [slug]);
 
-  if (isLoading) return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="animate-pulse text-slate-400 font-mono tracking-widest">LOADING SURVIVAL PACK...</div>
+  // 1. LOADING SKELETON BRANCH
+  // Standardized to match the exact max-width and padding of the main content
+  if (isLoading || !isReady) return (
+    <div className="min-h-screen bg-[#F7F7F7]">
+      <div className="max-w-2xl mx-auto px-6 pt-24 space-y-8 animate-pulse">
+        <div className="w-10 h-10 bg-slate-200 rounded-xl" />
+        <div className="flex justify-between items-end">
+          <div className="space-y-3">
+            <div className="h-10 w-48 bg-slate-200 rounded-lg" />
+            <div className="h-3 w-24 bg-slate-200 rounded" />
+          </div>
+          <div className="h-14 w-14 bg-slate-200 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="h-32 bg-slate-200 rounded-3xl" />
+          <div className="h-32 bg-slate-200 rounded-3xl" />
+        </div>
+        <div className="h-48 bg-slate-200 rounded-[2.5rem]" />
+      </div>
     </div>
   );
 
   if (error || !cityData) return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-8">
       <AlertTriangle className="text-rose-500 w-12 h-12 mb-4" />
-      <p className="text-slate-300 mb-6">{error?.message || 'City Not Found'}</p>
-      <Link to="/" className="bg-slate-800 text-white px-6 py-2 rounded-full">Back to Catalog</Link>
+      <p className="text-[#222222] font-bold mb-6 text-center">{error?.message || 'City Not Found'}</p>
+      <Link to="/" className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform">
+        Back to Catalog
+      </Link>
     </div>
   );
 
+  // 2. MAIN CONTENT BRANCH
   return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40">
-      {/* 1. STATUS BANNER (Nat Geo Yellow) */}
-      <div className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 ${isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#FFDD00] text-[#222222]'}`}>
+    <motion.div 
+      key={slug} // Critical: triggers fresh animation on route change
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      variants={containerVariants}
+      className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40"
+    >
+      {/* 1. STATUS BANNER - Fixed height to prevent layout shift */}
+      <div className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm ${isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#FFDD00] text-[#222222]'}`}>
         <span className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-[#222222]'}`} />
           {isOffline ? 'Offline Mode Active' : 'Live Field Data'}
         </span>
         {!isOffline && (
-          <button onClick={() => refetch()} className="underline decoration-2 underline-offset-4">Refresh</button>
+          <button onClick={() => refetch()} className="underline decoration-2 underline-offset-4 active:opacity-50 transition-opacity">
+            Refresh
+          </button>
         )}
       </div>
 
-      <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
+      <motion.header variants={itemVariants} className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
-          <Link to="/" className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm">
+          <Link to="/" className="p-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-90 transition-transform">
             <ChevronLeft size={20} />
           </Link>
           <div className="text-right">
@@ -76,9 +143,8 @@ export default function CityGuideView() {
           </div>
         </div>
 
-        {/* EMERGENCY DIALER - High Contrast */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          <a href={`tel:${cityData.emergency.police}`} className="flex items-center gap-3 bg-[#222222] text-white px-6 py-4 rounded-2xl hover:bg-black transition-colors shrink-0 shadow-lg shadow-black/10">
+          <a href={`tel:${cityData.emergency.police}`} className="flex items-center gap-3 bg-[#222222] text-white px-6 py-4 rounded-2xl hover:bg-black transition-colors shrink-0 shadow-lg shadow-black/10 active:scale-95">
             <Phone size={18} fill="currentColor" />
             <span className="text-xs font-black uppercase tracking-widest">Emergency</span>
           </a>
@@ -86,31 +152,31 @@ export default function CityGuideView() {
             const val = cityData.emergency[key];
             if (!val) return null;
             return (
-              <a key={key} href={`tel:${val.replace(/\D/g, '')}`} className="shrink-0 bg-white border border-slate-200 px-5 py-4 rounded-2xl text-[11px] font-bold hover:border-slate-400 transition-colors">
+              <a key={key} href={`tel:${val.replace(/\D/g, '')}`} className="shrink-0 bg-white border border-slate-200 px-5 py-4 rounded-2xl text-[11px] font-bold hover:border-slate-400 transition-colors active:scale-95">
                 <span className="text-slate-400 mr-2 uppercase text-[9px] tracking-tighter">{key.replace('_', ' ')}</span> {val}
               </a>
             );
           })}
         </div>
-      </header>
+      </motion.header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
-        {/* 3. SURVIVAL GRID - Airbnb Style Whitespace */}
-        <section className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        {/* 3. SURVIVAL GRID */}
+        <motion.section variants={itemVariants} className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
             <Droplets className="text-blue-500 mb-4" size={24} />
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
             <p className="text-lg font-bold text-[#222222]">{cityData.survival_kit.tap_water}</p>
           </div>
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
             <Zap className="text-[#FFDD00]" size={24} fill="#FFDD00" />
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 mt-4">Power Plug</h3>
             <p className="text-lg font-bold text-[#222222]">{cityData.survival_kit.power_plug}</p>
           </div>
-        </section>
+        </motion.section>
 
-        {/* 4. SCAM ALERTS - Bold Warning Style */}
-        <section className="bg-[#222222] text-white rounded-[2.5rem] overflow-hidden shadow-2xl">
+        {/* 4. SCAM ALERTS */}
+        <motion.section variants={itemVariants} className="bg-[#222222] text-white rounded-[2.5rem] overflow-hidden shadow-2xl">
           <div className="bg-white/10 px-8 py-4 border-b border-white/5 flex items-center gap-3">
             <AlertTriangle size={18} className="text-[#FFDD00]" />
             <h2 className="text-[#FFDD00] font-black text-[10px] tracking-[0.3em] uppercase">Security Protocol</h2>
@@ -123,10 +189,10 @@ export default function CityGuideView() {
               </div>
             ))}
           </div>
-        </section>
+        </motion.section>
 
         {/* 5. TRANSIT LOGIC */}
-        <section className="space-y-4">
+        <motion.section variants={itemVariants} className="space-y-4">
           <h2 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Transit Logic</h2>
           <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm">
             <div className="flex items-start gap-5 p-8 border-b border-slate-100">
@@ -141,21 +207,29 @@ export default function CityGuideView() {
               <p className="font-bold text-xl text-[#222222]">{cityData.transit_logic.payment_method}</p>
             </div>
           </div>
-        </section>
+        </motion.section>
       </main>
 
-      {/* 6. INSTALL BUTTON (Airbnb Contrast) */}
-      {!isInstalled && isInstallable && (
-        <div className="fixed bottom-10 left-0 right-0 px-6 z-50">
-          <button 
-            onClick={installPWA}
-            className="w-full max-w-sm mx-auto bg-[#222222] text-white h-16 rounded-2xl font-black text-xs tracking-[0.2em] uppercase flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all"
+      {/* 6. INSTALL BUTTON */}
+      <AnimatePresence>
+        {!isInstalled && isInstallable && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            transition={{ delay: 0.8, type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed bottom-10 left-0 right-0 px-6 z-50 pointer-events-none"
           >
-            <Download size={18} className="text-[#FFDD00]" /> 
-            Cache Full Guide
-          </button>
-        </div>
-      )}
-    </div>
+            <button 
+              onClick={installPWA}
+              className="w-full max-w-sm mx-auto bg-[#222222] text-white h-16 rounded-2xl font-black text-xs tracking-[0.2em] uppercase flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all pointer-events-auto"
+            >
+              <Download size={18} className="text-[#FFDD00]" /> 
+              Cache Full Guide
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
