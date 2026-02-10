@@ -1,0 +1,327 @@
+{
+  "cities": [
+    {
+      "slug": "bangkok-thailand",
+      "name": "Bangkok",
+      "country": "Thailand",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "191",
+        "tourist_police": "1155",
+        "ambulance": "1554",
+        "health_note": "Bumrungrad International is the top-rated hospital for English speakers."
+      },
+      "survival_kit": {
+        "tap_water": "Not drinkable (use sealed bottles only)",
+        "power_plug": "Type A & C (220V, 50Hz)",
+        "tipping": "Not expected, but rounding up 20-50 THB is appreciated in taxis/cafes",
+        "toilets": "Carry tissues; many public toilets are 'squat' style and charge 5-10 THB"
+      },
+      "transit_logic": {
+        "primary_app": "Grab (for cars) or Bolt (cheaper)",
+        "payment_method": "Rabbit Card for BTS; Cash for MRT and Street Food",
+        "etiquette": "Give up seats for monks; Keep your head lower than elders"
+      },
+      "scam_alerts": [
+        "The 'Grand Palace is closed today' lie by tuk-tuk drivers",
+        "Unmetered taxis outside major malls (insist on 'Meter, please')",
+        "Bird seed/bracelet 'gifts' that you are then forced to pay for"
+      ],
+      "real_time_hacks": [
+        "Use the 'Chao Phraya Express Boat' to bypass traffic for 15-30 THB",
+        "7-Eleven is your best friend for high-speed Wi-Fi and cheap AC breaks",
+        "Always carry a sarong/scarf for temple entry (shoulders/knees must be covered)"
+      ]
+    },
+    {
+      "slug": "paris-france",
+      "name": "Paris",
+      "country": "France",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "17",
+        "medical": "15",
+        "general_eu": "112",
+        "health_note": "American Hospital of Paris (Neuilly) is preferred for English speakers."
+      },
+      "survival_kit": {
+        "tap_water": "Safe and high quality (Eau de Paris fountains are everywhere)",
+        "power_plug": "Type E (230V, 50Hz)",
+        "tipping": "Service included (Service Compris). Round up €1-€2 for great service",
+        "toilets": "Use 'Sanisettes' (free self-cleaning street pods) or museum restrooms"
+      },
+      "transit_logic": {
+        "primary_app": "Citymapper or Bonjour RATP",
+        "payment_method": "Navigo Easy card (loaded via phone) or contactless (certain lines)",
+        "etiquette": "Always start interactions with 'Bonjour'. Failing to do so is seen as a direct insult"
+      },
+      "scam_alerts": [
+        "The 'Friendship Bracelet' men at Sacré-Cœur (keep hands in pockets)",
+        "The 'Found Ring' scam (they pretend you dropped a gold ring)",
+        "Petition signers who use the distraction to pickpocket"
+      ],
+      "real_time_hacks": [
+        "Download the 'Fontaines' app to find free sparkling water fountains",
+        "Dinner starts late (19:30+). Lunch is strictly 12:00-14:00",
+        "Avoid the 'Champs-Élysées' for food—expensive and low quality"
+      ]
+    },
+    {
+      "slug": "london-uk",
+      "name": "London",
+      "country": "United Kingdom",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "emergency_all": "999",
+        "non_emergency": "101",
+        "health_note": "NHS 111 (dial 111) for urgent medical advice that isn't life-threatening."
+      },
+      "survival_kit": {
+        "tap_water": "Safe to drink (can be 'hard' water)",
+        "power_plug": "Type G (230V, 50Hz)",
+        "tipping": "12.5% service charge often added to restaurant bills. Extra tip not needed",
+        "toilets": "Download 'Flush' app. Department stores (Selfridges/Liberty) have best free toilets"
+      },
+      "transit_logic": {
+        "primary_app": "Citymapper or Google Maps",
+        "payment_method": "Strictly Contactless/Apple/Google Pay. Do not buy paper tickets",
+        "etiquette": "Stand on the RIGHT on escalators. Do not make eye contact on the Tube"
+      },
+      "scam_alerts": [
+        "Three-card Monte/shell games on Westminster Bridge",
+        "Fake 'Pedicabs' (bicycle rickshaws) charging £100+ for short rides",
+        "Unofficial 'airport transfer' touts in arrivals halls"
+      ],
+      "real_time_hacks": [
+        "Use the 'Hopper Fare': Unlimited bus journeys for £1.75 within one hour",
+        "Free views: Book 'Sky Garden' or 'Lookout' 3 weeks in advance for free city vistas",
+        "Tesco/Sainsbury's 'Meal Deal' is the cheapest lunch in the city (£3.50-£5.00)"
+      ]
+    },
+    {
+      "slug": "tokyo-japan",
+      "name": "Tokyo",
+      "country": "Japan",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "110",
+        "medical": "119",
+        "health_note": "Few operators speak English; use translation app. Some hospitals require upfront payment."
+      },
+      "survival_kit": {
+        "tap_water": "World-class; safe to drink from taps and many public fountains",
+        "power_plug": "Type A & B (100V, 50Hz in Tokyo). US plugs work; EU/UK need adapter.",
+        "tipping": "Not customary; can be seen as rude. No tipping in taxis or restaurants.",
+        "toilets": "Mix of Western and high-tech washlets. Often free and spotless in stations."
+      },
+      "transit_logic": {
+        "primary_app": "Google Maps or Japan Travel by Navitime; Suica/Pasmo in Apple Wallet",
+        "payment_method": "Suica or Pasmo (IC cards) for trains/buses; cash still common in small shops",
+        "etiquette": "No phones in priority seats; no talking on trains; queue neatly; no eating while walking"
+      },
+      "scam_alerts": [
+        "Roppongi/Kabukicho bar touts leading to overpriced drinks and tab",
+        "Fake 'massage' or club invitations with hidden cover charges",
+        "Overpriced 'tourist' restaurants in main districts"
+      ],
+      "real_time_hacks": [
+        "Convenience stores (7-Eleven, Lawson) have excellent cheap meals and free Wi-Fi",
+        "Stand on the left on escalators in Tokyo (opposite of Osaka)",
+        "Last trains run around midnight—plan ahead or expect expensive taxis"
+      ]
+    },
+    {
+      "slug": "new-york-us",
+      "name": "New York",
+      "country": "United States",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "911",
+        "medical": "911",
+        "health_note": "911 for all emergencies. ER visits are expensive; travel insurance recommended."
+      },
+      "survival_kit": {
+        "tap_water": "Safe to drink (NYC tap is famously good). Refill at parks and stations.",
+        "power_plug": "Type A & B (120V, 60Hz). EU/UK need adapter.",
+        "tipping": "15-20% in restaurants; $1-2 per drink at bars; tip cab/Uber drivers.",
+        "toilets": "Starbucks and hotels; many subway stations have no or pay toilets."
+      },
+      "transit_logic": {
+        "primary_app": "Citymapper or Google Maps; MTA website for subway status",
+        "payment_method": "OMNY (tap) or MetroCard for subway/bus; contactless widely accepted",
+        "etiquette": "Let people off before boarding; no eye contact; keep bags closed on crowded trains"
+      },
+      "scam_alerts": [
+        "Fake 'CD' or 'mixtape' handoffs that you're then charged for",
+        "'Free' bracelet or photo with costumed characters in Times Square",
+        "Unofficial ticket sellers and 'skip-the-line' hustlers"
+      ],
+      "real_time_hacks": [
+        "Unlimited 7-day MetroCard pays off after ~12 rides",
+        "Free Staten Island Ferry for skyline views; avoid paid boat tours",
+        "Happy hour and prix-fixe lunches are the best value"
+      ]
+    },
+    {
+      "slug": "rome-italy",
+      "name": "Rome",
+      "country": "Italy",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "113",
+        "medical": "118",
+        "general_eu": "112",
+        "health_note": "112 is the single EU emergency number. Guardia Medica for non-life-threatening."
+      },
+      "survival_kit": {
+        "tap_water": "Safe and excellent; use nasoni (street fountains) to refill for free",
+        "power_plug": "Type L (230V, 50Hz). Adapter needed for US/UK.",
+        "tipping": "Coperto may be on the bill. Round up or 5-10%; no obligation.",
+        "toilets": "Pay toilets common (€0.50-1). Cafés expect a small purchase for WC use."
+      },
+      "transit_logic": {
+        "primary_app": "Moovit or ATAC official app; Google Maps for walking",
+        "payment_method": "Roma Pass or contactless on buses/trams; buy tickets before boarding",
+        "etiquette": "Validate ticket on first use; dress modestly for churches"
+      },
+      "scam_alerts": [
+        "'Friendship bracelet' or rosemary forced into your hand then payment demanded",
+        "Gladiators outside Colosseum charging for photos",
+        "Restaurants with no prices or 'tourist menus' with hidden charges"
+      ],
+      "real_time_hacks": [
+        "Free drinking water from nasoni—bring a bottle",
+        "Book Colosseum/Forum online to skip lines and avoid touts",
+        "Aperitivo (6-9pm) often includes buffet for the price of a drink"
+      ]
+    },
+    {
+      "slug": "barcelona-spain",
+      "name": "Barcelona",
+      "country": "Spain",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "112",
+        "medical": "112",
+        "health_note": "112 is the single EU emergency number. CatSalut for public health."
+      },
+      "survival_kit": {
+        "tap_water": "Safe to drink but often chlorinated; many prefer bottled.",
+        "power_plug": "Type F (230V, 50Hz). Adapter needed for US/UK.",
+        "tipping": "Not expected; round up or small change. Service may be included.",
+        "toilets": "Pay toilets in some areas; cafés and museums are reliable."
+      },
+      "transit_logic": {
+        "primary_app": "TMB (metro) or Citymapper; Google Maps for walking",
+        "payment_method": "Hola BCN card or T-casual; contactless on buses",
+        "etiquette": "Dress modestly for Sagrada Família; watch bags on Metro and La Rambla"
+      },
+      "scam_alerts": [
+        "Pickpockets on La Rambla and Metro (distraction, bump-and-grab)",
+        "'Friendly' strangers offering rosemary or petition then demanding money",
+        "Fake 'police' asking to see wallet or documents"
+      ],
+      "real_time_hacks": [
+        "Book Sagrada Família and Park Güell online; skip long queues",
+        "T-casual gives 10 journeys on metro/bus for much less than single tickets",
+        "Eat away from La Rambla for better quality and prices"
+      ]
+    },
+    {
+      "slug": "dubai-uae",
+      "name": "Dubai",
+      "country": "United Arab Emirates",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "999",
+        "medical": "998",
+        "health_note": "Private hospitals common; travel insurance recommended. Sharia applies; no PDA in public."
+      },
+      "survival_kit": {
+        "tap_water": "Desalinated; technically safe but many prefer bottled. Hotels often provide bottles.",
+        "power_plug": "Type G (230V, 50Hz). UK-style. Adapter for US/EU.",
+        "tipping": "10-15% in restaurants; AED 5-10 for valet/delivery. Not always expected in hotels.",
+        "toilets": "Western and high standard in malls and hotels; free and clean."
+      },
+      "transit_logic": {
+        "primary_app": "Careem or RTA Dubai (Nol card); Google Maps for directions",
+        "payment_method": "Nol card for Metro/tram/bus; cards widely accepted elsewhere",
+        "etiquette": "Women-only carriages on Metro; no eating/drinking on Metro; dress modestly"
+      },
+      "scam_alerts": [
+        "Fake luxury goods in souks",
+        "Timeshare and property pitches with 'free' desert safari",
+        "Overpriced tours and activities sold on the street or beach"
+      ],
+      "real_time_hacks": [
+        "Nol card is refillable and works across Metro, tram, bus, and some taxis",
+        "Friday brunches are a Dubai institution but book in advance",
+        "Mall AC is fierce—carry a light layer"
+      ]
+    },
+    {
+      "slug": "seoul-south-korea",
+      "name": "Seoul",
+      "country": "South Korea",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "112",
+        "medical": "119",
+        "health_note": "Tourist hotline 1330. Itaewon and Gangnam have hospitals with English-speaking staff."
+      },
+      "survival_kit": {
+        "tap_water": "Safe (purified); refill at public stations and in subway.",
+        "power_plug": "Type C & F (220V, 60Hz). Adapter for US flat pins.",
+        "tipping": "Not expected; can be refused. No tipping in taxis or restaurants.",
+        "toilets": "Western; clean in subway and malls. Often free."
+      },
+      "transit_logic": {
+        "primary_app": "Kakao T (taxi), KakaoMap or Naver Map for transit and walking",
+        "payment_method": "T-money for subway/bus; cards widely accepted; some small places cash only",
+        "etiquette": "Priority seats for elderly; no eating on subway; stand on right on escalators"
+      },
+      "scam_alerts": [
+        "Overpriced skincare in some tourist areas (compare with Olive Young)",
+        "Bar hostess tabs in Hongdae/Itaewon with unclear pricing",
+        "Unlicensed taxis at airport charging flat high fares"
+      ],
+      "real_time_hacks": [
+        "T-money card works in convenience stores and some cafés too",
+        "Subway has English and is very efficient; avoid rush hour if possible",
+        "Olive Young and CU/GS25 for cheap snacks and essentials"
+      ]
+    },
+    {
+      "slug": "mexico-city-mexico",
+      "name": "Mexico City",
+      "country": "Mexico",
+      "last_updated": "2026-02-09",
+      "emergency": {
+        "police": "911",
+        "medical": "911",
+        "health_note": "911 is unified. Private hospitals (e.g. ABC) have English staff; travel insurance advised."
+      },
+      "survival_kit": {
+        "tap_water": "Don't drink. Use bottled water; avoid ice from street vendors. Brush teeth with bottled.",
+        "power_plug": "Type A & B (127V, 60Hz). US plugs work.",
+        "tipping": "10-15% in restaurants; round up taxis. Small change for baggers and gas attendants.",
+        "toilets": "Carry tissue; many public toilets lack it. Cafés and malls are safest."
+      },
+      "transit_logic": {
+        "primary_app": "Uber or DiDi; Google Maps. Metro is cheap but very crowded.",
+        "payment_method": "Cash dominant for taxis and small vendors; card in malls and restaurants",
+        "etiquette": "Keep bags in front; avoid displaying phones on Metro and in crowds"
+      },
+      "scam_alerts": [
+        "Taxi drivers 'without change' or taking long routes",
+        "Fake police asking to see wallet or 'check' money",
+        "ATM skimmers—use bank lobbies and cover the keypad"
+      ],
+      "real_time_hacks": [
+        "Uber is safer and often similar price to street taxis; avoid unlicensed cabs",
+        "Altitude is 2,240m—take it easy the first day; stay hydrated",
+        "Mercados and street food are great but stick to busy, hygienic-looking stalls"
+      ]
+    }
+  ]
+}

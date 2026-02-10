@@ -1,0 +1,17 @@
+# TravelPacks V2 — Project Rules
+
+## Vite & Config
+- **NEVER** create `vite.config.js`. ALWAYS use `vite.config.ts`.
+- If `vite.config.js` is found, DELETE it immediately.
+- Use TypeScript for all configuration and tooling.
+
+## Code
+- Use TypeScript for all application logic. No `.js` or `.jsx` for new source files.
+- Prefer `.ts` and `.tsx` extensions; ensure `tsconfig` includes all relevant paths.
+
+## PWA
+- Path-based PWA scoping is defined in `vite.config.ts` via `VitePWA` (scope, manifest, workbox).
+- Do not duplicate PWA config in a separate manifest file unless required for build output.
+
+## Data & Structure
+- City and travel-survival data lives under `src/data/`. Keep types and data consistent with `cities.ts` schema.
