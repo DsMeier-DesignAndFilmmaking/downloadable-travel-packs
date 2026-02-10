@@ -384,35 +384,42 @@ export default function CityGuideView() {
           </div>
         </motion.section>
 
-        {/* SPENDING SHIELD BENTO */}
-        {!isDomestic && visaData?.destination?.exchange && (
-          <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex justify-between items-end px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">Live Rate</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-center">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Market Rate</p>
-                <p className="text-3xl md:text-4xl font-black text-[#222222] tabular-nums leading-tight">
-                  1 {visaData?.passport?.currency_code || 'USD'} = {visaData?.destination?.exchange} {visaData?.destination?.currency_code}
-                </p>
-                <div className="mt-4 w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center">
-                  <Globe size={22} className="text-slate-400" />
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200/80 rounded-[2.5rem] p-6 flex flex-col justify-center">
-                <div className="flex gap-2 mb-2">
-                  <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">DCC Warning</span>
-                </div>
-                <p className="text-sm font-medium text-amber-900 leading-snug">
-                  <span className="font-bold">Avoid ATM hidden fees:</span> When asked to charge in {visaData?.passport?.currency_code || 'USD'}, <span className="underline italic font-semibold">always decline</span> and choose {visaData?.destination?.currency_code}.
-                </p>
-              </div>
-            </div>
-          </motion.section>
-        )}
+   {/* SPENDING SHIELD BENTO */}
+{!isDomestic && (
+  <motion.section variants={itemVariants} className="space-y-4">
+    <div className="flex justify-between items-end px-2">
+      <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2>
+      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">
+        {cityData.countryCode} Active
+      </span>
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm flex flex-col justify-center">
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Market Rate</p>
+        <p className="text-3xl md:text-4xl font-black text-[#222222] tabular-nums leading-tight">
+          {/* Logic: If API returns TVD for Thailand, force it to THB */}
+          1 USD = {cityData.countryCode === 'TH' ? '31.23' : visaData?.destination?.exchange} {cityData.countryCode === 'TH' ? 'THB' : visaData?.destination?.currency_code}
+        </p>
+        <div className="mt-4 w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center">
+          <span className="text-xl font-bold text-slate-400">
+            {cityData.countryCode === 'TH' ? '฿' : '$'}
+          </span>
+        </div>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200/80 rounded-[2.5rem] p-6 flex flex-col justify-center">
+        <div className="flex gap-2 mb-2">
+          <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Local Tip</span>
+        </div>
+        <p className="text-sm font-medium text-amber-900 leading-snug">
+          {cityData.survival?.tipping}
+        </p>
+      </div>
+    </div>
+  </motion.section>
+)}
 
         {/* SECURITY PROTOCOL */}
         <motion.section variants={itemVariants} className="bg-[#222222] text-white rounded-[2.5rem] overflow-hidden shadow-2xl">
