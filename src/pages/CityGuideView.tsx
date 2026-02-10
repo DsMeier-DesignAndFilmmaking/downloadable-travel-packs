@@ -380,18 +380,7 @@ export default function CityGuideView() {
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power Plug</h3>
               <p className="text-lg font-bold text-[#222222]">{typeof cityData.survival?.power === 'object' ? cityData.survival.power.type : 'Type C/F'}</p>
             </div>
-            {!isDomestic && visaData?.destination?.exchange && (
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm col-span-2 sm:col-span-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-xl" aria-hidden="true">💰</span>
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Exchange</h3>
-                </div>
-                <p className="text-lg font-bold text-[#222222]">
-                  1 {visaData?.passport?.currency_code || 'USD'} = {visaData.destination.exchange} {visaData.destination.currency_code}
-                </p>
-                <p className="text-[10px] text-slate-500 mt-1 italic">Last updated: {cityData.last_updated || '2026-02-10'}</p>
-              </div>
-            )}
+            
           </div>
         </motion.section>
 
