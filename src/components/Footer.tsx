@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Shield, Globe, Mail, Github, Heart, Cpu, Scale, Wifi } from 'lucide-react';
+import { Shield, Mail, Github, Heart, Cpu, Scale, Wifi } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Zap, Database, Cpu, Activity, X, Info, Globe } from 'lucide-react';
+import { ShieldCheck, Zap, Database, Activity } from 'lucide-react';
 
 interface DiagnosticsProps {
   city: string;

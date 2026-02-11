@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
-import { ChevronRight, Globe, Activity, BrainCircuit, ArrowRight, Sparkles } from 'lucide-react';
+import { ChevronRight, Globe, Activity } from 'lucide-react';
 
 // Services & Data
 import { cityPacksList } from '../services/cityService';

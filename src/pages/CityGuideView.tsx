@@ -12,9 +12,7 @@ import {
   Info, 
   Train,
   FileCheck, 
-  Smartphone,
   ExternalLink, 
-  ShieldCheck,
   Globe,
   Activity
 } from 'lucide-react';
@@ -26,6 +24,7 @@ import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
+import SyncButton from '../components/SyncButton';
 
 /** 1. Reserved Space Skeleton for Dashboard to prevent Layout Shifting */
 function HighAlertSkeleton() {
@@ -270,6 +269,13 @@ export default function CityGuideView() {
           <Activity size={10} />
           <span>Under the hood</span>
         </div>
+        {/* Example Placement: In a sub-header or utility bar */}
+      <div className="max-w-xl mx-auto px-6 py-4 flex justify-between items-center">
+        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+          Field Intel
+        </h2>
+        <SyncButton onSync={refetch} isOffline={isOffline} />
+      </div>
       </div>
 
       {/* 2. REGISTRATION BANNER */}
