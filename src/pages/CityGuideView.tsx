@@ -593,7 +593,7 @@ export default function CityGuideView() {
               Download Pack
               </span>
               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                Download {cityData.name} Pack for Offline Use // 2.4MB
+                Store {cityData.name} Pack for Offline Use // 2.4MB
               </span>
             </div>
             </div>
