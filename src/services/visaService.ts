@@ -56,17 +56,20 @@ export const fetchVisaCheck = async (passport: string, destination: string) => {
   
     try {
       const response = await axios.request(options);
-      
-      // 2. DEBUG: This will show a nice table in your Chrome Console
-      if (response.data && response.data.data) {
-        console.log("✅ API SUCCESS:");
-        console.table(response.data.data.destination);
-      } else {
-        console.warn("⚠️ API returned 200 but no data. Check if country code is valid:", cleanDestination);
-      }
-  
-      // 3. Handle both possible nesting structures
-      return response.data.data || response.data;
+      const rawData = response.data.data || response.data;
+    
+      // 1. DATA NORMALIZATION: Map inconsistent API fields to your UI's expected format
+      const normalizedData: VisaCheckData = {
+        ...rawData,
+        mandatory_registration: rawData.mandatory_registration ? {
+          // Fallback logic: check if 'text' exists, if not, try 'label', then 'name'
+          text: rawData.mandatory_registration.text || rawData.mandatory_registration.label || rawData.mandatory_registration.name,
+          link: rawData.mandatory_registration.link,
+          color: rawData.mandatory_registration.color || 'amber'
+        } : null
+      };
+    
+      return normalizedData;
     } catch (error) {
       console.error("❌ API ERROR:", error);
       return null;
