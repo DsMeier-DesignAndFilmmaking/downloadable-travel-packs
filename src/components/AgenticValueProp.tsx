@@ -1,142 +1,88 @@
 import { useState } from 'react';
-import { motion, type Variants, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Smartphone, Zap, X, ChevronRight } from 'lucide-react';
-
-/** * Animation variants using the imported Variants type 
- * to ensure TS6133 is cleared during build.
- */
-const overlayVariants: Variants = {
-  hidden: { 
-    opacity: 0, 
-    scale: 0.95,
-    transition: { duration: 0.2 }
-  },
-  visible: { 
-    opacity: 1, 
-    scale: 1,
-    transition: { 
-      duration: 0.3, 
-      ease: [0.23, 1, 0.32, 1] 
-    }
-  },
-  exit: { 
-    opacity: 0, 
-    scale: 0.95,
-    transition: { duration: 0.2 }
-  }
-};
+import { motion, AnimatePresence } from 'framer-motion';
+import { CloudOff, Globe, Zap } from 'lucide-react';
 
 const COLUMNS = [
   {
-    id: 'entry',
-    icon: ShieldCheck,
-    title: 'Arrival Ready',
-    tagline: 'Visas and entry rules verified for your arrival.',
-    technicalDetail: 'Cross-references IATA Timatic data with local embassy JSON feeds.'
+    id: 'KNOW',
+    icon: Globe,
+    label: 'Live Updates',
+    detail: 'Fresh data on 2026 entry rules and visa status, synced the second you’re online.'
   },
   {
-    id: 'digital',
-    icon: Smartphone,
-    title: 'Instant Setup',
-    tagline: 'Maps, eSIMs, and transit passes pre-mapped.',
-    technicalDetail: 'Automated provisioning for GSMA-compliant eSIMs and Vector Tile caching.'
+    id: 'RELY',
+    icon: CloudOff,
+    label: <>No Signal? <br /> No Prob.</>, // Use a Fragment with a <br />
+    detail: 'All your critical city guides stay tucked in your pocket, even without Wi-Fi or roaming.'
   },
   {
-    id: 'safety',
-    icon: Zap,
-    title: 'Live Alerts',
-    tagline: 'Stay ahead of local scams and transport delays.',
-    technicalDetail: 'Aggregates GDACS alerts and GTFS-Realtime feeds with AI sentiment.'
-  },
+      id: 'FLOW',
+      icon: Zap,
+      label: 'Land & Go',
+      detail: 'Skip the arrival stress. We’ve pre-mapped your transit hacks and eSIM setups so you can head straight to the city.'
+    },
 ] as const;
 
 export default function AgenticValueProp() {
-  const [activeSpec, setActiveSpec] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   
   return (
-    <section className="relative w-full">
-      {/* CONSTRAINED CONTAINER:
-        Matches the max-w-xl (576px) of the home page.
-        Responsive: Swipes on mobile (w-[92%]), grids on desktop.
-      */}
-      <div 
-        className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar gap-3 pb-4 md:pb-0"
-        style={{ scrollbarWidth: 'none' }}
-      >
+    <section className="w-full" aria-label="Key Features">
+      <div className="grid grid-cols-3 gap-2">
         {COLUMNS.map((col) => {
           const Icon = col.icon;
-          const isExpanded = activeSpec === col.id;
+          const isActive = activeId === col.id;
+          const contentId = `detail-${col.id}`;
 
           return (
-            <motion.div 
-              key={col.id} 
-              className="relative flex-none w-[92%] md:w-full snap-center"
-            >
-              <div className="h-full rounded-[2rem] border border-emerald-500/20 bg-[#141617] p-6 shadow-xl ring-1 ring-white/5 
-                            min-h-[190px] flex flex-col justify-between transition-all duration-300">
-                
-                {/* Marketing View */}
-                <div className={`transition-all duration-300 ${isExpanded ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      <Icon size={20} />
-                    </div>
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-emerald-500">
-                      {col.title}
-                    </h3>
-                  </div>
-                  
-                  <p className="text-[14px] leading-snug font-medium text-slate-200">
-                    {col.tagline}
-                  </p>
-
-                  <button 
-                    onClick={() => setActiveSpec(col.id)}
-                    className="mt-4 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-emerald-400 transition-colors"
-                  >
-                    View Spec <ChevronRight size={12} />
-                  </button>
+            <div key={col.id} className="relative h-full">
+              <motion.button 
+                // 1. SEMANTICS: Changed div to button for keyboard focus
+                type="button"
+                onClick={() => setActiveId(isActive ? null : col.id)}
+                // 2. ARIA: Tells screen readers if content is open
+                aria-expanded={isActive}
+                aria-controls={contentId}
+                className={`w-full cursor-pointer rounded-2xl p-5 transition-all duration-300 border h-full flex flex-col items-center text-center 
+                  ${isActive 
+                    ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20' 
+                    : 'bg-white border-slate-100 hover:border-slate-300 shadow-sm focus:ring-2 focus:ring-slate-400 outline-none'}`}
+              >
+                {/* 3. ICON: aria-hidden because the text provides the meaning */}
+                <div className={`mb-3 p-2 rounded-xl ${isActive ? 'text-emerald-700 bg-white' : 'text-slate-500 bg-slate-50'}`}>
+                  <Icon size={20} strokeWidth={2.5} aria-hidden="true" />
                 </div>
 
-                {/* Technical Overlay */}
+                {/* 4. LEGIBILITY: Bumped font sizes to 10px/14px minimums */}
+                <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1.5 
+                  ${isActive ? 'text-emerald-800' : 'text-slate-500'}`}>
+                  {col.id}
+                </h3>
+                
+                <p className="text-[14px] font-black text-[#222222] leading-tight">
+                  {col.label}
+                </p>
+
                 <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div 
-                      variants={overlayVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      className="absolute inset-0 bg-[#0A0A0B] rounded-[2rem] p-6 z-10 flex flex-col justify-between border border-emerald-500/40 shadow-2xl"
+                  {isActive && (
+                    <motion.div
+                      id={contentId} // Matches aria-controls
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
                     >
-                      <div>
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-[9px] font-mono text-emerald-500 uppercase tracking-tighter">
-                            Log // {col.id}
-                          </span>
-                          <button 
-                            onClick={() => setActiveSpec(null)} 
-                            className="p-2 -m-2 text-slate-400 hover:text-white transition-colors"
-                            aria-label="Close specification"
-                          >
-                            <X size={18} />
-                          </button>
-                        </div>
-                        <p className="text-[12px] font-mono text-slate-300 leading-relaxed">
-                          {col.technicalDetail}
+                      <div className="pt-4 mt-4 border-t border-emerald-200">
+                        {/* 5. CONTRAST: Use emerald-900 for dark-on-light accessibility */}
+                        <p className="text-[12px] font-bold text-emerald-900 leading-snug">
+                          {col.detail}
                         </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 self-end">
-                        <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
-                        <div className="text-[9px] font-mono text-emerald-900 uppercase">
-                          STABLE_BUILD
-                        </div>
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
-            </motion.div>
+              </motion.button>
+            </div>
           );
         })}
       </div>

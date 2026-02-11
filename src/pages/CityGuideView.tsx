@@ -15,7 +15,8 @@ import {
   Smartphone,
   ExternalLink, 
   ShieldCheck,
-  Globe 
+  Globe,
+  Activity
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
@@ -24,6 +25,7 @@ import { MANIFEST_URL } from '@/services/apiConfig';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
+import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 
 /** 1. Reserved Space Skeleton for Dashboard to prevent Layout Shifting */
 function HighAlertSkeleton() {
@@ -132,37 +134,32 @@ function mandatoryRegistrationBg(color?: string): string {
   return 'bg-amber-100';
 }
 
-function AgenticSystemStatus({ city }: { city: string }) {
+/** * REPLACED: Static Status View is now a Trigger 
+ */
+function AgenticSystemTrigger({ city, onClick }: { city: string, onClick: () => void }) {
   return (
-    <motion.div variants={itemVariants} className="flex flex-col gap-3 p-5 rounded-[2rem] bg-emerald-500/[0.03] border border-emerald-500/10 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldCheck size={16} className="text-emerald-600" />
-          <span className="text-[12px] font-bold uppercase tracking-tight text-slate-600">Entry Compliance</span>
+    <motion.button 
+      variants={itemVariants} 
+      onClick={onClick}
+      className="w-full flex items-center justify-between p-6 rounded-[2rem] bg-emerald-500/[0.04] border border-emerald-500/10 shadow-sm active:scale-[0.98] transition-all group"
+    >
+      <div className="flex items-center gap-4">
+        <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20">
+          <Zap size={20} className="text-white fill-white" />
         </div>
-        <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">Verified for {city}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Smartphone size={16} className="text-emerald-600" />
-          <span className="text-[12px] font-bold uppercase tracking-tight text-slate-600">Connectivity</span>
+        <div className="text-left">
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] font-black uppercase tracking-tight text-slate-700">Agentic Intelligence</span>
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </div>
+          <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter mt-0.5">Verified Local Protocols for {city}</p>
         </div>
-        <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">eSIM Ready</span>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap size={16} className="text-emerald-600" />
-          <span className="text-[12px] font-bold uppercase tracking-tight text-slate-600">Security Shield</span>
-        </div>
-        <span className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">Live Scan</span>
-        </span>
+      <div className="flex flex-col items-end opacity-40 group-hover:opacity-100 transition-opacity">
+        <Activity size={16} className="text-slate-400" />
+        <span className="text-[8px] font-black uppercase tracking-widest mt-1">Diagnostics</span>
       </div>
-    </motion.div>
+    </motion.button>
   );
 }
 
@@ -176,6 +173,7 @@ export default function CityGuideView() {
   const [isDomestic, setIsDomestic] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
 
   // Synchronize Visa API with City Data
   useEffect(() => {
@@ -225,15 +223,8 @@ export default function CityGuideView() {
 
   // Global Skeleton Loading
   if (packLoading || !cityData) return (
-    <div className="min-h-screen bg-[#F7F7F7]">
-      <div className="max-w-2xl mx-auto px-6 pt-24 space-y-8 animate-pulse">
-        <div className="w-10 h-10 bg-slate-200 rounded-xl" />
-        <div className="h-10 w-48 bg-slate-200 rounded-lg" />
-        <div className="grid grid-cols-2 gap-4">
-          <div className="h-32 bg-slate-200 rounded-3xl" />
-          <div className="h-32 bg-slate-200 rounded-3xl" />
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#F7F7F7] flex flex-col justify-center items-center">
+       <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
     </div>
   );
 
@@ -256,18 +247,32 @@ export default function CityGuideView() {
       variants={containerVariants}
       className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40"
     >
+      <DiagnosticsOverlay 
+        city={cityData.name} 
+        isOpen={isDiagnosticsOpen} 
+        onClose={() => setIsDiagnosticsOpen(false)} 
+      />
+
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
-      {/* 1. STATUS BAR */}
-      <div className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm ${isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#FFDD00] text-[#222222]'}`}>
+      {/* 1. STATUS BAR - Now a toggle for Diagnostics */}
+      <div 
+        onClick={() => setIsDiagnosticsOpen(true)}
+        className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
+          isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
+        }`}
+      >
         <span className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-[#222222]'}`} />
-          {isOffline ? 'Offline Mode Active' : 'Live Field Data'}
+          <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
+          {isOffline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
         </span>
-        {!isOffline && <button onClick={() => refetch()} className="underline decoration-2 underline-offset-4">Refresh</button>}
+        <div className="flex items-center gap-2 opacity-60">
+          <Activity size={10} />
+          <span>Under the hood</span>
+        </div>
       </div>
 
-      {/* 2. REGISTRATION BANNER WITH CLS SKELETON */}
+      {/* 2. REGISTRATION BANNER */}
       <div className="sticky top-[38px] z-50 min-h-[45px]">
         {isApiLoading ? (
           <div className="w-full px-6 py-3 border-b border-slate-200/80 bg-slate-100 animate-pulse flex items-center justify-between">
@@ -299,7 +304,7 @@ export default function CityGuideView() {
           </Link>
           <div className="text-right flex flex-col items-end">
             <h1 
-              className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer select-none" 
+              className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer select-none italic" 
               onClick={() => {
                 setDebugTapCount(prev => prev + 1);
                 if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); }
@@ -315,17 +320,22 @@ export default function CityGuideView() {
             </p>
           </div>
         </div>
-        <AgenticSystemStatus city={cityData.name} />
+        <AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
       </motion.header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <motion.section variants={itemVariants} className="space-y-6">
-          <div className="px-2 flex items-center justify-between">
+          <div 
+            onClick={() => setIsDiagnosticsOpen(true)}
+            className="px-2 flex items-center justify-between cursor-pointer group"
+          >
             <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
               Survival Dashboard
               <SourceInfo source="Travel Buddy Protocol v2" lastUpdated="Synced 4m ago" />
             </h2>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-full">v4.2.0</span>
+            <div className="flex items-center gap-2">
+               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-full group-hover:bg-emerald-500 group-hover:text-white transition-colors">v4.2.0</span>
+            </div>
           </div>
 
           <div className="min-h-[140px]">

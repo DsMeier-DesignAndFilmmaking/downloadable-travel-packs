@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Shield, Globe, Mail, Github, Heart, Cpu, FileText, Scale, ShieldAlert } from 'lucide-react';
+import { Shield, Globe, Mail, Github, Heart, Cpu, Scale, Wifi } from 'lucide-react';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -17,9 +17,10 @@ export default function Footer() {
             </span>
           </div>
           <p className="text-sm text-slate-500 leading-relaxed font-medium">
-            Deploying autonomous travel intelligence. Cross-referencing 
-            live field data to ensure your arrival is frictionless and secure.
-            Developed under the <span className="text-[#222222] font-bold">Travel Buddy Protocol v2</span>.
+            Solving real-time travel friction with live field intelligence. The protocol 
+            ensures <span className="text-[#222222] font-bold">offline availability</span> for 
+            critical data—automatically syncing the latest ground-truth intel when online 
+            so you’re never without a solution while your roaming around the planet.
           </p>
         </div>
 
@@ -30,7 +31,7 @@ export default function Footer() {
               <Cpu size={12} /> Protocol
             </h4>
             <ul className="space-y-3 text-sm font-bold text-[#222222]">
-              <li><Link to="/" className="hover:text-emerald-600 transition-colors">Global Catalog</Link></li>
+              <li><Link to="/" onClick={() => window.scrollTo(0, 0)} className="hover:text-emerald-600 transition-colors">Global Catalog</Link></li>
               <li><Link to="/specs" className="hover:text-emerald-600 transition-colors">System Specs</Link></li>
               <li><Link to="/security-protocol" className="hover:text-emerald-600 transition-colors">Security Protocol</Link></li>
             </ul>
@@ -57,23 +58,27 @@ export default function Footer() {
               <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub Source" className="hover:text-[#222222] transition-colors">
                 <Github size={18} />
               </a>
-              <Globe size={18} className="opacity-50" />
+              {/* This Wifi icon visualizes the offline/online mission */}
+              <div className="flex items-center gap-1.5 text-emerald-500">
+                <Wifi size={18} />
+                <span className="text-[10px] font-black uppercase tracking-tighter">Sync Active</span>
+              </div>
             </div>
             
             <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
               <Shield size={12} className="text-emerald-600" />
               <span className="text-[9px] font-black text-emerald-700 uppercase tracking-tighter">
-                AES-256 Encrypted
+                O2O Verified 2026
               </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-2">
             <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-              Hand-coded with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern survivor.
+              Engineered with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern survivor.
             </p>
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-              © {currentYear} Travel Buddy AI Protocol. All Intelligence Verified.
+              © {currentYear} Travel Buddy AI Protocol.
             </p>
           </div>
         </div>
