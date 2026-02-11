@@ -1,9 +1,16 @@
-import { motion } from 'framer-motion';
 import { ChevronLeft, AlertTriangle, ShieldAlert, MapPinOff, Flame, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export default function TravelDisclaimerView() {
   return (
+    // Wrap your content in a motion.div to "read" the variable
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="max-w-2xl mx-auto py-16 px-6"
+    >
     <div className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-20">
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <Link to="/" className="inline-flex p-3 bg-white border border-slate-200 rounded-xl shadow-sm mb-8 active:scale-95 transition-transform">
@@ -93,6 +100,7 @@ export default function TravelDisclaimerView() {
         </footer>
       </main>
     </div>
+    </motion.div>
   );
 }
 
