@@ -83,7 +83,7 @@ export default function HomePage() {
           variants={itemVariants}
           className="text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl"
         >
-          Experience <span className="text-[#222222] font-semibold">real-time syncing</span> while online and <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">downloadable packs</span> that stay ready for <span className="text-[#222222] font-semibold">any moment</span>.
+          Experience <span className="text-[#222222] font-semibold">real-time syncing</span> while online and <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">downloadable travel packs</span> that stay ready for <span className="text-[#222222] font-semibold">any moment</span>.
         </motion.p>
         </header>
 
@@ -102,15 +102,21 @@ export default function HomePage() {
 
         {/* Catalog Section */}
         <section className="max-w-xl mx-auto px-6 space-y-6">
-          <motion.div variants={itemVariants} className="flex items-center justify-between px-2">
-            <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">
-              Current Catalog
-            </h2>
-            <div className="h-[1px] flex-grow mx-4 bg-slate-200" />
-            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-              {cityPacksList.length} Units
-            </span>
-          </motion.div>
+        <motion.div variants={itemVariants} className="flex items-center justify-between px-2">
+        <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">
+          Current Catalog
+        </h2>
+        <div className="h-[1px] flex-grow mx-4 bg-slate-200" />
+        <div className="flex items-center gap-3">
+          <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+            {cityPacksList.length} Units
+          </span>
+          <div className="w-[1px] h-2.5 bg-slate-200" /> {/* Small Separator */}
+          <span className="text-[9px] font-black text-emerald-500/80 uppercase tracking-tighter">
+            More Packs&nbsp;Pending&nbsp;Deployment
+          </span>
+        </div>
+      </motion.div>
           
           <motion.div variants={containerVariants} className="grid gap-4">
   {cityPacksList.map((city, index) => (
@@ -135,7 +141,7 @@ export default function HomePage() {
                 {city.name}
               </h3>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
-                {city.countryName} // Deployment Ready
+                {city.countryName} // Verified & Ready
               </p>
             </div>
           </div>

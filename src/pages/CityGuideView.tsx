@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
-import { useCityPack } from '@/hooks/useCityPack';
+import { useCityPack, type SyncStatus } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { MANIFEST_URL } from '@/services/apiConfig';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
@@ -186,7 +186,7 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
 
 export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
-  const { cityData, isLoading: packLoading, isOffline, error, refetch } = useCityPack(slug || '');
+  const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(slug || '');
   const { isInstallable, installPWA, isInstalled } = usePWAInstall();
   
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
@@ -349,7 +349,11 @@ export default function CityGuideView() {
         </span>
         </div>
         <div className="h-8 w-[1px] bg-slate-200 mx-1" /> {/* Vertical Divider */}
-        <SyncButton onSync={refetch} isOffline={isOffline} />
+        <SyncButton 
+          onSync={refetch} 
+          isOffline={isOffline} 
+          status={syncStatus} 
+        />
       </div>
     </div>
   </div>
@@ -449,19 +453,31 @@ export default function CityGuideView() {
           </motion.section>
         )}
 
-        {/* BASICS */}
-        <motion.section variants={itemVariants} className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
-            <Droplets className="text-blue-500 mb-4" size={28} />
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
-            <p className="text-xl font-bold text-[#222222]">{cityData.survival?.tapWater}</p>
-          </div>
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
-            <Zap className="text-[#FFDD00]" size={28} fill="#FFDD00" />
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power Plug</h3>
-            <p className="text-xl font-bold text-[#222222]">{typeof cityData.survival?.power === 'object' ? cityData.survival.power.type : 'Type C/F'}</p>
-          </div>
-        </motion.section>
+{/* BASICS / SURVIVAL KIT */}
+<motion.section variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  
+  {/* Tap Water - Logic: Checks new key, then old key, then default */}
+  <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
+  <Droplets className="text-blue-500 mb-4" size={28} />
+  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
+  <p className="text-xl font-bold text-[#222222]">
+    {/* We cast survival to 'any' to allow the property check */}
+    {(cityData.survival as any)?.water || cityData.survival?.tapWater || "Check Local Intel"}
+  </p>
+</div>
+  
+  {/* Power Plug - Logic: Handles Object {type, voltage} or String "Type C" */}
+  <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
+    <Zap className="text-[#FFDD00]" size={28} fill="#FFDD00" />
+    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power System</h3>
+    <p className="text-xl font-bold text-[#222222]">
+      {typeof cityData.survival?.power === 'object' 
+        ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
+        : (cityData.survival?.power || "Type C / 220V")}
+    </p>
+  </div>
+
+</motion.section>
 
 {/* SPENDING SHIELD */}
 {!isDomestic && (() => {
@@ -573,13 +589,13 @@ export default function CityGuideView() {
                 <Download size={20} strokeWidth={3} />
               </div>
               <div className="flex flex-col items-start text-left">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-                  Save For Offline Use
-                </span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  Offline Access // 2.4MB
-                </span>
-              </div>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+              Download Pack
+              </span>
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                Download {cityData.name} Pack for Offline Use // 2.4MB
+              </span>
+            </div>
             </div>
             <div className="flex items-center gap-2 opacity-30 group-hover:opacity-100 transition-opacity">
               <div className="h-1 w-1 rounded-full bg-white animate-pulse" />

@@ -1,43 +1,90 @@
-import { motion } from 'framer-motion';
-import { RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { RefreshCw, Check, AlertCircle, Loader2 } from 'lucide-react';
+import type { SyncStatus } from '@/hooks/useCityPack';
 
 interface SyncButtonProps {
-  onSync: () => Promise<any>;
+  onSync: () => Promise<void>;
   isOffline: boolean;
+  status: SyncStatus;
 }
 
-export default function SyncButton({ onSync, isOffline }: SyncButtonProps) {
-  const [isSyncing, setIsSyncing] = useState(false);
-
-  const handleSync = async () => {
-    if (isOffline) return;
-    setIsSyncing(true);
-    await onSync();
-    // Artificial delay for that "System Processing" feel
-    setTimeout(() => setIsSyncing(false), 800);
+export default function SyncButton({ onSync, isOffline, status }: SyncButtonProps) {
+  
+  const getStatusConfig = () => {
+    if (isOffline) {
+      return { 
+        icon: <AlertCircle size={14} />, 
+        label: "Offline", 
+        classes: "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" 
+      };
+    }
+    
+    switch (status) {
+      case 'syncing':
+        return { 
+          icon: <Loader2 size={14} className="animate-spin" />, 
+          label: "Syncing...", 
+          classes: "bg-white border-amber-200 text-amber-600" 
+        };
+      case 'success':
+        return { 
+          icon: <Check size={14} />, 
+          label: "Intel Verified", 
+          classes: "bg-[#E8FBF8] border-[#34D399]/30 text-[#065F46]" 
+        };
+      case 'error':
+        return { 
+          icon: <AlertCircle size={14} />, 
+          label: "Retry Pulse", 
+          classes: "bg-rose-50 border-rose-200 text-rose-600" 
+        };
+      default:
+        return { 
+          icon: <RefreshCw size={14} className="text-[#34D399]" />, 
+          label: "Sync Pulse", 
+          classes: "bg-white border-slate-200 text-[#222222] hover:shadow-md hover:border-slate-300" 
+        };
+    }
   };
+
+  const config = getStatusConfig();
 
   return (
     <motion.button
-      onClick={handleSync}
-      disabled={isOffline || isSyncing}
-      whileTap={{ scale: 0.95 }}
+      onClick={onSync}
+      disabled={isOffline || status === 'syncing'}
+      whileTap={!isOffline && status !== 'syncing' ? { scale: 0.95 } : {}}
       className={`
-        flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-500
-        ${isOffline 
-          ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed' 
-          : 'bg-white border-[#E8FBF8] text-[#222222] hover:shadow-md hover:border-[#E8FBF8]/80'}
+        relative flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-300
+        ${config.classes}
       `}
     >
-      <RefreshCw 
-        size={14} 
-        className={`${isSyncing ? 'animate-spin' : ''} ${isOffline ? 'opacity-20' : 'text-[#E8FBF8]'}`} 
-        color={!isOffline ? "#34D399" : undefined} // Using a minty green to match your #E8FBF8 vibe
-      />
-      <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-        {isSyncing ? 'Syncing...' : isOffline ? 'Offline' : 'Sync Pulse'}
-      </span>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={status + (isOffline ? 'off' : 'on')}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ duration: 0.15 }}
+          className="flex items-center gap-2"
+        >
+          {config.icon}
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
+            {config.label}
+          </span>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Success Pulse Effect */}
+      {status === 'success' && (
+        <motion.div
+          layoutId="pulse"
+          className="absolute inset-0 rounded-full bg-[#34D399]/10"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1.1, opacity: 1 }}
+          transition={{ duration: 0.4, repeat: 1, repeatType: 'reverse' }}
+        />
+      )}
     </motion.button>
   );
 }

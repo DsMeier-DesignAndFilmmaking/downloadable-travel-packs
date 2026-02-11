@@ -5,7 +5,11 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full bg-white border-t border-slate-200 pt-16 pb-8 mt-20">
+    /* CHANGE: Updated pb-8 to pb-44. 
+       This 11rem (176px) buffer ensures that the "All Rights Reserved" 
+       text clears the fixed "Save Field Pack" button and its background blur.
+    */
+    <footer className="w-full bg-white border-t border-slate-200 pt-16 pb-44 mt-20">
       <div className="max-w-xl mx-auto px-6">
         
         {/* Top Section: Brand & Vision */}
@@ -58,7 +62,6 @@ export default function Footer() {
               <a href="https://github.com" target="_blank" rel="noopener noreferrer" aria-label="GitHub Source" className="hover:text-[#222222] transition-colors">
                 <Github size={18} />
               </a>
-              {/* This Wifi icon visualizes the offline/online mission */}
               <div className="flex items-center gap-1.5 text-emerald-500">
                 <Wifi size={18} />
                 <span className="text-[10px] font-black uppercase tracking-tighter">Sync Active</span>
@@ -75,7 +78,7 @@ export default function Footer() {
 
           <div className="flex flex-col gap-2">
             <p className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-              Engineered with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern survivor.
+              Engineered with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern traveler.
             </p>
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
               © {currentYear} All Rights Reserved // Intelligent Systems Corp.

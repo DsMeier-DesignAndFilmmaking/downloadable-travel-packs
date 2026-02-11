@@ -1,55 +1,105 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { fetchCityPack } from '../services/cityService'
 import type { CityPack } from '../types/cityPack'
+
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
 
 export interface UseCityPackResult {
   cityData: CityPack | null
   isLoading: boolean
-  isOffline: boolean
+  isOffline: boolean      // Physical connection status
+  isLocalData: boolean    // Data source pedigree (Cache vs Live)
+  syncStatus: SyncStatus  // The "Handshake" state for the UI
+  lastSynced: number | null // Unix timestamp of last successful sync
   error: Error | null
-  refetch: () => Promise<void> // Added this
+  refetch: () => Promise<void>
 }
 
 export function useCityPack(slug: string | undefined): UseCityPackResult {
   const [cityData, setCityData] = useState<CityPack | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isOffline, setIsOffline] = useState(false)
+  const [isLocalData, setIsLocalData] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  
+  // Tactical States
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const [lastSynced, setLastSynced] = useState<number | null>(null)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loadData = useCallback(async () => {
+  // 1. Real-time Network Listener
+  useEffect(() => {
+    const handleStatus = () => setIsOffline(!navigator.onLine)
+    window.addEventListener('online', handleStatus)
+    window.addEventListener('offline', handleStatus)
+    return () => {
+      window.removeEventListener('online', handleStatus)
+      window.removeEventListener('offline', handleStatus)
+    }
+  }, [])
+
+  // 2. Data Loading Logic
+  const loadData = useCallback(async (isManualRefetch = false) => {
     if (!slug) {
       setCityData(null)
       setIsLoading(false)
-      setIsOffline(false)
-      setError(null)
       return
     }
 
-    setIsLoading(true)
+    // If manual, trigger the 'syncing' UI state
+    if (isManualRefetch) setSyncStatus('syncing')
+    else setIsLoading(true)
+    
     setError(null)
 
     try {
       const { pack, isOffline: fromLocal } = await fetchCityPack(slug)
+      
       setCityData(pack)
-      setIsOffline(fromLocal)
+      setIsLocalData(fromLocal)
+
+      if (isManualRefetch || !fromLocal) {
+        setLastSynced(Date.now())
+        setSyncStatus('success')
+        
+        // Handshake Reset: Return to idle after 3 seconds
+        if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+        successTimeoutRef.current = setTimeout(() => {
+          setSyncStatus('idle')
+        }, 3000)
+      }
     } catch (err) {
-      setCityData(null)
+      setSyncStatus('error')
       setError(err instanceof Error ? err : new Error(String(err)))
-      setIsOffline(false)
     } finally {
       setIsLoading(false)
     }
   }, [slug])
 
+  // Initial Load
   useEffect(() => {
-    loadData()
+    loadData(false)
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+    }
   }, [loadData])
+
+  // Wrapper for manual sync trigger
+  const refetch = useCallback(async () => {
+    // Prevent double-syncing if already in progress
+    if (syncStatus === 'syncing') return
+    await loadData(true)
+  }, [loadData, syncStatus])
 
   return { 
     cityData, 
     isLoading, 
-    isOffline, 
+    isOffline,     
+    isLocalData,
+    syncStatus,
+    lastSynced,
     error, 
-    refetch: loadData // Exposing the loader as refetch
+    refetch 
   }
 }

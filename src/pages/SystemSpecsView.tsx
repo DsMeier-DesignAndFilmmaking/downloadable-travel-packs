@@ -95,8 +95,7 @@ export default function SystemSpecsView() {
         {/* VERSION HISTORY */}
         <footer className="pt-10 border-t border-slate-200 text-center">
           <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed italic">
-            "Designed for travelers, built for survivors."<br />
-            © 2026 All Rights Reserved // Intelligent Systems Corp.
+            "Designed for travelers, built for trust."<br />
           </p>
         </footer>
       </main>
