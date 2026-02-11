@@ -25,6 +25,7 @@ import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
+import FacilityKit from '@/components/FacilityKit'; // 1. Add Import
 
 /** 1. Reserved Space Skeleton for Dashboard to prevent Layout Shifting */
 function HighAlertSkeleton() {
@@ -338,23 +339,32 @@ export default function CityGuideView() {
         {cityData.theme}
       </p>
       
-      {/* INTEGRATED FIELD INTEL & SYNC */}
-      <div className="mt-4 flex items-center gap-3">
-        <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase leading-none">
-            Field Intel
-          </span>
-          <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest mt-1">
-          {cityData.countryName} // v2.0.4
+    {/* INTEGRATED FIELD INTEL & SYNC */}
+    <div className="mt-6 flex items-center gap-4">
+      <div className="flex flex-col items-end">
+        {/* Headline: Darkened for ADA contrast */}
+        <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
+          Local Intel
         </span>
-        </div>
-        <div className="h-8 w-[1px] bg-slate-200 mx-1" /> {/* Vertical Divider */}
-        <SyncButton 
-          onSync={refetch} 
-          isOffline={isOffline} 
-          status={syncStatus} 
-        />
+        
+        {/* Dynamic Time: Replaced versioning with human-readable sync time */}
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+          {isOffline 
+            ? "Viewing Offline" 
+            : `Updated ${new Date(cityData.last_updated || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`
+          }
+        </span>
       </div>
+
+      {/* Visual Separator */}
+      <div className="h-9 w-[1px] bg-slate-200 mx-1" aria-hidden="true" />
+
+      <SyncButton 
+        onSync={refetch} 
+        isOffline={isOffline} 
+        status={syncStatus} 
+      />
+    </div>
     </div>
   </div>
   
@@ -454,29 +464,48 @@ export default function CityGuideView() {
         )}
 
 {/* BASICS / SURVIVAL KIT */}
-<motion.section variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  
-  {/* Tap Water - Logic: Checks new key, then old key, then default */}
-  <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
-  <Droplets className="text-blue-500 mb-4" size={28} />
-  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
-  <p className="text-xl font-bold text-[#222222]">
-    {/* We cast survival to 'any' to allow the property check */}
-    {(cityData.survival as any)?.water || cityData.survival?.tapWater || "Check Local Intel"}
-  </p>
-</div>
-  
-  {/* Power Plug - Logic: Handles Object {type, voltage} or String "Type C" */}
-  <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
-    <Zap className="text-[#FFDD00]" size={28} fill="#FFDD00" />
-    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power System</h3>
-    <p className="text-xl font-bold text-[#222222]">
-      {typeof cityData.survival?.power === 'object' 
-        ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
-        : (cityData.survival?.power || "Type C / 220V")}
-    </p>
+<motion.section variants={itemVariants} className="space-y-6">
+  {/* Section Label: Increased size to 12px and darkened for contrast */}
+  <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+    Basic Needs
+  </h2>
+
+  {/* TOP ROW: 2 Blocks Side-by-Side */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {/* Tap Water */}
+    <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+      <Droplets className="text-blue-600 mb-4" size={32} aria-hidden="true" />
+      <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">
+        Tap Water
+      </h3>
+      {/* ADA Update: Increased to text-2xl (approx 24px) for clear legibility */}
+      <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+        {(cityData.survival as any)?.water || cityData.survival?.tapWater || "Check Local Intel"}
+      </p>
+    </div>
+
+    {/* Power Plug */}
+    <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+      {/* Darkened Zap icon slightly for better contrast on white */}
+      <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" aria-hidden="true" />
+      <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">
+        Power System
+      </h3>
+      <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+        {typeof cityData.survival?.power === 'object' 
+          ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
+          : (cityData.survival?.power || "Type C / 220V")}
+      </p>
+    </div>
   </div>
 
+  {/* BOTTOM ROW: Full Width Facility Kit */}
+  {cityData.facility_intel && (
+    <div className="w-full">
+      {/* Ensure your FacilityKit component internally uses text-base (16px) or larger for its grid items */}
+      <FacilityKit data={cityData.facility_intel} />
+    </div>
+  )}
 </motion.section>
 
 {/* SPENDING SHIELD */}

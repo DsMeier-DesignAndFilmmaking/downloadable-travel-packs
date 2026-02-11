@@ -1,269 +1,352 @@
 /**
- * ScoutPacks V2 — Tactical Field Intel
- * Top 10 cities 2026: research-backed emergency, survival, transit, and tactical protocols.
+ * TravelPacks V2 — Travel Survival data
+ * Top 10 cities 2026: research-backed emergency, infrastructure, transit, and scams.
  */
 
 export interface CityEmergency {
-  police: string;
-  medical: string;
-  notes: string;
+  police: string
+  medical: string
+  notes: string
 }
 
-export interface CitySurvival {
-  water: string;
-  power: string;
-  tipping: string;
-  toilets: string;
+export interface CityFrictionPoints {
+  water: string
+  power: string
+  tipping: string
+  toilets: string
 }
 
 export interface CityTransit {
-  app: string;
-  payment: string;
-  etiquette: string;
+  app: string
+  payment: string
+  etiquette: string
 }
 
-export interface CityTactical {
-  connectivity: string;
-  weather: string;
-  payment_logic: string;
+/** Operational Infrastructure Specs */
+export interface FacilityIntel {
+  access: string
+  hygiene: string
+  protocol: string
+  availability: string
 }
 
 export interface City {
-  slug: string;
-  name: string;
-  country: string;
-  last_updated: string;
-  emergency: CityEmergency;
-  survival: CitySurvival;
-  transit: CityTransit;
-  tactical: CityTactical;
-  scams: string[];
-  field_hacks: string[];
+  slug: string
+  emergency: CityEmergency
+  frictionPoints: CityFrictionPoints
+  facility_intel: FacilityIntel
+  transit: CityTransit
+  scams: string[]
+  aiInsights?: string | null
 }
 
 export const cities: City[] = [
   {
     slug: 'bangkok-thailand',
-    name: 'Bangkok',
-    country: 'Thailand',
-    last_updated: '2026-02-11',
     emergency: {
       police: '191',
       medical: '1669',
-      notes: 'Tourist Police 1155 (English). Use Bumrungrad or Samitivej hospitals for top English care.',
+      notes: 'Tourist Police 1155 (24h, English). Hospitals like Bumrungrad have English-speaking staff.',
     },
-    survival: {
-      water: 'Non-potable. Ice in restaurants is factory-made and safe.',
-      power: '220V, Type A/B/C/F. Type O is local but fits C.',
-      tipping: 'Not expected. Round up 20 THB for taxis/cafes.',
-      toilets: 'BTS stations have NO toilets. Use connected malls (Terminal 21, Siam Paragon).',
+    frictionPoints: {
+      water: 'Bottled water only; avoid ice from street vendors. Refill at hotels.',
+      power: '230V, Type A/B/C/F. Bring adapters.',
+      tipping: 'Not expected but appreciated (10–20 baht).',
+      toilets: 'Mix of Western and squat; carry tissue.',
+    },
+    facility_intel: {
+      access: "Free (Malls/BTS) / 5-10 THB (Public)",
+      hygiene: "High in malls; variable in public",
+      protocol: "Paper in bin (Bidet/Hose common)",
+      availability: "High in SkyTrain (BTS) & Malls"
     },
     transit: {
-      app: 'Grab (Reliability), Bolt (Cheaper).',
-      payment: 'Rabbit Card (BTS), Contactless EMV (Visa/MC) for MRT.',
-      etiquette: 'No eating/drinking on trains. Head lower than elders/monks.',
-    },
-    tactical: {
-      connectivity: 'Skip BKK Airport SIMs (3x markup). Get a "Normal" SIM at any 7-Eleven in town.',
-      weather: 'Afternoon storms hit 4pm (June-Oct). Surface traffic dies; stay underground (MRT).',
-      payment_logic: 'Ask "PromptPay?" Most street food takes QR. Use Wise/Revolut scan.',
+      app: 'Grab, Bolt. BTS/MRT for rail.',
+      payment: 'Cash dominant for taxis. Rabbit card for BTS.',
+      etiquette: 'Don’t touch monks; offer seats to elderly.',
     },
     scams: [
-      'The "Grand Palace is closed" tuk-tuk redirect.',
-      'Unmetered Taxis: Insist on meter or use Grab.',
-      'Bird seed/bracelet "gifts" that demand payment.',
-    ],
-    field_hacks: [
-      'Use the Orange Flag boat to bypass Silom traffic for 16 THB.',
-      '7-Eleven is your AC and Wi-Fi safety valve.',
+      'Tuk-tuk drivers saying attractions are closed',
+      'Gem and suit scams (overpriced jewelry)',
+      'Taxi refusing meter or taking long routes',
     ],
   },
   {
     slug: 'paris-france',
-    name: 'Paris',
-    country: 'France',
-    last_updated: '2026-02-11',
     emergency: {
       police: '17',
-      medical: '15',
-      notes: 'EU-wide 112. "Urgent Care" is "Maison Médicale de Garde" for non-life-threatening.',
+      medical: '15 (SAMU)',
+      notes: 'EU emergency 112. Pickpockets common on Metro.',
     },
-    survival: {
-      water: 'Tap is world-class. Use "Fontaine Wallace" for free refills.',
-      power: '230V, Type E (2-pin). Needs grounded adapter for UK/US.',
-      tipping: 'Service Compris (included). Leave €1-2 "pourboire" for coffee/lunch.',
-      toilets: 'Pay toilets (€0.50) common. Use "Sanisettes" (gray street pods) or museum WCs.',
+    frictionPoints: {
+      water: 'Tap water safe (ask “carafe d’eau”).',
+      power: '230V, Type E (2-pin).',
+      tipping: 'Service compris (included). Round up 5%.',
+      toilets: 'Pay toilets common (€0.50–1).',
+    },
+    facility_intel: {
+      access: "Paid (€0.50 - €1.50) / Café Purchase",
+      hygiene: "Reliable in Museums/Dept Stores",
+      protocol: "Flush paper (Standard)",
+      availability: "Scarce; use 'Sanisette' street pods"
     },
     transit: {
-      app: 'Citymapper (Gold Standard), RATP Bonjour.',
-      payment: 'Navigo Easy card or Apple/Google Wallet (Navigo). No paper tickets soon.',
-      etiquette: 'Always say "Bonjour" when entering shops. Stand on right on escalators.',
-    },
-    tactical: {
-      connectivity: 'Orange Holiday eSIM is best for speed, but Free Mobile (€19) is best for data volume.',
-      weather: 'Cobblestones are ice-slick when wet. High-grip footwear is tactical, not optional.',
-      payment_logic: 'Apple/Google Pay is everywhere. Cash is rare except in old-school boulangeries.',
+      app: 'RATP (official), Citymapper, Uber.',
+      payment: 'Contactless card accepted. Navigo for Metro.',
+      etiquette: 'Give up seats for elderly; keep bags closed.',
     },
     scams: [
-      'The "Found Gold Ring" distraction at the Tuileries.',
-      '"Friendship" string bracelets at Sacré-Cœur.',
-      'Unofficial Taxis at CDG (Follow official green signs only).',
-    ],
-    field_hacks: [
-      'The "Vélib" bikes are faster than the Metro for 1-3km trips.',
-      'Visit Louvre/Orsay on late-night openings to avoid the cruise-ship crowds.',
+      'Friendship bracelet tied to wrist',
+      'Petition or clipboard distraction',
+      'Gold ring “found” on ground scam',
     ],
   },
   {
     slug: 'london-uk',
-    name: 'London',
-    country: 'UK',
-    last_updated: '2026-02-11',
     emergency: {
-      police: '999',
-      medical: '999',
-      notes: 'Dial 111 for non-emergency medical. NHS care is free at point of use for emergencies.',
+      police: '999 or 101',
+      medical: '999 (ambulance), 111 (NHS advice)',
+      notes: 'No routine ambulance charge. A&E for emergencies.',
     },
-    survival: {
-      water: 'Safe and high quality. Refill at any pub—they must provide tap water by law.',
-      power: '230V, Type G (UK 3-pin). Highest safety standard.',
-      tipping: '12.5% usually added as "Service Charge." Check bill before adding extra.',
-      toilets: 'Major stations (King\'s Cross, etc.) are free. Department stores are best.',
+    frictionPoints: {
+      water: 'Tap water safe; refill at cafés.',
+      power: '230V, Type G (UK 3-pin).',
+      tipping: '10–12% in restaurants if not included.',
+      toilets: 'Public toilets often paid.',
+    },
+    facility_intel: {
+      access: "Free (Museums) / Paid (Stations)",
+      hygiene: "Excellent in Malls & Galleries",
+      protocol: "Flush paper (Standard)",
+      availability: "Moderate; widespread in pubs"
     },
     transit: {
-      app: 'TfL Go, Citymapper.',
-      payment: 'Strictly Contactless or Oyster. Buses do NOT accept cash.',
-      etiquette: 'Stand on the right. Let passengers off first. Do not make eye contact on Tube.',
-    },
-    tactical: {
-      connectivity: 'Three or EE eSIMs have best urban penetration. Avoid "Roaming" via US carriers.',
-      weather: "The 'London Drizzle' is constant. An 'Umbrella' is useless in wind—get a technical shell jacket.",
-      payment_logic: "Total cashless transition. Even buskers and street markets take contactless.",
+      app: 'TfL Go, Citymapper. Oyster/Contactless.',
+      payment: 'Contactless card or Apple/Google Pay.',
+      etiquette: 'Stand on the right on escalators.',
     },
     scams: [
-      'Fake "Ticket Inspectors" asking for your card (rare but happening).',
-      'The "Spill on your coat" distraction theft.',
-      'Fake charity collectors in Leicester Square.',
-    ],
-    field_hacks: [
-      'Elizabeth Line is the fastest way from LHR to Central London.',
-      'Use the "Uber Boat" (Thames Clippers) for a cheap scenic river cruise.',
+      'Fake ticket sellers outside venues',
+      'Distraction / “spill” pickpockets',
+      'Unlicensed minicabs',
     ],
   },
   {
     slug: 'dubai-uae',
-    name: 'Dubai',
-    country: 'UAE',
-    last_updated: '2026-02-11',
     emergency: {
       police: '999',
       medical: '998',
-      notes: 'Strict laws on PDA/Public intoxication. Hospitals like Mediclinic are top-tier.',
+      notes: 'Private hospitals common. Avoid PDA and public intoxication.',
     },
-    survival: {
-      water: 'Tap is desalinated (safe but flat). Most buy bottled or use hotel filters.',
-      power: '230V, Type G (UK standard).',
-      tipping: '10-15% expected. AED 5-10 for Valet/Porters is standard.',
-      toilets: 'Luxury standard in malls. "Bidet hoses" are the norm.',
+    frictionPoints: {
+      water: 'Bottled water standard; tap often desalinated.',
+      power: '230V, Type G (UK).',
+      tipping: '10–15% in restaurants.',
+      toilets: 'Western standard; free and clean.',
+    },
+    facility_intel: {
+      access: "Free (Universal)",
+      hygiene: "Superior / High-end",
+      protocol: "Flush paper (Bidet standard)",
+      availability: "Abundant in all Malls & Metro"
     },
     transit: {
-      app: 'Careem (Halal Uber), Dubai Drive (RTA).',
-      payment: 'Nol Card required for Metro/Bus. Taxis take card/Careem Pay.',
-      etiquette: 'No eating on Metro. Women-only carriages are strictly enforced.',
-    },
-    tactical: {
-      connectivity: 'Etisalat or du Visitor SIMs are expensive but have 5G everywhere.',
-      weather: 'Heat is lethal May-Sept. Stay in "The Climate Loop" (Malls/Metro/Connected Tunnels).',
-      payment_logic: 'Careem Pay is the super-app choice for everything digital.',
+      app: 'Careem, Uber, RTA Dubai.',
+      payment: 'Card accepted. Nol card for Metro.',
+      etiquette: 'Women-only carriages on Metro.',
     },
     scams: [
-      '"Gold" jewelry in Souks that is actually plated brass.',
-      'Timeshare "free dinner" pitches near Dubai Mall.',
-      'Unofficial "Limo" drivers charging 5x the RTA rate.',
-    ],
-    field_hacks: [
-      'The Abra (water taxi) across Dubai Creek is still only 1 AED.',
-      'Visit the Museum of the Future at night to see the calligraphy lit up.',
+      'Fake luxury goods in souks',
+      'Timeshare and property investment pitches',
+      'Unlicensed tour operators',
     ],
   },
   {
     slug: 'singapore',
-    name: 'Singapore',
-    country: 'Singapore',
-    last_updated: '2026-02-11',
     emergency: {
       police: '999',
       medical: '995',
-      notes: 'Tourist Police 1800 255 0000. Fines for litter/gum are strictly enforced.',
+      notes: 'Strict laws (litter, gum). Hospitals excellent.',
     },
-    survival: {
-      water: 'Tap is drinkable and high quality. Refill anywhere.',
+    frictionPoints: {
+      water: 'Tap water safe to drink.',
       power: '230V, Type G (UK).',
-      tipping: 'Not expected. 10% Service + 9% GST already on the bill.',
-      toilets: 'Free and ultra-clean in every MRT and Shopping Mall.',
+      tipping: 'Not customary; 10% service usually added.',
+      toilets: 'Western, clean, and available.',
+    },
+    facility_intel: {
+      access: "Free / Nominal charge (€0.10)",
+      hygiene: "Exceptional / Hospital Grade",
+      protocol: "Flush paper (Standard)",
+      availability: "Ubiquitous in MRT & Shopping centers"
     },
     transit: {
-      app: 'Grab, Gojek, Citymapper.',
-      payment: 'Visa/Mastercard Contactless for MRT/Bus. Simple tap-on, tap-off.',
-      etiquette: 'No durians on trains. Stand on the left. No eating/drinking in stations.',
-    },
-    tactical: {
-      connectivity: 'Singtel or StarHub eSIM. Massive 5G speeds in the underground tunnels.',
-      weather: 'The "Daily 3pm Shower" is real. MRT stations are the best shelter.',
-      payment_logic: 'Contactless is king. Use "GrabPay" for Hawker Centers to avoid cash.',
+      app: 'Grab, Gojek. MRT/LRT.',
+      payment: 'Contactless and EZ-Link cards.',
+      etiquette: 'No eating/drinking on MRT; queue strictly.',
     },
     scams: [
-      'Sim Lim Square "Model" Electronics scams (check shop ratings).',
-      'Overpriced "Ladies Drinks" in Clark Quay bars.',
-      'Rental scams for "condos" (only trust official platforms).',
+      'Overpriced SIM cards/electronics (Sim Lim Square)',
+      'Unlicensed money changers',
+      'Hidden fees in harbour tour packages',
     ],
-    field_hacks: [
-      'Eat at Hawker Centers for Michelin-quality food under $10.',
-      'The "Jewel" at Changi is better than most city attractions—go early.',
+  },
+  {
+    slug: 'istanbul-turkey',
+    emergency: {
+      police: '155',
+      medical: '112',
+      notes: 'Tourist Police in Sultanahmet.',
+    },
+    frictionPoints: {
+      water: 'Bottled water preferred.',
+      power: '230V, Type F (Euro).',
+      tipping: '10% in restaurants; round up taxis.',
+      toilets: 'Mix of Western and squat.',
+    },
+    facility_intel: {
+      access: "Paid (₺5–₺10) / Istanbulkart sometimes",
+      hygiene: "High in Malls; basic in bazaars",
+      protocol: "Paper in bin (Bidet common)",
+      availability: "High in mosques & transit hubs"
+    },
+    transit: {
+      app: 'BiTaksi, Istanbulkart.',
+      payment: 'Istanbulkart for public transit; cash for taxis.',
+      etiquette: 'Give seats to elderly; keep bags in front.',
+    },
+    scams: [
+      'Shoe shine brush drop scam',
+      'Friendly strangers inviting to bars (extortion)',
+      'Taxi meter tampering',
     ],
   },
   {
     slug: 'tokyo-japan',
-    name: 'Tokyo',
-    country: 'Japan',
-    last_updated: '2026-02-11',
     emergency: {
       police: '110',
       medical: '119',
-      notes: 'Most dispatchers don\'t speak English. Use Google Translate or "Japan Help Line."',
+      notes: 'Few speak English. Hospitals require upfront payment.',
     },
-    survival: {
-      water: 'Tap is safe and tasty. Vending machines (Jihanki) are on every corner.',
-      power: '100V, Type A (US 2-pin). No grounding pin. Needs 100V compatibility.',
-      tipping: 'Strictly NOT allowed. Can be seen as an insult or mistake.',
-      toilets: 'The "Washlet" (heated/bidet) is standard. Department stores are best.',
+    frictionPoints: {
+      water: 'Tap water safe; widespread vending machines.',
+      power: '100V, Type A/B (US-style).',
+      tipping: 'Not customary; often considered rude.',
+      toilets: 'Western high-tech (Washlets).',
+    },
+    facility_intel: {
+      access: "Free (Universal)",
+      hygiene: "Superior / High-tech",
+      protocol: "Flush paper (Bidet standard)",
+      availability: "High in Dept stores & Konbini (7-11)"
     },
     transit: {
-      app: 'Google Maps (Unbeatable for Tokyo), Japan Transit by Navitime.',
-      payment: 'Suica/Pasmo (Digital in Apple/Google Wallet). Some small ramen shops are CASH ONLY.',
-      etiquette: 'SILENCE on trains. No phone calls. Carry your trash home (no bins).',
-    },
-    tactical: {
-      connectivity: 'Ubigi or Airalo eSIM. Avoid Pocket Wi-Fi—it\'s another thing to charge/return.',
-      weather: "Humidity in July/Aug is extreme. Buy 'Cooling Wipes' at any Conbini (Lawson/7-11).",
-      payment_logic: 'Add Suica to your Apple Wallet before arrival. It works for transit AND vending machines.',
+      app: 'Google Maps, Suica/Pasmo in Apple Wallet.',
+      payment: 'IC cards (Suica) or cash for small shops.',
+      etiquette: 'No talking on trains; no eating while walking.',
     },
     scams: [
-      'Roppongi/Kabukicho "Drink Touts" (Never follow them).',
-      'Fake Monks asking for donations near Senso-ji.',
-      'Overpriced "Tourist Izakayas" in Shinjuku Golden Gai.',
+      'Kabukicho “bar touts” (extortionate tabs)',
+      'Fake club invitations with hidden covers',
+      'Overpriced “tourist” restaurants',
     ],
-    field_hacks: [
-      'Use "Konbini" (7-Eleven/FamilyMart) for high-quality, cheap meals.',
-      'The "Yamanote Line" is a loop; if you miss your stop, just stay on.',
+  },
+  {
+    slug: 'antalya-turkey',
+    emergency: {
+      police: '155',
+      medical: '112',
+      notes: 'Tourist Police in Kaleiçi.',
+    },
+    frictionPoints: {
+      water: 'Bottled water recommended.',
+      power: '230V, Type F. Adapter for US/UK.',
+      tipping: '10% restaurants; round up taxis.',
+      toilets: 'Western in hotels/malls.',
+    },
+    facility_intel: {
+      access: "Free in Hotels / Paid on Beaches",
+      hygiene: "High in tourist zones",
+      protocol: "Paper in bin preferred",
+      availability: "Moderate; use Shopping Malls"
+    },
+    transit: {
+      app: 'BiTaksi, AntRay.',
+      payment: 'Cash for dolmuş; Kentkart for tram.',
+      etiquette: 'Dress modestly near mosques.',
+    },
+    scams: [
+      'All-inclusive boat trips with hidden extras',
+      'Fake designer goods in bazaars',
+      'Unmetered airport taxis',
     ],
-  }
-];
+  },
+  {
+    slug: 'seoul-south-korea',
+    emergency: {
+      police: '112',
+      medical: '119',
+      notes: 'Tourist Police in Myeongdong.',
+    },
+    frictionPoints: {
+      water: 'Tap water safe; purified stations in subway.',
+      power: '220V, Type C/F.',
+      tipping: 'Not expected; can be refused.',
+      toilets: 'Western; clean in subway/malls.',
+    },
+    facility_intel: {
+      access: "Free (Subways / Malls)",
+      hygiene: "Very High / Modern",
+      protocol: "Flush paper (Standard)",
+      availability: "Excellent; every subway station"
+    },
+    transit: {
+      app: 'Kakao T, Naver Map.',
+      payment: 'T-money card for transit; cards accepted.',
+      etiquette: 'Priority seats for elderly strictly observed.',
+    },
+    scams: [
+      'Overpriced skincare in tourist hubs',
+      'Fake K-pop scouts asking for money',
+      'Unlicensed airport taxis',
+    ],
+  },
+  {
+    slug: 'hong-kong',
+    emergency: {
+      police: '999',
+      medical: '999',
+      notes: 'Ambulance free. Public hospitals cheap.',
+    },
+    frictionPoints: {
+      water: 'Tap safe but boiled/bottled preferred.',
+      power: '220V, Type G (UK).',
+      tipping: '10% service usually on bill.',
+      toilets: 'Western in malls/MTR.',
+    },
+    facility_intel: {
+      access: "Free (Malls / Stations)",
+      hygiene: "High / Modern",
+      protocol: "Flush paper (Standard)",
+      availability: "High in Shopping Podiums & MTR"
+    },
+    transit: {
+      app: 'MTR Mobile, Octopus.',
+      payment: 'Octopus card is essential.',
+      etiquette: 'Queue strictly; stand on right on escalators.',
+    },
+    scams: [
+      'Fake electronics in Sham Shui Po',
+      'Overpriced TST tailor shops',
+      'Tea ceremony invitation scam',
+    ],
+  },
+]
 
 export function getCityBySlug(slug: string): City | undefined {
-  return cities.find((c) => c.slug === slug);
+  return cities.find((c) => c.slug === slug)
 }
 
 export function getCitySlugs(): string[] {
-  return cities.map((c) => c.slug);
+  return cities.map((c) => c.slug)
 }

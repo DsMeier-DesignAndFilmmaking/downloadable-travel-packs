@@ -57,6 +57,14 @@ export interface CityPackSurvivalKit {
   toilets: string
 }
 
+/** Infrastructure & Sanitation Intelligence */
+export interface FacilityIntel {
+  access: string     // e.g., "Coin/App required (€0.50)"
+  hygiene: string    // e.g., "High - Dept Stores preferred"
+  protocol: string   // e.g., "Flush paper / Trash bin for wipes"
+  availability: string // e.g., "Abundant in malls / Scarce in Metro"
+}
+
 export interface CityPackTransitLogic {
   primary_app: string
   payment_method: string
@@ -78,6 +86,7 @@ export interface CityGuide {
   neighborhoods: CityPackNeighborhood[]
   survival_kit: CityPackSurvivalKit
   transit_logic: CityPackTransitLogic
+  facility_intel: FacilityIntel;
   scam_alerts: string[]
   real_time_hacks: string[]
 }

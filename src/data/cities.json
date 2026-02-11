@@ -1,50 +1,72 @@
 {
-    "cities": [
-      {
-        "slug": "bangkok-thailand",
-        "name": "Bangkok",
-        "countryCode": "TH",
-        "countryName": "Thailand",
-        "last_updated": "2026-02-11",
-        "theme": "A high-velocity sensory overload. Precision transit use is the only way to beat the 2026 humidity and gridlock.",
-        "emergency": {
-          "police": "191",
-          "medical": "1669",
-          "tourist_police": "1155 (English Speaking 24/7)",
-          "ambulance": "1554",
-          "health_note": "Bumrungrad International (Sukhumvit) or Samitivej (Thonglor) for gold-standard English care."
-        },
-        "survival": {
-          "tap_water": "Non-potable. Ice from 7-Eleven/Restaurants is factory-made and safe.",
-          "power_plug": "Types A, B, and C. Type O is local standard but fits C.",
-          "voltage": "220V / 50Hz",
-          "tipping": "Not mandatory. Round up 20 THB for Grab/Taxis. 10% in sit-down venues if no service charge.",
-          "toilets": "BTS stations have NO toilets. Use connected malls (Terminal 21, Siam Paragon). Carry tissues."
-        },
-        "transit": {
-          "primary_app": "Grab (Reliability)",
-          "secondary_app": "Bolt (Lower cost, higher cancellation risk)",
-          "payment_method": "Rabbit Card (BTS), Tap-and-Go Visa/MC (MRT/LRT).",
-          "contactless_status": "MRT Blue/Purple lines fully support international EMV contactless.",
-          "etiquette": "No eating/drinking on trains. Head must be lower than elders/monks when passing."
-        },
-        "tactical": {
-          "connectivity_hack": "Avoid 'Tourist SIMs' at BKK airport (3x markup). Walk into any 7-Eleven in the city for a 'Normal' 5G SIM.",
-          "weather_protocol": "Afternoon 'Ghost Storms' hit at 4 PM (June-Oct). Surface traffic dies; move entirely to the MRT (Underground).",
-          "digital_payment": "Ask 'PromptPay?' Most street food stalls accept QR. Use 'Wise' or 'Revolut' to scan if supported."
-        },
-        "scam_alerts": [
-          "The 'Grand Palace is closed for a holiday' tuk-tuk redirect.",
-          "Unmetered Taxis: Taxis must use the meter by law. If they say 'Flat price,' get out.",
-          "Patpong 'Free' Shows: You will be extorted for 'service fees' at the exit.",
-          "Friendly 'Local Students' offering free tours that lead to gem shops."
-        ],
-        "field_hacks": [
-          "Take the 'Chao Phraya Express Boat' (Orange Flag) to bypass Silom traffic for 16 THB.",
-          "7-Eleven is the 'Safety Valve': Cheap hydration, cold AC, and 24/7 basic medical supplies.",
-          "The 'Airport Rail Link' is faster than any taxi between 07:00-10:00 and 16:00-20:00."
+  "cities": [
+    {
+      "slug": "bangkok-thailand",
+      "name": "Bangkok",
+      "countryCode": "TH",
+      "countryName": "Thailand",
+      "last_updated": "2026-02-09",
+      "theme": "Chaos and charm: mega-malls, street food, temples, and tuk-tuks. Plan for heat and traffic.",
+      "emergency": {
+        "police": "191",
+        "medical": "1669",
+        "pharmacy24h": "Boots, Watsons, and hospital pharmacies; 7-Eleven has basics",
+        "tourist_police": "1155",
+        "ambulance": "1554",
+        "health_note": "Bumrungrad International is the top-rated hospital for English speakers."
+      },
+      "survival": {
+        "tipping": "Not expected, but rounding up 20-50 THB is appreciated in taxis/cafes",
+        "tapWater": "Not drinkable (use sealed bottles only)",
+        "power": { "type": "Type A & C", "voltage": "220V, 50Hz" },
+        "digitalEntry": "Visa exemption or visa on arrival for many nationals; check evisa.go.th for 2026.",
+        "touristTax": "No national tourist tax as of 2026.",
+        "currentScams": [
+          "The 'Grand Palace is closed today' lie by tuk-tuk drivers",
+          "Unmetered taxis outside major malls (insist on 'Meter, please')",
+          "Bird seed/bracelet 'gifts' that you are then forced to pay for"
         ]
       },
+      "facility_intel": {
+        "access": "Free in malls/BTS; 5-10 THB in markets/parks.",
+        "hygiene": "Malls are 5-star; public/temple sites are basic.",
+        "protocol": "Bidet-hose (bum gun) standard; paper in bin only.",
+        "availability": "High in SkyTrain (BTS) stations and shopping podiums."
+      },  
+      "arrival": {
+        "eSimAdvice": "AIS or dtac eSIM at BKK/Suvarnabhumi; buy before leaving airport or use Airalo",
+        "eSimHack": "Airalo and AIS/dtac sell eSIM at BKK; buy before leaving baggage to avoid markup.",
+        "airportHack": "BKK has fast immigration; use Grab from official pickup, avoid touts",
+        "transitHack": "BTS Skytrain and MRT avoid surface traffic; use Chao Phraya boat for riverside areas.",
+        "essentialApps": ["Grab", "Bolt", "Google Maps", "Google Translate"]
+      },
+      "neighborhoods": [
+        { "name": "Sukhumvit", "vibe": "Expat hub, BTS access, malls", "safetyScore": 8 },
+        { "name": "Silom", "vibe": "Business by day, nightlife by night", "safetyScore": 7 },
+        { "name": "Khao San", "vibe": "Backpacker central, loud", "safetyScore": 6 }
+      ],
+      "survival_kit": {
+        "tap_water": "Not drinkable (use sealed bottles only)",
+        "power_plug": "Type A & C (220V, 50Hz)",
+        "tipping": "Not expected, but rounding up 20-50 THB is appreciated in taxis/cafes",
+        "toilets": "Carry tissues; many public toilets are 'squat' style and charge 5-10 THB"
+      },
+      "transit_logic": {
+        "primary_app": "Grab (for cars) or Bolt (cheaper)",
+        "payment_method": "Rabbit Card for BTS; Cash for MRT and Street Food",
+        "etiquette": "Give up seats for monks; Keep your head lower than elders"
+      },
+      "scam_alerts": [
+        "The 'Grand Palace is closed today' lie by tuk-tuk drivers",
+        "Unmetered taxis outside major malls (insist on 'Meter, please')",
+        "Bird seed/bracelet 'gifts' that you are then forced to pay for"
+      ],
+      "real_time_hacks": [
+        "Use the 'Chao Phraya Express Boat' to bypass traffic for 15-30 THB",
+        "7-Eleven is your best friend for high-speed Wi-Fi and cheap AC breaks",
+        "Always carry a sarong/scarf for temple entry (shoulders/knees must be covered)"
+      ]
+    },
     {
       "slug": "paris-france",
       "name": "Paris",
@@ -70,6 +92,12 @@
           "The 'Found Ring' scam (they pretend you dropped a gold ring)",
           "Petition signers who use the distraction to pickpocket"
         ]
+      },
+      "facility_intel": {
+        "access": "Paid (€0.50-€1.50) or free with café purchase.",
+        "hygiene": "Reliable in luxury shops; 'Sanisettes' vary wildly.",
+        "protocol": "Flush paper (Standard); automated cleaning in street pods.",
+        "availability": "Moderate; look for the grey 'Sanisette' street pods."
       },
       "arrival": {
         "eSimAdvice": "Orange or Free eSIM; EU roaming applies if you have an EU plan. ETIAS required for non-EU from 2025.",
@@ -131,6 +159,12 @@
           "South Bank pickpockets"
         ]
       },
+      "facility_intel": {
+        "access": "Free in museums/pubs; £0.20-£0.50 at major rail stations.",
+        "hygiene": "High in department stores; functional in Tube stations.",
+        "protocol": "Flush paper (Standard); RADAR key needed for some accessible units.",
+        "availability": "High; pubs are the unofficial public network."
+      },
       "arrival": {
         "eSimAdvice": "UK eSIM from EE, O2, or Three; EU roaming no longer guaranteed post-Brexit. Check your plan.",
         "eSimHack": "Airalo or Saily. O2 is the only carrier with free EU roaming fallback.",
@@ -187,6 +221,12 @@
           "Shinjuku bar touts",
           "Fake monk donations"
         ]
+      },
+      "facility_intel": {
+        "access": "Free (Universal); no purchase required for most.",
+        "hygiene": "Superior; globally recognized as the cleanest facilities.",
+        "protocol": "High-tech Washlets (bidets); flush paper; sound-masking tech.",
+        "availability": "Exceptional; every Konbini (7-11/Lawson) and station."
       },
       "arrival": {
         "eSimAdvice": "Pre-order eSIM (Ubigi, Sakura, Mobal) or pick up at Haneda/Narita. Pocket WiFi still popular.",
@@ -245,6 +285,12 @@
           "'Free' bracelet or photo with costumed characters in Times Square",
           "Unofficial ticket sellers and 'skip-the-line' hustlers"
         ]
+      },
+      "facility_intel": {
+        "access": "Technically free in parks, but mostly 'customer only'.",
+        "hygiene": "Often poor in subway; high in hotel lobbies/Starbucks.",
+        "protocol": "Flush paper (Standard); heavy-duty industrial plumbing.",
+        "availability": "Critical low; use hotel lobbies or 'Got2Go' app map."
       },
       "arrival": {
         "eSimAdvice": "US eSIM from T-Mobile, Verizon, or Airalo. Most international plans include US.",
@@ -306,6 +352,12 @@
           "Restaurants with no prices or 'tourist menus' with hidden charges"
         ]
       },
+      "facility_intel": {
+        "access": "Paid (€1.00) for 'P-Stop' kiosks or café purchase.",
+        "hygiene": "Moderate; seats often missing by design for sanitation.",
+        "protocol": "Flush paper; foot-pedal sinks common in older bars.",
+        "availability": "Scarce; plan around museum visits and lunch stops."
+      },  
       "arrival": {
         "eSimAdvice": "Italian eSIM (TIM, Vodafone, Iliad). ETIAS required for non-EU from 2025. EU roaming if you have EU plan.",
         "eSimHack": "TIM or Iliad eSIM at FCO/CTA; Moovit has real-time ATAC and regional transit.",
@@ -364,6 +416,12 @@
           "'Friendly' strangers offering rosemary or petition then demanding money",
           "Fake 'police' asking to see wallet or documents"
         ]
+      },
+      "facility_intel": {
+        "access": "Free in malls/libraries; small fee at beach units.",
+        "hygiene": "Reliable in modern Eixample; basic in Gothic Quarter.",
+        "protocol": "Flush paper (Standard); buttons often on wall, not tank.",
+        "availability": "Good; city markets (Mercats) are reliable hubs."
       },
       "arrival": {
         "eSimAdvice": "Spanish eSIM (Vodafone, Orange, Movistar). ETIAS for non-EU from 2025. EU roaming applies.",
@@ -424,6 +482,12 @@
           "Overpriced tours and activities sold on the street or beach"
         ]
       },
+      "facility_intel": {
+        "access": "Free (Universal) in all malls, metros, and souks.",
+        "hygiene": "Superior; cleaning attendants present 24/7 in malls.",
+        "protocol": "Hand-sprayer (shattaf) standard; flush paper.",
+        "availability": "Excellent; Malls act as massive infrastructure hubs."
+      },
       "arrival": {
         "eSimAdvice": "Etisalat or du eSIM at DXB; pre-order or buy on arrival. UAE has strict content filtering.",
         "eSimHack": "Etisalat eSIM at DXB arrivals; RTA Dubai app for Metro/tram/bus and Nol balance.",
@@ -483,6 +547,12 @@
           "Unlicensed taxis at airport charging flat high fares"
         ]
       },
+      "facility_intel": {
+        "access": "Free (Universal) in subway stations and buildings.",
+        "hygiene": "Very High; tech-forward and well-stocked.",
+        "protocol": "Check signs: older pipes = paper in bin; newer = flush.",
+        "availability": "Exceptional; every subway exit is a guaranteed option."
+      },
       "arrival": {
         "eSimAdvice": "KT or SKT eSIM at ICN/GMP; pre-order (Klook, Trazy) or buy on arrival. Korea has excellent 5G.",
         "eSimHack": "KT or LG U+ eSIM at ICN; KakaoMap and Naver Map have better local detail than Google.",
@@ -541,6 +611,12 @@
           "Fake police asking to see wallet or 'check' money",
           "ATM skimmers—use bank lobbies and cover the keypad"
         ]
+      },
+      "facility_intel": {
+        "access": "Paid (5-10 MXN); attendant provides 3-4 paper squares.",
+        "hygiene": "High in 'Plazas'; very basic in Metro stations.",
+        "protocol": "Paper in bin strictly; old plumbing cannot handle tissue.",
+        "availability": "Moderate; look for 'Sanborns' department stores."
       },
       "arrival": {
         "eSimAdvice": "Telcel or Oxxo eSIM; buy at MEX or Oxxo. Data is cheap; US/MX plans often include Mexico.",

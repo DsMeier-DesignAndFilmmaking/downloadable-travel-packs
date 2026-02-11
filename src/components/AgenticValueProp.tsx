@@ -1,87 +1,60 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { CloudOff, Globe, Zap } from 'lucide-react';
 
 const COLUMNS = [
   {
-    id: 'KNOW',
+    id: 'SYNC',
     icon: Globe,
-    label: 'Live Updates',
-    detail: 'Fresh data on 2026 entry rules and visa status, synced the second you’re online.'
+    label: 'Live Intel Sync',
+    detail: 'Automatic background updates for 2026 entry rules and visa alerts the second you’re back on the grid.'
   },
   {
     id: 'OFFLINE',
     icon: CloudOff,
-    label: <>No Signal? <br /> No Prob.</>, // Use a Fragment with a <br />
-    detail: 'All your critical city guides stay tucked in your pocket, even without Wi-Fi or roaming.'
+    label: <>Offline <br /> Reliability</>,
+    detail: 'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.'
   },
   {
-      id: 'FLOW',
-      icon: Zap,
-      label: 'Land & Go',
-      detail: 'Skip the arrival stress. We’ve pre-mapped your transit hacks and eSIM setups so you can head straight to the city.'
+    id: 'SOLVE',
+    icon: Zap,
+    label: 'On-Ground Intel',
+    detail: 'Real-world solutions for navigation, local logistics, and arrival hurdles—engineered to solve travel’s most common "in-the-moment" challenges.'
     },
 ] as const;
 
 export default function AgenticValueProp() {
-  const [activeId, setActiveId] = useState<string | null>(null);
-  
   return (
-    <section className="w-full" aria-label="Key Features">
-      <div className="grid grid-cols-3 gap-2">
+    <section className="w-full" aria-label="Core Travel Benefits">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {COLUMNS.map((col) => {
           const Icon = col.icon;
-          const isActive = activeId === col.id;
-          const contentId = `detail-${col.id}`;
 
           return (
-            <div key={col.id} className="relative h-full">
-              <motion.button 
-                // 1. SEMANTICS: Changed div to button for keyboard focus
-                type="button"
-                onClick={() => setActiveId(isActive ? null : col.id)}
-                // 2. ARIA: Tells screen readers if content is open
-                aria-expanded={isActive}
-                aria-controls={contentId}
-                className={`w-full cursor-pointer rounded-2xl p-5 transition-all duration-300 border h-full flex flex-col items-center text-center 
-                  ${isActive 
-                    ? 'bg-emerald-50 border-emerald-200 ring-2 ring-emerald-500/20' 
-                    : 'bg-white border-slate-100 hover:border-slate-300 shadow-sm focus:ring-2 focus:ring-slate-400 outline-none'}`}
-              >
-                {/* 3. ICON: aria-hidden because the text provides the meaning */}
-                <div className={`mb-3 p-2 rounded-xl ${isActive ? 'text-emerald-700 bg-white' : 'text-slate-500 bg-slate-50'}`}>
-                  <Icon size={20} strokeWidth={2.5} aria-hidden="true" />
-                </div>
+            <div 
+              key={col.id} 
+              className="relative bg-white border border-slate-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm h-full group transition-hover hover:border-slate-200"
+            >
+              {/* Icon Container */}
+              <div className="mb-3 p-2 rounded-xl text-slate-500 bg-slate-50 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                <Icon size={20} strokeWidth={2.5} aria-hidden="true" />
+              </div>
 
-                {/* 4. LEGIBILITY: Bumped font sizes to 10px/14px minimums */}
-                <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-1.5 
-                  ${isActive ? 'text-emerald-800' : 'text-slate-500'}`}>
-                  {col.id}
-                </h3>
-                
-                <p className="text-[14px] font-black text-[#222222] leading-tight">
-                  {col.label}
+              {/* Pillar ID */}
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-1.5 text-slate-400">
+                {col.id}
+              </h3>
+              
+              {/* Semantic SEO Label */}
+              <p className="text-[15px] font-black text-[#222222] leading-tight mb-3">
+                {col.label}
+              </p>
+
+              {/* High-Value Detail */}
+              <div className="pt-3 mt-auto border-t border-slate-50 w-full">
+                <p className="text-[11px] font-medium text-slate-500 leading-snug">
+                  {col.detail}
                 </p>
-
-                <AnimatePresence>
-                  {isActive && (
-                    <motion.div
-                      id={contentId} // Matches aria-controls
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="pt-4 mt-4 border-t border-emerald-200">
-                        {/* 5. CONTRAST: Use emerald-900 for dark-on-light accessibility */}
-                        <p className="text-[12px] font-bold text-emerald-900 leading-snug">
-                          {col.detail}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.button>
+              </div>
             </div>
           );
         })}
