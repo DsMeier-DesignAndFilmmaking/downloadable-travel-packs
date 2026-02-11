@@ -21,11 +21,11 @@ import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { MANIFEST_URL } from '@/services/apiConfig';
-import { fetchVisaCheck, type VisaCheckData } from '@/services/visaService';
+import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 
-/** 1. Reserved Space Skeleton to prevent Layout Shifting */
+/** 1. Reserved Space Skeleton for Dashboard to prevent Layout Shifting */
 function HighAlertSkeleton() {
   return (
     <div className="w-full h-[140px] rounded-2xl bg-slate-200/50 animate-pulse border border-slate-200/60" />
@@ -132,9 +132,6 @@ function mandatoryRegistrationBg(color?: string): string {
   return 'bg-amber-100';
 }
 
-/** * AgenticSystemStatus - Live system feedback for the City View.
- * Provides the "Heartbeat" feedback that users need in an agentic UI.
- */
 function AgenticSystemStatus({ city }: { city: string }) {
   return (
     <motion.div variants={itemVariants} className="flex flex-col gap-3 p-5 rounded-[2rem] bg-emerald-500/[0.03] border border-emerald-500/10 shadow-sm">
@@ -145,15 +142,13 @@ function AgenticSystemStatus({ city }: { city: string }) {
         </div>
         <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">Verified for {city}</span>
       </div>
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Smartphone size={16} className="text-emerald-600" />
-          <span className="text-[12px] font-bold uppercase tracking-tight text-slate-600">Local Connectivity</span>
+          <span className="text-[12px] font-bold uppercase tracking-tight text-slate-600">Connectivity</span>
         </div>
-        <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">eSIM Active</span>
+        <span className="text-[11px] font-black text-emerald-600 uppercase tracking-tighter">eSIM Ready</span>
       </div>
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-emerald-600" />
@@ -173,22 +168,19 @@ function AgenticSystemStatus({ city }: { city: string }) {
 
 export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
-  const { cityData, isLoading, isOffline, error, refetch } = useCityPack(slug || '');
+  const { cityData, isLoading: packLoading, isOffline, error, refetch } = useCityPack(slug || '');
   const { isInstallable, installPWA, isInstalled } = usePWAInstall();
   
-  const [isReady, setIsReady] = useState(false);
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
-  const [isApiLoading, setIsApiLoading] = useState(false);
+  const [isApiLoading, setIsApiLoading] = useState(true);
   const [isDomestic, setIsDomestic] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
 
-  useEffect(() => {
-    if (!isLoading && cityData) setIsReady(true);
-  }, [isLoading, cityData]);
-
+  // Synchronize Visa API with City Data
   useEffect(() => {
     if (!cityData?.countryCode) return;
+    
     const passportNorm = DEFAULT_PASSPORT.toUpperCase().trim();
     const destinationNorm = cityData.countryCode.toUpperCase().trim();
     const domestic = passportNorm === destinationNorm;
@@ -214,8 +206,9 @@ export default function CityGuideView() {
       });
 
     return () => { cancelled = true; };
-  }, [cityData]);
+  }, [cityData?.countryCode]);
 
+  // Handle Dynamic Manifest
   useEffect(() => {
     if (!slug) return;
     const id = 'tp-v2-dynamic-manifest';
@@ -230,7 +223,8 @@ export default function CityGuideView() {
     return () => { const el = document.getElementById(id); if (el) el.remove(); };
   }, [slug]);
 
-  if (isLoading || !isReady) return (
+  // Global Skeleton Loading
+  if (packLoading || !cityData) return (
     <div className="min-h-screen bg-[#F7F7F7]">
       <div className="max-w-2xl mx-auto px-6 pt-24 space-y-8 animate-pulse">
         <div className="w-10 h-10 bg-slate-200 rounded-xl" />
@@ -243,10 +237,10 @@ export default function CityGuideView() {
     </div>
   );
 
-  if (error || !cityData) return (
+  if (error) return (
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-8">
       <AlertTriangle className="text-rose-500 w-12 h-12 mb-4" />
-      <p className="text-[#222222] font-bold mb-6 text-center">{error?.message || 'City Not Found'}</p>
+      <p className="text-[#222222] font-bold mb-6 text-center">{error.message}</p>
       <Link to="/" className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg">
         Back to Catalog
       </Link>
@@ -264,7 +258,7 @@ export default function CityGuideView() {
     >
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
-      {/* STATUS BANNER */}
+      {/* 1. STATUS BAR */}
       <div className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm ${isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#FFDD00] text-[#222222]'}`}>
         <span className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-[#222222]'}`} />
@@ -273,22 +267,30 @@ export default function CityGuideView() {
         {!isOffline && <button onClick={() => refetch()} className="underline decoration-2 underline-offset-4">Refresh</button>}
       </div>
 
-      {/* MANDATORY REGISTRATION BLOCK */}
-{visaData?.mandatory_registration && (
-  <div className={`sticky top-[38px] z-50 px-6 py-3 border-b border-slate-200/80 shadow-sm ${mandatoryRegistrationBg(visaData.mandatory_registration.color)} text-[#222222] flex flex-wrap items-center justify-between gap-2`}>
-    
-    {/* FIXED SPAN: Added fallback text logic */}
-    <span className="text-xs font-bold">
-      {visaData.mandatory_registration.text || "Action Required: Travel Registration Needed"}
-    </span>
-
-    {visaData.mandatory_registration.link && (
-      <a href={visaData.mandatory_registration.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-amber-800 underline">
-        Register <ExternalLink size={14} />
-      </a>
-    )}
-  </div>
-)}
+      {/* 2. REGISTRATION BANNER WITH CLS SKELETON */}
+      <div className="sticky top-[38px] z-50 min-h-[45px]">
+        {isApiLoading ? (
+          <div className="w-full px-6 py-3 border-b border-slate-200/80 bg-slate-100 animate-pulse flex items-center justify-between">
+            <div className="h-3 w-40 bg-slate-200 rounded-full" />
+            <div className="h-3 w-12 bg-slate-200 rounded-full" />
+          </div>
+        ) : visaData?.mandatory_registration ? (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }}
+            className={`px-6 py-3 border-b border-slate-200/80 shadow-sm ${mandatoryRegistrationBg(visaData.mandatory_registration.color)} text-[#222222] flex flex-wrap items-center justify-between gap-2`}
+          >
+            <span className="text-xs font-bold">
+              {visaData.mandatory_registration.text || "Action Required: Travel Registration Needed"}
+            </span>
+            {visaData.mandatory_registration.link && (
+              <a href={visaData.mandatory_registration.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-amber-800 underline">
+                Register <ExternalLink size={14} />
+              </a>
+            )}
+          </motion.div>
+        ) : null}
+      </div>
 
       <motion.header variants={itemVariants} className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
@@ -305,33 +307,25 @@ export default function CityGuideView() {
             >
               {cityData.name}
             </h1>
-            
             <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
               {cityData.theme}
             </p>
-            
             <p className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase mt-3">
               Guide Pack / {cityData.countryName}
             </p>
           </div>
         </div>
-
-        {/* INTEGRATION: AgenticSystemStatus acts as the "Pre-flight" checklist */}
         <AgenticSystemStatus city={cityData.name} />
       </motion.header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
-        
-        {/* SURVIVAL DASHBOARD */}
         <motion.section variants={itemVariants} className="space-y-6">
           <div className="px-2 flex items-center justify-between">
             <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
               Survival Dashboard
               <SourceInfo source="Travel Buddy Protocol v2" lastUpdated="Synced 4m ago" />
             </h2>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-full">
-              v4.2.0
-            </span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter bg-slate-100 px-2 py-0.5 rounded-full">v4.2.0</span>
           </div>
 
           <div className="min-h-[140px]">
@@ -343,14 +337,14 @@ export default function CityGuideView() {
               ) : isDomestic ? (
                 <motion.div key="domestic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 flex items-center gap-4 shadow-sm">
                   <Globe size={20} className="text-emerald-600" />
-                  <p className="text-[#222222] text-sm font-bold">Domestic Pack Active: No visa or currency exchange required.</p>
+                  <p className="text-[#222222] text-sm font-bold">Domestic Pack Active: Local protocols verified.</p>
                 </motion.div>
               ) : (
                 <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <HighAlertBanner
                     digitalEntry={cityData.survival?.digitalEntry}
                     touristTax={cityData.survival?.touristTax}
-                    visaStatus={visaData?.visa_rules?.primary_rule ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}` : undefined}
+                    visaStatus={visaData?.visa_rules?.primary_rule ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}` : "Checking Status..."}
                   />
                 </motion.div>
               )}
@@ -359,9 +353,7 @@ export default function CityGuideView() {
 
           {!isDomestic && visaData?.destination?.passport_validity && (
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex gap-4">
-              <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0">
-                <FileCheck size={20} className="text-amber-600" />
-              </div>
+              <div className="h-10 w-10 bg-amber-50 rounded-xl flex items-center justify-center shrink-0"><FileCheck size={20} className="text-amber-600" /></div>
               <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Passport Warning</h3>
                 <p className="text-[#222222] text-[14px] font-medium leading-relaxed">{visaData.destination.passport_validity}</p>
@@ -371,31 +363,14 @@ export default function CityGuideView() {
 
           <div className="grid grid-cols-2 gap-4">
             {getEmergencyGridItems(cityData.emergency).map(({ key, label, number }) => (
-              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg select-all active:scale-95 transition-transform">
+              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg active:scale-95 transition-transform">
                 <Phone size={22} className="mb-2 text-[#FFDD00]" />
                 <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
-                <span className="text-xl font-bold mt-1 tracking-wide tabular-nums">{number}</span>
+                <span className="text-xl font-bold mt-1 tabular-nums tracking-wide">{number}</span>
               </div>
             ))}
           </div>
         </motion.section>
-
-        {/* SCAM TICKER */}
-        {cityData.survival?.currentScams?.length > 0 && (
-          <motion.div variants={itemVariants} className="bg-[#222222] text-white rounded-[2rem] overflow-hidden border border-slate-800 shadow-lg">
-            <div className="flex items-center gap-2 px-6 py-3 border-b border-white/10 bg-white/5">
-              <AlertTriangle size={16} className="text-[#FFDD00] shrink-0" />
-              <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">Live Scam Shield</span>
-            </div>
-            <div className="relative py-4 overflow-hidden">
-              <div className="scam-ticker whitespace-nowrap flex gap-12 animate-marquee">
-                {[...cityData.survival.currentScams, ...cityData.survival.currentScams].map((scam, i) => (
-                  <span key={i} className="text-[13px] text-slate-200 font-bold tracking-tight">• {scam}</span>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* ARRIVAL LOGIC */}
         {cityData.arrival && (
@@ -406,21 +381,15 @@ export default function CityGuideView() {
                 <Plane size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
               </div>
-              <div className="p-8">
-                <p className="text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</p>
-              </div>
-              
+              <div className="p-8"><p className="text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</p></div>
               <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
                 <Wifi size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
               </div>
               <div className="p-8 space-y-4">
                 <p className="text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.eSimAdvice}</p>
-                {cityData.arrival.eSimHack && (
-                  <p className="text-slate-600 text-sm italic border-l-2 border-[#FFDD00] pl-4">{cityData.arrival.eSimHack}</p>
-                )}
+                {cityData.arrival.eSimHack && <p className="text-slate-600 text-sm italic border-l-2 border-[#FFDD00] pl-4">{cityData.arrival.eSimHack}</p>}
               </div>
-
               <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
                 <Train size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Transit hack</span>
@@ -430,111 +399,48 @@ export default function CityGuideView() {
           </motion.section>
         )}
 
-        {/* SURVIVAL BASICS GRID */}
-        <motion.section variants={itemVariants} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
-              <Droplets className="text-blue-500 mb-4" size={28} />
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
-              <p className="text-xl font-bold text-[#222222]">{cityData.survival?.tapWater}</p>
-            </div>
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
-              <Zap className="text-[#FFDD00]" size={28} fill="#FFDD00" />
-              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power Plug</h3>
-              <p className="text-xl font-bold text-[#222222]">
-                {typeof cityData.survival?.power === 'object' ? cityData.survival.power.type : 'Type C/F'}
-              </p>
-            </div>
+        {/* BASICS */}
+        <motion.section variants={itemVariants} className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
+            <Droplets className="text-blue-500 mb-4" size={28} />
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tap Water</h3>
+            <p className="text-xl font-bold text-[#222222]">{cityData.survival?.tapWater}</p>
+          </div>
+          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center">
+            <Zap className="text-[#FFDD00]" size={28} fill="#FFDD00" />
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Power Plug</h3>
+            <p className="text-xl font-bold text-[#222222]">{typeof cityData.survival?.power === 'object' ? cityData.survival.power.type : 'Type C/F'}</p>
           </div>
         </motion.section>
 
         {/* SPENDING SHIELD */}
         {!isDomestic && (
           <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex justify-between items-end px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2>
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase">
-                {cityData.countryCode} Active
-              </span>
-            </div>
-            
+            <div className="flex justify-between items-end px-2"><h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2></div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Market Rate</p>
-                <p className="text-3xl md:text-4xl font-black text-[#222222] tabular-nums leading-tight">
-                  1 USD = {cityData.countryCode === 'TH' ? '31.23' : visaData?.destination?.exchange} {cityData.countryCode === 'TH' ? 'THB' : visaData?.destination?.currency_code}
-                </p>
+                <p className="text-3xl font-black text-[#222222] tabular-nums leading-tight">1 USD = {cityData.countryCode === 'TH' ? '31.23' : visaData?.destination?.exchange} {cityData.countryCode === 'TH' ? 'THB' : visaData?.destination?.currency_code}</p>
                 <div className="mt-6 flex items-center gap-2">
                   <div className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live FX</div>
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
               </div>
-
               <div className="bg-amber-50 border border-amber-200/80 rounded-[2.5rem] p-8 flex flex-col justify-center">
-                <div className="flex gap-2 mb-3">
-                  <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Local Tip</span>
-                </div>
-                <p className="text-[14px] font-bold text-amber-900 leading-snug">
-                  {cityData.survival?.tipping}
-                </p>
+                <div className="flex gap-2 mb-3"><Info size={18} className="text-amber-600 shrink-0 mt-0.5" /><span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Local Tip</span></div>
+                <p className="text-[14px] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping}</p>
               </div>
             </div>
           </motion.section>
         )}
-
-        {/* SECURITY PROTOCOL */}
-        <motion.section variants={itemVariants} className="bg-[#222222] text-white rounded-[2.5rem] overflow-hidden shadow-2xl">
-          <div className="bg-white/10 px-8 py-5 border-b border-white/5 flex items-center gap-3">
-            <AlertTriangle size={18} className="text-[#FFDD00]" />
-            <h2 className="text-[#FFDD00] font-black text-[10px] tracking-[0.3em] uppercase">Security Protocol</h2>
-          </div>
-          <div className="p-8 space-y-8">
-            {cityData.scam_alerts.map((scam, i) => (
-              <div key={i} className="relative pl-10">
-                <div className="absolute left-0 top-0 w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center text-[#FFDD00] font-black text-[10px]">
-                  {i + 1}
-                </div>
-                <p className="text-[15px] text-slate-200 leading-relaxed font-bold italic">"{scam}"</p>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* TRANSIT LOGIC */}
-        <motion.section variants={itemVariants} className="space-y-4">
-          <h2 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Transit Logic</h2>
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
-            <div className="flex items-start gap-6 p-8 border-b border-slate-100">
-              <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-[#222222] border border-slate-100 font-black text-[11px] shrink-0">APP</div>
-              <div className="flex-1">
-                <p className="font-bold text-2xl text-[#222222] leading-none mb-2">{cityData.transit_logic.primary_app}</p>
-                <p className="text-sm text-slate-500 leading-relaxed font-medium">{cityData.transit_logic.etiquette}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-6 p-8 border-b border-slate-100">
-              <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-[#222222] border border-slate-100 font-black text-[11px] shrink-0">PAY</div>
-              <p className="font-bold text-2xl text-[#222222]">{cityData.transit_logic.payment_method}</p>
-            </div>
-          </div>
-        </motion.section>
       </main>
 
       {/* INSTALL OVERLAY */}
       <AnimatePresence>
         {!isInstalled && isInstallable && (
-          <motion.div 
-            initial={{ y: 100 }} 
-            animate={{ y: 0 }} 
-            exit={{ y: 100 }} 
-            className="fixed bottom-10 left-0 right-0 px-6 z-50 pointer-events-none"
-          >
-            <button 
-              onClick={installPWA} 
-              className="w-full max-w-sm mx-auto bg-[#222222] text-white h-16 rounded-[1.5rem] font-black text-xs tracking-[0.2em] uppercase flex items-center justify-center gap-4 shadow-2xl active:scale-95 pointer-events-auto transition-transform"
-            >
-              <Download size={20} className="text-[#FFDD00]" /> 
-              Save City Pack
+          <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-10 left-0 right-0 px-6 z-50 pointer-events-none">
+            <button onClick={installPWA} className="w-full max-w-sm mx-auto bg-[#222222] text-white h-16 rounded-[1.5rem] font-black text-xs tracking-[0.2em] uppercase flex items-center justify-center gap-4 shadow-2xl active:scale-95 pointer-events-auto transition-transform">
+              <Download size={20} className="text-[#FFDD00]" /> Save City Pack
             </button>
           </motion.div>
         )}

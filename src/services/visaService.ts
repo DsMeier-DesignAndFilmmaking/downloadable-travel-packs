@@ -1,21 +1,11 @@
 import axios from 'axios';
 
-// Get these from your .env file
 const API_KEY = import.meta.env.VITE_TRAVEL_BUDDY_KEY;
 const API_HOST = 'visa-requirement.p.rapidapi.com';
 
-/** Loose type for visa check API response (2026 real-time data). */
 export interface VisaCheckData {
-  passport?: {
-    currency_code?: string;
-    [key: string]: unknown;
-  };
-  destination?: {
-    passport_validity?: string;
-    exchange?: string;
-    currency_code?: string;
-    [key: string]: unknown;
-  };
+  passport?: { currency_code?: string; [key: string]: unknown };
+  destination?: { passport_validity?: string; exchange?: string; currency_code?: string; [key: string]: unknown };
   visa_rules?: {
     primary_rule?: { name?: string; duration?: string; link?: string; [key: string]: unknown };
     secondary_rule?: { link?: string; [key: string]: unknown };
@@ -26,19 +16,22 @@ export interface VisaCheckData {
     link?: string;
     text?: string;
     [key: string]: unknown;
-  };
-  exception_rule?: {
-    full_text?: string;
-    [key: string]: unknown;
-  };
+  } | null;
   [key: string]: unknown;
 }
 
-export const fetchVisaCheck = async (passport: string, destination: string) => {
-    // 1. Force Uppercase and trim (API expects "IT", not "italy")
+export const fetchVisaCheck = async (passport: string, destination: string): Promise<VisaCheckData | null> => {
     const cleanPassport = passport.toUpperCase().trim();
     const cleanDestination = destination.toUpperCase().trim();
-  
+    const cacheKey = `visa_${cleanPassport}_${cleanDestination}`;
+
+    // 1. Check Session Storage (Persists through refreshes)
+    const cachedData = sessionStorage.getItem(cacheKey);
+    if (cachedData) {
+      console.log(`📦 Serving cached visa data for ${cleanDestination}`);
+      return JSON.parse(cachedData);
+    }
+
     const params = new URLSearchParams();
     params.append('passport', cleanPassport);
     params.append('destination', cleanDestination);
@@ -56,22 +49,31 @@ export const fetchVisaCheck = async (passport: string, destination: string) => {
   
     try {
       const response = await axios.request(options);
-      const rawData = response.data.data || response.data;
-    
-      // 1. DATA NORMALIZATION: Map inconsistent API fields to your UI's expected format
+      const rawData = response.data?.data || response.data;
+      
+      if (!rawData) return null;
+
+      const regSource = rawData.mandatory_registration || rawData.registration || rawData.requirement;
+
       const normalizedData: VisaCheckData = {
         ...rawData,
-        mandatory_registration: rawData.mandatory_registration ? {
-          // Fallback logic: check if 'text' exists, if not, try 'label', then 'name'
-          text: rawData.mandatory_registration.text || rawData.mandatory_registration.label || rawData.mandatory_registration.name,
-          link: rawData.mandatory_registration.link,
-          color: rawData.mandatory_registration.color || 'amber'
+        mandatory_registration: regSource ? {
+          text: regSource.text || regSource.label || regSource.name || regSource.description,
+          link: regSource.link || regSource.url,
+          color: regSource.color || 'amber'
         } : null
       };
+
+      // 2. Save to Session Storage before returning
+      sessionStorage.setItem(cacheKey, JSON.stringify(normalizedData));
     
       return normalizedData;
-    } catch (error) {
-      console.error("❌ API ERROR:", error);
+    } catch (error: any) {
+      if (error.response?.status === 429) {
+        console.error("🚫 429 ERROR: RapidAPI Rate Limit Exceeded. Using fallback empty state.");
+      } else {
+        console.error("❌ API ERROR:", error);
+      }
       return null;
     }
   };

@@ -4,6 +4,7 @@ import ScrollToTop from './components/ScrollToTop';
 import HomePage from './pages/HomePage';
 import CityGuideView from './pages/CityGuideView';
 import PageTransition from './components/PageTransition';
+import Footer from './components/Footer';
 
 /**
  * Animated Routes Wrapper
@@ -36,12 +37,22 @@ function AnimatedRoutes() {
   );
 }
 
-// Ensure this is named 'App' and exported as 'default'
 export default function App() {
   return (
     <Router>
       <ScrollToTop /> 
-      <AnimatedRoutes />
+      {/* Main Layout Wrapper:
+          'flex-col min-h-screen' ensures the footer stays at the bottom
+          even if the page content is shorter than the viewport.
+      */}
+      <div className="flex flex-col min-h-screen">
+        <main className="flex-grow">
+          <AnimatedRoutes />
+        </main>
+        
+        {/* Global Footer - Persists across all route changes */}
+        <Footer />
+      </div>
     </Router>
   );
 }
