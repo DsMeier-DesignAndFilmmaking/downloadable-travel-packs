@@ -4,14 +4,10 @@ import { Search, ChevronRight, Globe } from 'lucide-react';
 import { motion, type Variants } from 'framer-motion';
 import AgenticValueProp from '../components/AgenticValueProp';
 
-// Toggle this to true in Phase 2 to re-enable the UI
 const SHOW_SEARCH = false;
 
 const containerVariants: Variants = {
-  hidden: { 
-    opacity: 0, 
-    y: 8 
-  },
+  hidden: { opacity: 0, y: 8 },
   visible: {
     opacity: 1,
     y: 0,
@@ -24,10 +20,7 @@ const containerVariants: Variants = {
   exit: {
     opacity: 0,
     y: -8,
-    transition: { 
-      duration: 0.3,
-      ease: "easeInOut" 
-    }
+    transition: { duration: 0.3, ease: "easeInOut" }
   }
 };
 
@@ -48,8 +41,15 @@ export default function HomePage() {
       exit="exit"
       className="min-h-screen bg-[#F7F7F7] text-[#222222] antialiased"
     >
-      <main className="max-w-xl mx-auto px-6 py-16">
-        <header className="mb-16"> {/* Increased margin for better breathing room without search */}
+      {/* WRAPPER LOGIC: 
+          We use a standard div for the main scroll area.
+          The 'max-w-xl' is applied to inner sections so the 
+          AgenticValueProp can break out for its 'Full-Bleed' mobile effect.
+      */}
+      <main className="w-full py-16">
+        
+        {/* Header Section */}
+        <header className="max-w-xl mx-auto px-6 mb-12">
           <motion.div 
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
@@ -57,34 +57,48 @@ export default function HomePage() {
             className="flex items-center gap-3 mb-6 origin-left"
           >
             <div className="w-8 h-10 bg-[#FFDD00] shadow-sm" />
-            <span className="text-[10px] font-black tracking-[0.3em] uppercase opacity-50">Field Guides 2026</span>
+            <span className="text-[10px] font-black tracking-[0.3em] uppercase opacity-50">
+              Field Guides 2026
+            </span>
           </motion.div>
-          <h1 className="text-5xl font-extrabold tracking-tight mb-3 uppercase italic">Travel Packs</h1>
-          <p className="text-xl text-slate-500 font-light tracking-tight">Precision survival data for the modern explorer.</p>
+          <h1 className="text-5xl font-extrabold tracking-tight mb-3 uppercase italic leading-none">
+            Travel Packs
+          </h1>
+          <p className="text-xl text-slate-500 font-light tracking-tight leading-relaxed">
+            Precision survival data for the modern explorer.
+          </p>
         </header>
 
-        {/* Agentic Value Prop hero — Compliance Autopilot, Friction Masking, Real-Time Shield */}
-        <div className="mb-14">
+        {/* AGENTIC VALUE PROP:
+            We remove the max-width constraint here. The component's internal 
+            logic now handles the alignment (max 1200px) and the mobile peek.
+        */}
+        {/* Agentic Value Prop — Now perfectly aligned with Header and Catalog */}
+        <div className="max-w-xl mx-auto px-6 mb-12">
           <AgenticValueProp />
         </div>
 
-        {/* Search UI preserved but hidden via SHOW_SEARCH constant */}
-        {SHOW_SEARCH && (
-          <div className="relative mb-12 group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search destination..." 
-              className="w-full bg-white border border-slate-200 rounded-2xl py-5 pl-14 pr-6 shadow-sm focus:outline-none focus:ring-4 focus:ring-[#FFDD00]/20 focus:border-[#FFDD00] transition-all placeholder:text-slate-400"
-            />
-          </div>
-        )}
-
-        <section className="space-y-6">
+        {/* Catalog Section */}
+        <section className="max-w-xl mx-auto px-6 space-y-6">
           <div className="flex items-center justify-between px-2">
-            <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">Current Catalog</h2>
-            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{cityPacksList.length} Packs Loaded</span>
+            <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">
+              Current Catalog
+            </h2>
+            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+              {cityPacksList.length} Packs Loaded
+            </span>
           </div>
+
+          {SHOW_SEARCH && (
+            <div className="relative mb-8 group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search destination..." 
+                className="w-full bg-white border border-slate-200 rounded-2xl py-5 pl-14 pr-6 shadow-sm focus:outline-none focus:ring-4 focus:ring-[#FFDD00]/20 focus:border-[#FFDD00] transition-all"
+              />
+            </div>
+          )}
           
           <motion.div 
             variants={containerVariants}
@@ -99,7 +113,7 @@ export default function HomePage() {
               >
                 <Link 
                   to={`/guide/${city.slug}`}
-                  className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-xl hover:border-[#FFDD00]/30"
+                  className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-[1.5rem] transition-all duration-300 shadow-sm hover:shadow-xl hover:border-[#FFDD00]/30"
                 >
                   <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
                   

@@ -1,84 +1,116 @@
-/**
- * AgenticValueProp — Superior marketing hero for landing/onboarding.
- * Three columns: Compliance Autopilot, Friction Masking, Real-Time Shield.
- * Deep charcoal + emerald palette; sequential fade-in via Framer Motion.
- */
-
-import { motion, type Variants } from 'framer-motion';
-import { Shield, Layers, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { motion, type Variants, AnimatePresence } from 'framer-motion';
+import { ShieldCheck, Smartphone, Zap, X, ChevronRight } from 'lucide-react';
 
 const COLUMNS = [
   {
-    id: 'compliance',
-    icon: Shield,
-    title: 'Compliance Autopilot',
-    tagline: 'We watch the borders, you watch the views.',
+    id: 'entry',
+    icon: ShieldCheck,
+    title: 'Arrival Ready',
+    tagline: 'Visas and entry rules verified for your arrival.',
+    technicalDetail: 'Cross-references IATA Timatic data with local embassy JSON feeds.'
   },
   {
-    id: 'friction',
-    icon: Layers,
-    title: 'Friction Masking',
-    tagline: 'Skip the digital bureaucracy.',
+    id: 'digital',
+    icon: Smartphone,
+    title: 'Instant Setup',
+    tagline: 'Maps, eSIMs, and transit passes pre-mapped.',
+    technicalDetail: 'Automated provisioning for GSMA-compliant eSIMs and Vector Tile caching.'
   },
   {
-    id: 'shield',
+    id: 'safety',
     icon: Zap,
-    title: 'Real-Time Shield',
-    tagline: 'Instant detours for heat, crowds, and delays.',
+    title: 'Live Alerts',
+    tagline: 'Stay ahead of local scams and transport delays.',
+    technicalDetail: 'Aggregates GDACS alerts and GTFS-Realtime feeds with AI sentiment.'
   },
 ] as const;
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const columnVariants: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-  },
-};
-
 export default function AgenticValueProp() {
+  const [activeSpec, setActiveSpec] = useState<string | null>(null);
+  
   return (
-    <motion.section
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-      className="rounded-2xl border border-emerald-800/40 bg-[#1c1f20] p-6 shadow-xl md:p-8 ring-1 ring-emerald-900/20"
-      aria-label="Why Travel Packs"
-    >
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+    <section className="relative w-full">
+      {/* CONSTRAINED CONTAINER:
+          Now matches the max-w-xl (576px) of the home page.
+          On mobile, we use overflow-x-auto to allow swiping within this box.
+      */}
+      <div 
+        className="flex md:grid md:grid-cols-3 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory no-scrollbar gap-3 pb-4 md:pb-0"
+        style={{ scrollbarWidth: 'none' }}
+      >
         {COLUMNS.map((col) => {
           const Icon = col.icon;
+          const isExpanded = activeSpec === col.id;
+
           return (
-            <motion.div
-              key={col.id}
-              variants={columnVariants}
-              className="flex flex-col items-start text-left"
+            <motion.div 
+              key={col.id} 
+              className="relative flex-none w-[92%] md:w-full snap-center"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/20">
-                <Icon size={20} aria-hidden />
+              <div className="h-full rounded-[2rem] border border-emerald-500/20 bg-[#141617] p-6 shadow-xl ring-1 ring-white/5 
+                            min-h-[190px] flex flex-col justify-between transition-all duration-300">
+                
+                {/* Marketing View */}
+                <div className={`transition-all duration-300 ${isExpanded ? 'opacity-0 scale-95 pointer-events-none' : 'opacity-100 scale-100'}`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <Icon size={20} />
+                    </div>
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.15em] text-emerald-500">
+                      {col.title}
+                    </h3>
+                  </div>
+                  
+                  <p className="text-[14px] leading-snug font-medium text-slate-200">
+                    {col.tagline}
+                  </p>
+
+                  <button 
+                    onClick={() => setActiveSpec(col.id)}
+                    className="mt-4 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-emerald-400 transition-colors"
+                  >
+                    View Spec <ChevronRight size={12} />
+                  </button>
+                </div>
+
+                {/* Technical Overlay */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-[#0A0A0B] rounded-[2rem] p-6 z-10 flex flex-col justify-between border border-emerald-500/40 shadow-2xl"
+                    >
+                      <div>
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="text-[9px] font-mono text-emerald-500 uppercase tracking-tighter">
+                            Log // {col.id}
+                          </span>
+                          <button 
+                            onClick={() => setActiveSpec(null)} 
+                            className="p-2 -m-2 text-slate-400 hover:text-white transition-colors"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                        <p className="text-[12px] font-mono text-slate-300 leading-relaxed">
+                          {col.technicalDetail}
+                        </p>
+                      </div>
+                      
+                      <div className="text-[9px] font-mono text-emerald-900 self-end">
+                        STABLE_BUILD
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                {col.title}
-              </h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-400">
-                {col.tagline}
-              </p>
             </motion.div>
           );
         })}
       </div>
-    </motion.section>
+    </section>
   );
 }
