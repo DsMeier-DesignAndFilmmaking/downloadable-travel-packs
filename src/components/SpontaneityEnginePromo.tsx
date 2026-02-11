@@ -3,6 +3,12 @@ import { Sparkles, ArrowRight, Layers } from 'lucide-react';
 
 export default function SpontaneityEnginePromo() {
   return (
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="p-6 rounded-[2rem] bg-slate-900 text-white"
+    >
     <div className="block group"> {/* No py or my needed here anymore */}
       <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1A1C1E] p-8 md:p-10 shadow-2xl transition-all duration-500">    {/* Responsive Status Tag */}
         <div className="md:absolute md:top-8 md:right-8 mb-6 md:mb-0 flex items-center gap-2 px-3 py-1 rounded-full bg-[#E8FBF8]/5 border border-[#E8FBF8]/10 w-fit">
@@ -62,5 +68,6 @@ export default function SpontaneityEnginePromo() {
         </div>
       </div>
     </div>
+    </motion.div>
   );
 }
