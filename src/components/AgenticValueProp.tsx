@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { CloudOff, Globe, Zap } from 'lucide-react';
 
 const COLUMNS = [
