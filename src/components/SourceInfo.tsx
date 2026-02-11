@@ -36,7 +36,10 @@ export default function SourceInfo({
       {/* Target area: Click/Tap toggles the state */}
       <button 
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation(); // 🛡️ Prevents the event from reaching the DiagnosticsOverlay
+          setIsOpen(!isOpen);
+        }}
         aria-expanded={isOpen}
         aria-label={`Verify data source: ${source}`}
         className="p-2 -m-2 flex items-center justify-center cursor-help outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full transition-all"
