@@ -17,7 +17,7 @@ import {
   Activity
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
-import { useCityPack, type SyncStatus } from '@/hooks/useCityPack';
+import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { MANIFEST_URL } from '@/services/apiConfig';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
