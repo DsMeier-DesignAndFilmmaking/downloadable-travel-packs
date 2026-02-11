@@ -96,7 +96,7 @@ export default function SystemSpecsView() {
         <footer className="pt-10 border-t border-slate-200 text-center">
           <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed italic">
             "Designed for travelers, built for survivors."<br />
-            © 2026 Travel Buddy Protocols
+            © 2026 All Rights Reserved // Intelligent Systems Corp.
           </p>
         </footer>
       </main>

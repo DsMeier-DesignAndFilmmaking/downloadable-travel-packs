@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
 import { ChevronRight, Globe, Activity } from 'lucide-react';
@@ -53,7 +53,7 @@ export default function HomePage() {
             <motion.div variants={itemVariants} className="flex items-center gap-3 origin-left">
               <div className="w-8 h-10 bg-[#FFDD00] shadow-sm" />
               <span className="text-[10px] font-black tracking-[0.4em] uppercase opacity-40">
-                Protocol v2.0
+                Edition 1.0 // Genesis Build
               </span>
             </motion.div>
             
@@ -113,40 +113,45 @@ export default function HomePage() {
           </motion.div>
           
           <motion.div variants={containerVariants} className="grid gap-4">
-            {cityPacksList.map((city, index) => (
-              <div key={city.slug}>
-                <motion.div
-                  variants={itemVariants}
-                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Link 
-                    to={`/guide/${city.slug}`}
-                    className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-[2rem] transition-all duration-300 shadow-sm hover:shadow-xl hover:border-[#FFDD00]/40"
-                  >
-                    <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
-                    <div className="flex items-center gap-5">
-                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 group-hover:bg-[#FFDD00]/10 transition-colors">
-                        <Globe size={22} className="text-slate-400 group-hover:text-[#222222] transition-colors" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-2xl tracking-tighter text-[#222222] uppercase italic leading-none">
-                          {city.name}
-                        </h3>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
-                          {city.countryName} // Deployment Ready
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-slate-300 group-hover:text-[#222222] group-hover:translate-x-1 transition-all" />
-                  </Link>
-                </motion.div>
+  {cityPacksList.map((city, index) => (
+    <React.Fragment key={city.slug}>
+      {/* City Card Block */}
+      <motion.div
+        variants={itemVariants}
+        whileHover={{ y: -4, transition: { duration: 0.2 } }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <Link 
+          to={`/guide/${city.slug}`}
+          className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-[2rem] transition-all duration-300 shadow-sm hover:shadow-xl hover:border-[#FFDD00]/40"
+        >
+          <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
+          <div className="flex items-center gap-5">
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 group-hover:bg-[#FFDD00]/10 transition-colors">
+              <Globe size={22} className="text-slate-400 group-hover:text-[#222222] transition-colors" />
+            </div>
+            <div>
+              <h3 className="font-bold text-2xl tracking-tighter text-[#222222] uppercase italic leading-none">
+                {city.name}
+              </h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1.5">
+                {city.countryName} // Deployment Ready
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={20} className="text-slate-300 group-hover:text-[#222222] group-hover:translate-x-1 transition-all" />
+        </Link>
+      </motion.div>
 
-                {/* INJECT PROMO: After the second item */}
-                {index === 1 && <SpontaneityEnginePromo />}
-              </div>
-            ))}
-          </motion.div>
+      {/* Sibling Injection: Spontaneity Engine stays in the grid flow */}
+      {index === 1 && (
+        <motion.div variants={itemVariants}>
+          <SpontaneityEnginePromo />
+        </motion.div>
+      )}
+    </React.Fragment>
+  ))}
+</motion.div>
         </section>
       </main>
     </motion.div>

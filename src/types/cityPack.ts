@@ -68,6 +68,7 @@ export interface CityGuide {
   slug: string
   name: string
   countryCode: string
+  currencyCode: string;
   countryName: string
   last_updated: string
   theme: string

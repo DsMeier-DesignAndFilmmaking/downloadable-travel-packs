@@ -13,7 +13,7 @@ export default function Footer() {
           <div className="flex items-center gap-2">
             <div className="w-6 h-8 bg-[#FFDD00] shadow-sm" aria-hidden="true" />
             <span className="text-[12px] font-black tracking-[0.2em] uppercase">
-              Travel Buddy AI
+            Field Protocol // Genesis Build
             </span>
           </div>
           <p className="text-sm text-slate-500 leading-relaxed font-medium">
@@ -78,7 +78,7 @@ export default function Footer() {
               Engineered with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern survivor.
             </p>
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-              © {currentYear} Travel Buddy AI Protocol.
+              © {currentYear} All Rights Reserved // Intelligent Systems Corp.
             </p>
           </div>
         </div>

@@ -10,7 +10,7 @@ const COLUMNS = [
     detail: 'Fresh data on 2026 entry rules and visa status, synced the second you’re online.'
   },
   {
-    id: 'RELY',
+    id: 'OFFLINE',
     icon: CloudOff,
     label: <>No Signal? <br /> No Prob.</>, // Use a Fragment with a <br />
     detail: 'All your critical city guides stay tucked in your pocket, even without Wi-Fi or roaming.'

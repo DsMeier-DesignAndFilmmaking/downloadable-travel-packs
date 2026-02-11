@@ -3,13 +3,8 @@ import { Sparkles, ArrowRight, Layers } from 'lucide-react';
 
 export default function SpontaneityEnginePromo() {
   return (
-    // Changed from motion.a to motion.div
-    <motion.div
-      className="block my-8 group"
-    >
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1A1C1E] p-8 md:p-10 shadow-2xl transition-all duration-500">
-        
-        {/* Status Tag */}
+    <div className="block group"> {/* No py or my needed here anymore */}
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1A1C1E] p-8 md:p-10 shadow-2xl transition-all duration-500">    {/* Responsive Status Tag */}
         <div className="md:absolute md:top-8 md:right-8 mb-6 md:mb-0 flex items-center gap-2 px-3 py-1 rounded-full bg-[#E8FBF8]/5 border border-[#E8FBF8]/10 w-fit">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E8FBF8] opacity-40"></span>
@@ -29,10 +24,10 @@ export default function SpontaneityEnginePromo() {
               <Layers size={20} className="text-[#E8FBF8] md:w-[22px] md:h-[22px]" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-[#E8FBF8]">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#E8FBF8]">
                 Intelligent Systems
               </span>
-              <span className="text-[8px] md:text-[9px] font-medium text-slate-500 uppercase tracking-widest">
+              <span className="text-[9px] font-medium text-slate-500 uppercase tracking-widest">
                 Modular Mobility Architecture
               </span>
             </div>
@@ -66,6 +61,6 @@ export default function SpontaneityEnginePromo() {
           <Sparkles size={100} className="text-[#E8FBF8] md:w-[160px] md:h-[160px]" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

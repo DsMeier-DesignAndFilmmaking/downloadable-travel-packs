@@ -37,10 +37,12 @@ function HighAlertBanner({
   digitalEntry,
   touristTax,
   visaStatus,
+  isLive, // Add this prop
 }: {
   digitalEntry?: string;
   touristTax?: string;
   visaStatus?: string;
+  isLive: boolean; // Add this type
 }) {
   const hasEntry = Boolean(digitalEntry?.trim());
   const hasTax = Boolean(touristTax?.trim());
@@ -54,19 +56,21 @@ function HighAlertBanner({
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-amber-200/80 bg-amber-100 shadow-sm overflow-hidden"
     >
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-amber-200/60 bg-amber-50/80">
-        <Info size={18} className="text-amber-700 shrink-0" aria-hidden />
-        <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">
-          Critical 2026 Update
-        </span>
-      </div>
+      {/* ... header code ... */}
       <div className="p-4 space-y-4">
         {hasVisaStatus && (
           <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" aria-hidden />
+            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Entry status</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">{visaStatus}</p>
+              <p className="text-[#222222] text-sm font-medium leading-relaxed">
+                {visaStatus}
+                {!isLive && (
+                  <span className="block mt-1 text-[9px] font-black text-amber-700/60 uppercase tracking-tighter">
+                    // Live Sync Paused - Using Cached Protocol
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         )}
@@ -162,6 +166,24 @@ function AgenticSystemTrigger({ city, onClick }: { city: string, onClick: () => 
   );
 }
 
+const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
+  // Asia & Middle East
+  TH: { code: 'THB', rate: '31.13' }, // Updated Feb 2026
+  JP: { code: 'JPY', rate: '150.40' },
+  AE: { code: 'AED', rate: '3.67' },   // Dubai / UAE (Pegged)
+
+  // Europe (Common Bloc)
+  GB: { code: 'GBP', rate: '0.87' },   // Updated Feb 2026
+  FR: { code: 'EUR', rate: '0.94' },
+  IT: { code: 'EUR', rate: '0.94' },
+  ES: { code: 'EUR', rate: '0.94' },
+  DE: { code: 'EUR', rate: '0.94' },
+
+  // Americas
+  MX: { code: 'MXN', rate: '17.05' },
+  US: { code: 'USD', rate: '1.00' },   // domestic fallback
+};
+
 export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
   const { cityData, isLoading: packLoading, isOffline, error, refetch } = useCityPack(slug || '');
@@ -254,29 +276,22 @@ export default function CityGuideView() {
 
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
-      {/* 1. STATUS BAR - Now a toggle for Diagnostics */}
-      <div 
-        onClick={() => setIsDiagnosticsOpen(true)}
-        className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
-          isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
-        }`}
-      >
-        <span className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
-          {isOffline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
-        </span>
-        <div className="flex items-center gap-2 opacity-60">
-          <Activity size={10} />
-          <span>Under the hood</span>
-        </div>
-        {/* Example Placement: In a sub-header or utility bar */}
-      <div className="max-w-xl mx-auto px-6 py-4 flex justify-between items-center">
-        <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-          Field Intel
-        </h2>
-        <SyncButton onSync={refetch} isOffline={isOffline} />
-      </div>
-      </div>
+{/* 1. SYSTEM STATUS BAR (Black/Orange) */}
+<div 
+  onClick={() => setIsDiagnosticsOpen(true)}
+  className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
+    isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
+  }`}
+>
+  <div className="flex items-center gap-2">
+    <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
+    {isOffline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
+  </div>
+  <div className="flex items-center gap-2 opacity-60">
+    <Activity size={10} />
+    <span>Under the hood</span>
+  </div>
+</div>
 
       {/* 2. REGISTRATION BANNER */}
       <div className="sticky top-[38px] z-50 min-h-[45px]">
@@ -304,30 +319,44 @@ export default function CityGuideView() {
       </div>
 
       <motion.header variants={itemVariants} className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
-        <div className="flex justify-between items-start mb-10">
-          <Link to="/" className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
-            <ChevronLeft size={20} />
-          </Link>
-          <div className="text-right flex flex-col items-end">
-            <h1 
-              className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer select-none italic" 
-              onClick={() => {
-                setDebugTapCount(prev => prev + 1);
-                if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); }
-              }}
-            >
-              {cityData.name}
-            </h1>
-            <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
-              {cityData.theme}
-            </p>
-            <p className="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase mt-3">
-              Guide Pack / {cityData.countryName}
-            </p>
-          </div>
+  <div className="flex justify-between items-start mb-10">
+    <Link to="/" className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
+      <ChevronLeft size={20} />
+    </Link>
+    
+    <div className="text-right flex flex-col items-end">
+      <h1 
+        className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer select-none italic" 
+        onClick={() => {
+          setDebugTapCount(prev => prev + 1);
+          if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); }
+        }}
+      >
+        {cityData.name}
+      </h1>
+      <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
+        {cityData.theme}
+      </p>
+      
+      {/* INTEGRATED FIELD INTEL & SYNC */}
+      <div className="mt-4 flex items-center gap-3">
+        <div className="flex flex-col items-end">
+          <span className="text-[10px] font-black text-slate-400 tracking-[0.2em] uppercase leading-none">
+            Field Intel
+          </span>
+          <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest mt-1">
+          {cityData.countryName} // v2.0.4
+        </span>
         </div>
-        <AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
-      </motion.header>
+        <div className="h-8 w-[1px] bg-slate-200 mx-1" /> {/* Vertical Divider */}
+        <SyncButton onSync={refetch} isOffline={isOffline} />
+      </div>
+    </div>
+  </div>
+  
+<AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
+
+</motion.header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <motion.section variants={itemVariants} className="space-y-6">
@@ -358,10 +387,15 @@ export default function CityGuideView() {
               ) : (
                 <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                   <HighAlertBanner
-                    digitalEntry={cityData.survival?.digitalEntry}
-                    touristTax={cityData.survival?.touristTax}
-                    visaStatus={visaData?.visa_rules?.primary_rule ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}` : "Checking Status..."}
-                  />
+                  digitalEntry={cityData.survival?.digitalEntry}
+                  touristTax={cityData.survival?.touristTax}
+                  isLive={!!visaData} // !! converts visaData to a true/false boolean
+                  visaStatus={
+                    visaData?.visa_rules?.primary_rule 
+                      ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
+                      : "Standard Entry Protocol / Visa on Arrival typically applies. Verify with local consulate."
+                  }
+                />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -429,26 +463,90 @@ export default function CityGuideView() {
           </div>
         </motion.section>
 
-        {/* SPENDING SHIELD */}
-        {!isDomestic && (
-          <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex justify-between items-end px-2"><h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Market Rate</p>
-                <p className="text-3xl font-black text-[#222222] tabular-nums leading-tight">1 USD = {cityData.countryCode === 'TH' ? '31.23' : visaData?.destination?.exchange} {cityData.countryCode === 'TH' ? 'THB' : visaData?.destination?.currency_code}</p>
-                <div className="mt-6 flex items-center gap-2">
-                  <div className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live FX</div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                </div>
-              </div>
-              <div className="bg-amber-50 border border-amber-200/80 rounded-[2.5rem] p-8 flex flex-col justify-center">
-                <div className="flex gap-2 mb-3"><Info size={18} className="text-amber-600 shrink-0 mt-0.5" /><span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Local Tip</span></div>
-                <p className="text-[14px] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping}</p>
-              </div>
+{/* SPENDING SHIELD */}
+{!isDomestic && (() => {
+  // 1. Data Source Logic
+  const protocolFallback = CURRENCY_PROTOCOL[cityData.countryCode] || { code: '---', rate: '---' };
+  
+  // Prioritize Live API data, then Protocol Map, then placeholder
+  const displayRate = visaData?.destination?.exchange || protocolFallback.rate;
+  const displayCode = visaData?.destination?.currency_code || protocolFallback.code;
+  
+  const isLive = !!visaData;
+  const isUSD = displayCode === 'USD';
+
+  // Casual label override for MXN to make it user-friendly
+  const finalCodeLabel = displayCode === 'MXN' ? 'Pesos' : displayCode;
+
+  return (
+    <motion.section variants={itemVariants} className="space-y-4">
+      <div className="flex justify-between items-end px-2">
+        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+          Spending Shield
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Main FX Card */}
+        <div className="md:col-span-2 bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+            {isLive ? 'Market Exchange Rate' : 'Protocol Baseline Rate'}
+          </p>
+          
+          <div className="flex items-baseline gap-2">
+            {isUSD ? (
+              <span className="text-3xl font-black text-[#222222] tracking-tighter italic">
+                Domestic // No FX Required
+              </span>
+            ) : (
+              <>
+                <span className="text-3xl font-black text-[#222222] tabular-nums">1 USD =</span>
+                <span className="text-3xl font-black text-[#222222] tabular-nums tracking-tighter">
+                  {displayRate} {finalCodeLabel}
+                </span>
+              </>
+            )}
+          </div>
+
+          <div className="mt-6 flex items-center gap-2">
+            <div className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all duration-500 ${
+              isLive 
+                ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                : 'bg-amber-50 border-amber-100 text-amber-700'
+            }`}>
+              {isLive ? 'Live Feed Active' : 'Offline Protocol Active'}
             </div>
-          </motion.section>
-        )}
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              isLive ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-400'
+            }`} />
+          </div>
+
+          {/* Decorative Logic: Fades in a globe icon in the background */}
+          <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700 pointer-events-none">
+             <Globe size={140} />
+          </div>
+        </div>
+
+        {/* Tipping Card */}
+        <div className="bg-amber-50 border border-amber-200/80 rounded-[2.5rem] p-8 flex flex-col justify-center relative overflow-hidden">
+          <div className="flex gap-2 mb-3 relative z-10">
+            <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">
+              Local Tip
+            </span>
+          </div>
+          <p className="text-[14px] font-bold text-amber-900 leading-snug relative z-10">
+            {cityData.survival?.tipping || "Standard 10% is generally expected."}
+          </p>
+          
+          {/* Visual "Note" Texture */}
+          <div className="absolute top-0 right-0 w-12 h-12 bg-amber-200/20 rounded-bl-full" />
+        </div>
+      </div>
+    </motion.section>
+  );
+})()}
+
       </main>
 
       {/* INSTALL OVERLAY */}
@@ -461,6 +559,37 @@ export default function CityGuideView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* --- PASTE THE BUTTON CODE HERE --- */}
+      <div className="fixed bottom-0 left-0 right-0 p-6 pb-10 z-[100] pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#F7F7F7] via-[#F7F7F7]/80 to-transparent backdrop-blur-[2px] -z-10" />
+        <div className="max-w-md mx-auto pointer-events-auto">
+          <button 
+            onClick={() => console.log('Download Triggered')}
+            className="w-full bg-[#222222] text-white h-16 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.3)] flex items-center justify-between px-8 group active:scale-[0.97] transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-[#FFDD00] rounded-xl text-black">
+                <Download size={20} strokeWidth={3} />
+              </div>
+              <div className="flex flex-col items-start text-left">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+                  Save For Offline Use
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                  Offline Access // 2.4MB
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 opacity-30 group-hover:opacity-100 transition-opacity">
+              <div className="h-1 w-1 rounded-full bg-white animate-pulse" />
+              <span className="text-[9px] font-black uppercase">Ready</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      {/* --- END OF BUTTON CODE --- */}
+
     </motion.div>
   );
 }
