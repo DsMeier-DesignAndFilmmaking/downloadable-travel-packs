@@ -11,7 +11,8 @@ import {
   Info, 
   Activity,
   Droplets,
-  Globe
+  Globe,
+  Navigation
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
@@ -128,27 +129,33 @@ const DEFAULT_PASSPORT = 'US';
 function AgenticSystemTrigger({ city, onClick }: { city: string, onClick: () => void }) {
   return (
     <motion.button 
-      variants={itemVariants} 
-      onClick={onClick}
-      className="w-full flex items-center justify-between p-6 rounded-[2rem] bg-emerald-500/[0.04] border border-emerald-500/10 shadow-sm active:scale-[0.98] transition-all group"
-    >
-      <div className="flex items-center gap-4">
-        <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20">
-          <Zap size={20} className="text-white fill-white" />
-        </div>
-        <div className="text-left">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-black uppercase tracking-tight text-slate-700">Agentic Intelligence</span>
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          </div>
-          <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter mt-0.5">Verified Local Protocols for {city}</p>
-        </div>
+    variants={itemVariants} 
+    onClick={onClick}
+    className="w-full flex items-center justify-between p-6 rounded-[2rem] bg-emerald-500/[0.04] border border-emerald-500/10 shadow-sm active:scale-[0.98] transition-all group"
+  >
+    <div className="flex items-center gap-4">
+      <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20">
+        <Zap size={20} className="text-white fill-white" />
       </div>
-      <div className="flex flex-col items-end opacity-40 group-hover:opacity-100 transition-opacity">
-        <Activity size={16} className="text-slate-400" />
-        <span className="text-[8px] font-black uppercase tracking-widest mt-1">Diagnostics</span>
+      <div className="text-left">
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-black uppercase tracking-tight text-slate-800">
+            Personal Smart Guide
+          </span>
+          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        </div>
+        <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter mt-0.5">
+          Hand-picked experiences for {city}
+        </p>
       </div>
-    </motion.button>
+    </div>
+    <div className="flex flex-col items-end opacity-60 group-hover:opacity-100 transition-opacity">
+      <Activity size={16} className="text-emerald-500" />
+      <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-slate-500">
+        View Specs
+      </span>
+    </div>
+  </motion.button>
   );
 }
 
@@ -166,7 +173,6 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
 };
 
 export default function CityGuideView() {
-  // --- 1. HOOKS ZONE (Top Level) ---
   const { slug } = useParams<{ slug: string }>();
   const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(slug || '');
   const { isInstallable, installPWA, isInstalled } = usePWAInstall();  
@@ -177,12 +183,10 @@ export default function CityGuideView() {
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
 
-  // Sync state persisted in localStorage
   const [lastSynced, setLastSynced] = useState<string | null>(() => {
     return localStorage.getItem(`sync_${slug}`);
   });
 
-  // Effects
   useEffect(() => {
     if (lastSynced && slug) {
       localStorage.setItem(`sync_${slug}`, lastSynced);
@@ -211,7 +215,6 @@ export default function CityGuideView() {
       .finally(() => setIsApiLoading(false));
   }, [cityData?.countryCode]);
 
-  // --- 2. LOGIC ZONE ---
   const handleSync = async () => {
     try {
       await refetch();
@@ -221,7 +224,6 @@ export default function CityGuideView() {
     }
   };
 
-  // --- 3. CONDITIONAL RENDER ZONE ---
   if (packLoading || !cityData) return (
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col justify-center items-center">
        <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
@@ -310,7 +312,7 @@ export default function CityGuideView() {
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <section className="space-y-6">
           <div className="px-2 flex items-center justify-between">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-2">
+            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
               Survival Dashboard
               <SourceInfo source="Travel Buddy Protocol v2" lastUpdated="Synced just now" />
             </h2>
@@ -344,7 +346,7 @@ export default function CityGuideView() {
 
         {cityData.arrival && (
           <section className="space-y-4">
-            <h2 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">First 60 Minutes</h2>
+            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
                 <Plane size={20} className="text-[#222222]" />
@@ -360,6 +362,53 @@ export default function CityGuideView() {
           </section>
         )}
 
+        {/* TRANSIT INTELLIGENCE SECTION */}
+        {cityData.transit_logic && (
+          <section className="space-y-4">
+            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+              Transit & Transportation
+            </h2>
+            <div className="grid grid-cols-1 gap-4">
+              <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <Navigation size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Access & Fare Strategy
+                    </p>
+                   
+                  </div>
+                </div>
+                
+                <p className="text-[15px] font-medium text-[#222222] leading-relaxed">
+                  {cityData.transit_logic.payment_method}
+                </p>
+
+                <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Phone size={14} className="text-slate-400" />
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                      Primary Apps
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
+                    {cityData.transit_logic.primary_app}
+                  </span>
+                </div>
+
+                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
+                  <p className="text-[13px] font-bold text-slate-600 italic">
+                    "{cityData.transit_logic.etiquette}"
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -367,7 +416,7 @@ export default function CityGuideView() {
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
               <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
-                {(cityData.survival as any)?.water || cityData.survival?.tapWater || "Check Local Intel"}
+                {cityData.survival?.tapWater || "Check Local Intel"}
               </p>
             </div>
             <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
@@ -382,7 +431,7 @@ export default function CityGuideView() {
         </section>
 
         <section className="space-y-4">
-          <h2 className="px-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Spending Shield</h2>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending Shield</h2>
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
             <div className="flex items-center gap-2 mb-2">
               <Globe size={14} className="text-slate-400" />
@@ -396,7 +445,7 @@ export default function CityGuideView() {
         </section>
       </main>
 
-      {/* FIXED DOWNLOAD BAR - WIRED TO PWA HOOK */}
+      {/* FIXED DOWNLOAD BAR */}
       <div className="fixed bottom-0 left-0 right-0 p-6 pb-10 z-[100] pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto">
           <button 

@@ -42,6 +42,14 @@ export interface CityPackArrival {
   essentialApps: string[]
 }
 
+/** 2026 Movement Intelligence: The "How-To" of the city. */
+export interface CityPackTransit {
+  bestWay: string;      // "The Movement Hack" from your UI
+  rideShare?: string;   // Local equivalent (Uber, Grab, Bolt, etc.)
+  transitCard?: string; // Physical card or Digital wallet info
+  warning?: string;     // Strikes, peak hour notes, or safety warnings
+}
+
 /** Neighborhood vibe and safety (1–10). */
 export interface CityPackNeighborhood {
   name: string
@@ -83,6 +91,7 @@ export interface CityGuide {
   emergency: CityPackEmergency
   survival: CityPackSurvival
   arrival: CityPackArrival
+  transit?: CityPackTransit       // Added back for Transit Hacks UI
   neighborhoods: CityPackNeighborhood[]
   survival_kit: CityPackSurvivalKit
   transit_logic: CityPackTransitLogic

@@ -114,7 +114,7 @@ export default function HomePage() {
           </span>
           <div className="w-[1px] h-2.5 bg-slate-200" /> {/* Small Separator */}
           <span className="text-[9px] font-black text-emerald-500/80 uppercase tracking-tighter">
-            More Packs&nbsp;Pending&nbsp;Deployment
+            More Packs&nbsp;Coming&nbsp;Soon
           </span>
         </div>
       </motion.div>
