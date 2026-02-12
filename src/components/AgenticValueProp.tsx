@@ -10,7 +10,7 @@ const COLUMNS = [
   {
     id: 'OFFLINE',
     icon: CloudOff,
-    label: <>Offline <br /> Reliability</>,
+    label: <>Local<br />Storage</>,
     detail: 'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.'
   },
   {

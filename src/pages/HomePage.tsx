@@ -83,7 +83,7 @@ export default function HomePage() {
         variants={itemVariants}
         className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl"
       >
-        <span className="text-[#222222] font-semibold">Live syncing</span> when you’re connected. <br className="hidden md:block" />
+        <span className="text-[#222222] font-semibold">Live updates</span> when you’re connected. <br className="hidden md:block" />
         <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">Offline reliability</span> for when you’re not.
       </motion.p>
         </header>
