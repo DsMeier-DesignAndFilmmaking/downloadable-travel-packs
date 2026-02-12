@@ -103,23 +103,33 @@ export default function HomePage() {
 
         {/* Catalog Section */}
         <section className="max-w-xl mx-auto px-6 space-y-6">
-        <motion.div variants={itemVariants} className="flex items-center justify-between px-2">
-        <h2 className="text-[11px] font-black tracking-[0.2em] text-slate-400 uppercase">
-          Current Catalog
-        </h2>
-        <div className="h-[1px] flex-grow mx-4 bg-slate-200" />
-        <div className="flex items-center gap-3">
-          <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
-            {cityPacksList.length} Units
-          </span>
-          <div className="w-[1px] h-2.5 bg-slate-200" /> {/* Small Separator */}
-          <span className="text-[9px] font-black text-emerald-500/80 uppercase tracking-tighter">
-            More Packs&nbsp;Coming&nbsp;Soon
-          </span>
+        <motion.div variants={itemVariants} className="flex items-center justify-between px-1">
+        <div className="flex items-center flex-1 min-w-0">
+          {/* Bumping to 13px (0.8125rem) is a safe baseline for headings */}
+          <h2 className="text-[13px] font-black tracking-[0.15em] text-slate-500 uppercase whitespace-nowrap">
+            Catalog
+          </h2>
+          <div className="h-[1px] flex-grow ml-3 mr-4 bg-slate-200" />
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col items-end">
+            {/* 11px is the bare minimum for "secondary" data if font-weight is high */}
+            <span className="text-[11px] font-bold text-slate-600 tabular-nums leading-tight">
+              Currently {cityPacksList.length} UNITS
+            </span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+              {/* 10px is the absolute basement for legal/disclaimer-style text */}
+              <span className="text-[10px] font-black text-emerald-700 uppercase tracking-tight leading-tight whitespace-nowrap">
+                More Packs Coming Soon
+              </span>
+            </div>
+          </div>
         </div>
       </motion.div>
           
-          <motion.div variants={containerVariants} className="grid gap-4">
+<motion.div variants={containerVariants} className="grid gap-4">
   {cityPacksList.map((city, index) => (
     <React.Fragment key={city.slug}>
       {/* City Card Block */}
