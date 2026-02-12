@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight, Layers } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 
 export default function SpontaneityEnginePromo() {
   return (
@@ -43,7 +43,7 @@ export default function SpontaneityEnginePromo() {
               </h2>
 
               <p className="text-[13px] md:text-[15px] text-slate-300 font-light leading-relaxed max-w-full md:max-w-[340px]">
-                Pairing <span className="text-[#818CF8] font-medium">real-time transport data</span> with insider local knowledge to guide you effortlessly through&nbsp;any&nbsp;city.
+                Pairing <span className="text-[#818CF8] font-medium">real-time data</span> with insider local knowledge to guide you effortlessly through&nbsp;any&nbsp;city.
               </p>
             </div>
 
