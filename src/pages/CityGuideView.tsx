@@ -446,32 +446,36 @@ export default function CityGuideView() {
       </main>
 
       {/* FIXED DOWNLOAD BAR */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 pb-10 z-[100] pointer-events-none">
-        <div className="max-w-md mx-auto pointer-events-auto">
-          <button 
-            onClick={installPWA}
-            disabled={isInstalled || !isInstallable}
-            className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
-              isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-xl ${isInstalled ? 'bg-slate-200 text-slate-400' : 'bg-[#FFDD00] text-black'}`}>
-                <Download size={20} strokeWidth={3} />
-              </div>
-              <div className="flex flex-col items-start text-left">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-                  {isInstalled ? 'Pack Installed' : 'Download Pack'}
-                </span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  {isInstalled ? 'Available Offline' : `Store ${cityData.name} Offline // 2.4MB`}
-                </span>
-              </div>
-            </div>
-            <div className={`h-1.5 w-1.5 rounded-full ${isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
-          </button>
+<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+  {/* The Blur Layer */}
+  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50 mask-gradient-edge" 
+       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
+
+  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+    <button 
+      onClick={installPWA}
+      disabled={isInstalled || !isInstallable}
+      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
+        isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
+      }`}
+    >
+      <div className="flex items-center gap-4">
+        <div className={`p-2 rounded-xl ${isInstalled ? 'bg-slate-200 text-slate-400' : 'bg-[#FFDD00] text-black'}`}>
+          <Download size={20} strokeWidth={3} />
+        </div>
+        <div className="flex flex-col items-start text-left">
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+            {isInstalled ? 'Pack Installed' : 'Download Pack'}
+          </span>
+          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+            {isInstalled ? 'Available Offline' : `Store ${cityData.name} Offline // 2.4MB`}
+          </span>
         </div>
       </div>
+      <div className={`h-1.5 w-1.5 rounded-full ${isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
+    </button>
+  </div>
+</div>
     </motion.div>
   );
 }
