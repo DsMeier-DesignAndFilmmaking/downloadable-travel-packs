@@ -2,55 +2,62 @@ import { CloudOff, Globe, Zap } from 'lucide-react';
 
 const COLUMNS = [
   {
-    id: 'SYNC',
     icon: Globe,
-    label: 'Live Intel Sync',
-    detail: 'Automatic background updates for 2026 entry rules and visa alerts the second you’re back on the grid.'
+    title: 'Live Sync',
+    detail:
+      'Automatic background updates for 2026 entry rules and visa alerts the second you’re back on the grid.',
   },
   {
-    id: 'OFFLINE',
     icon: CloudOff,
-    label: <>Local<br />Storage</>,
-    detail: 'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.'
+    title: 'Offline Storage',
+    detail:
+      'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.',
   },
   {
-    id: 'SOLVE',
     icon: Zap,
-    label: 'On-Ground Intel',
-    detail: 'Real-world solutions for navigation, local logistics, and arrival hurdles—engineered to solve travel’s most common "in-the-moment" challenges.'
-    },
+    title: 'On-Ground Intel',
+    detail:
+      'Real-world solutions for navigation, local logistics, and arrival hurdles—engineered to solve travel’s most common in-the-moment challenges.',
+  },
 ] as const;
 
 export default function AgenticValueProp() {
   return (
-    <section className="w-full" aria-label="Core Travel Benefits">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {COLUMNS.map((col) => {
+    <section aria-labelledby="core-benefits-heading" className="w-full">
+      {/* Accessible Section Heading */}
+      <h2 id="core-benefits-heading" className="sr-only">
+        Core Travel Benefits
+      </h2>
+
+      {/* 2 Top, 1 Bottom Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {COLUMNS.map((col, index) => {
           const Icon = col.icon;
 
           return (
-            <div 
-              key={col.id} 
-              className="relative bg-white border border-slate-100 rounded-2xl p-5 flex flex-col items-center text-center shadow-sm h-full group transition-hover hover:border-slate-200"
+            <div
+              key={col.title}
+              className={`bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center text-center shadow-sm h-full
+                ${index === 2 ? 'md:col-span-2 md:max-w-xl md:mx-auto' : ''}`}
             >
-              {/* Icon Container */}
-              <div className="mb-3 p-2 rounded-xl text-slate-500 bg-slate-50 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                <Icon size={20} strokeWidth={2.5} aria-hidden="true" />
+              {/* Decorative Icon */}
+              <div className="mb-4 p-3 rounded-xl text-slate-700 bg-slate-100">
+                <Icon
+                  size={24}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  focusable="false"
+                />
               </div>
 
-              {/* Pillar ID */}
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-1.5 text-slate-400">
-                {col.id}
+              {/* Card Heading */}
+              <h3 className="text-base font-bold text-slate-900 leading-snug mb-3">
+                {col.title}
               </h3>
-              
-              {/* Semantic SEO Label */}
-              <p className="text-[15px] font-black text-[#222222] leading-tight mb-3">
-                {col.label}
-              </p>
 
-              {/* High-Value Detail */}
-              <div className="pt-3 mt-auto border-t border-slate-50 w-full">
-                <p className="text-[11px] font-medium text-slate-500 leading-snug">
+              {/* Description */}
+              <div className="pt-4 mt-auto border-t border-slate-200 w-full">
+                <p className="text-sm text-slate-700 leading-relaxed">
                   {col.detail}
                 </p>
               </div>

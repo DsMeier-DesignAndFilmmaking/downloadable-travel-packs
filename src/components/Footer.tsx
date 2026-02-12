@@ -35,7 +35,7 @@ export default function Footer() {
               <Cpu size={12} /> Protocol
             </h4>
             <ul className="space-y-3 text-sm font-bold text-[#222222]">
-              <li><Link to="/" onClick={() => window.scrollTo(0, 0)} className="hover:text-emerald-600 transition-colors">Global Catalog</Link></li>
+              <li><Link to="/" className="hover:text-emerald-600 transition-colors">Global Catalog</Link></li>
               <li><Link to="/specs" className="hover:text-emerald-600 transition-colors">System Specs</Link></li>
               <li><Link to="/security-protocol" className="hover:text-emerald-600 transition-colors">Security Protocol</Link></li>
             </ul>

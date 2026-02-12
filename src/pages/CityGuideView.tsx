@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Phone, 
   AlertTriangle, 
@@ -126,36 +126,28 @@ const itemVariants: Variants = {
 
 const DEFAULT_PASSPORT = 'US';
 
-function AgenticSystemTrigger({ city, onClick }: { city: string, onClick: () => void }) {
+function AgenticSystemTrigger({
+  city,
+  onClick,
+}: {
+  city: string;
+  onClick: () => void;
+}) {
   return (
-    <motion.button 
-    variants={itemVariants} 
-    onClick={onClick}
-    className="w-full flex items-center justify-between p-6 rounded-[2rem] bg-emerald-500/[0.04] border border-emerald-500/10 shadow-sm active:scale-[0.98] transition-all group"
-  >
-    <div className="flex items-center gap-4">
-      <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg shadow-emerald-500/20">
-        <Zap size={20} className="text-white fill-white" />
-      </div>
-      <div className="text-left">
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] font-black uppercase tracking-tight text-slate-800">
-            Personal Smart Guide
-          </span>
-          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        </div>
-        <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter mt-0.5">
-          Hand-picked experiences for {city}
-        </p>
-      </div>
-    </div>
-    <div className="flex flex-col items-end opacity-60 group-hover:opacity-100 transition-opacity">
-      <Activity size={16} className="text-emerald-500" />
-      <span className="text-[8px] font-black uppercase tracking-widest mt-1 text-slate-500">
-        View Specs
-      </span>
-    </div>
-  </motion.button>
+    <motion.button
+      variants={itemVariants}
+      onClick={onClick}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full 
+                 bg-emerald-50 border border-emerald-200 
+                 text-emerald-700 text-xs font-semibold 
+                 transition-all active:scale-95 
+                 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      aria-label={`Open personal smart guide for ${city}`}
+    >
+      <Zap size={14} aria-hidden="true" />
+      <span>Live Intelligence</span>
+      <Activity size={14} className="opacity-60" aria-hidden="true" />
+    </motion.button>
   );
 }
 
@@ -174,6 +166,7 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
 
 export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(slug || '');
   const { isInstallable, installPWA, isInstalled } = usePWAInstall();  
   
@@ -237,9 +230,13 @@ export default function CityGuideView() {
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-8">
       <AlertTriangle className="text-rose-500 w-12 h-12 mb-4" />
       <p className="text-[#222222] font-bold mb-6 text-center">{error.message}</p>
-      <Link to="/" className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg">
+      <button
+        type="button"
+        onClick={() => navigate(-1)}
+        className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
+      >
         Back to Catalog
-      </Link>
+      </button>
     </div>
   );
 
@@ -273,9 +270,13 @@ export default function CityGuideView() {
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
-          <Link to="/" className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+          >
             <ChevronLeft size={20} />
-          </Link>
+          </button>
           <div className="text-right flex flex-col items-end">
             <h1 
               className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic" 
@@ -290,23 +291,40 @@ export default function CityGuideView() {
               {cityData.theme}
             </p>
             
-            <div className="mt-6 flex items-center gap-4">
-              <div className="flex flex-col items-end">
-                <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {isOffline ? "Viewing Offline" : (
-                    `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { 
-                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                    })}`
-                  )}
-                </span>
-              </div>
-              <div className="h-9 w-[1px] bg-slate-200 mx-1" aria-hidden="true" />
-              <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
-            </div>
+            <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
+  <div className="flex flex-col items-end">
+    <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
+      Local Intel
+    </span>
+    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+      {isOffline
+        ? "Viewing Offline"
+        : `Updated ${new Date(
+            lastSynced || cityData.last_updated
+          ).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}`}
+    </span>
+  </div>
+
+  <div className="h-8 w-[1px] bg-slate-200" aria-hidden="true" />
+
+  <SyncButton
+    onSync={handleSync}
+    isOffline={isOffline}
+    status={syncStatus}
+  />
+
+  <AgenticSystemTrigger
+    city={cityData.name}
+    onClick={() => setIsDiagnosticsOpen(true)}
+  />
+</div>
           </div>
         </div>
-        <AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
       </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
@@ -445,7 +463,7 @@ export default function CityGuideView() {
         </section>
       </main>
 
-      {/* FIXED DOWNLOAD BAR */}
+{/* FIXED DOWNLOAD BAR */}
 <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
   {/* The Blur Layer */}
   <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50 mask-gradient-edge" 
@@ -468,7 +486,7 @@ export default function CityGuideView() {
             {isInstalled ? 'Pack Installed' : 'Download Pack'}
           </span>
           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-            {isInstalled ? 'Available Offline' : `Store ${cityData.name} Offline // 2.4MB`}
+            {isInstalled ? 'Available Offline' : `Store ${cityData.name} for Offline Use // 2.4MB`}
           </span>
         </div>
       </div>
