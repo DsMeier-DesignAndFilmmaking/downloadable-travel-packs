@@ -1,103 +1,123 @@
-import { useState, useEffect, useCallback } from 'react'
-import { MANIFEST_URL } from '@/services/apiConfig'
-
-const MANIFEST_LINK_ID = 'tp-v2-dynamic-manifest'
+import { useState, useEffect, useCallback } from 'react';
+import { MANIFEST_URL } from '@/services/apiConfig';
 
 /**
- * usePWAInstall(citySlug) — City-aware PWA install hook.
- * - Keeps <link rel="manifest"> in sync with the current city so the browser
- *   sees a different PWA "ID" per pack (e.g. Rome vs Istanbul).
- * - Exposes isInstalled (standalone), install prompt, and showMobileOverlay
- *   for "Share >> Add to Home Screen" instructions on iOS/Android.
+ * BeforeInstallPromptEvent interface for Chrome/Android native prompts.
  */
 interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[]
+  readonly platforms: string[];
   readonly userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed'
-    platform: string
-  }>
-  prompt(): Promise<void>
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
 }
 
 function isMobileIOSOrAndroid(): boolean {
-  if (typeof navigator === 'undefined' || !navigator.userAgent) return false
-  const ua = navigator.userAgent.toLowerCase()
-  return /iphone|ipad|ipod|android/.test(ua)
+  if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
+  const ua = navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod|android/.test(ua);
 }
 
 export function usePWAInstall(citySlug: string) {
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [showMobileOverlay, setShowMobileOverlay] = useState(false)
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
-  // 1. Dynamic manifest: point <link rel="manifest"> at the current city’s manifest.
+  // 1. DYNAMIC MANIFEST INJECTION
+  // This is the "Silver Bullet": We ensure the browser sees a unique manifest 
+  // for every city slug, preventing the "Everything is Rome" bug.
   useEffect(() => {
-    if (!citySlug) return
+    if (!citySlug) return;
 
-    let link = document.querySelector<HTMLLinkElement>(`link[rel="manifest"]`)
-    if (!link) {
-      link = document.createElement('link')
-      link.id = MANIFEST_LINK_ID
-      link.rel = 'manifest'
-      document.head.appendChild(link)
+    const manifestUrl = MANIFEST_URL(citySlug);
+    
+    // Check for any existing manifest tags to avoid duplicates
+    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+
+    if (manifestLink) {
+      // If it exists, update it to the new city-specific URL
+      manifestLink.href = manifestUrl;
     } else {
-      link.id = MANIFEST_LINK_ID
+      // Create it if it doesn't exist
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = manifestUrl;
+      document.head.appendChild(manifestLink);
     }
-    link.href = MANIFEST_URL(citySlug)
 
-    return () => {
-      const el = document.getElementById(MANIFEST_LINK_ID)
-      if (el?.parentNode) el.parentNode.removeChild(el)
+    // Optional: Refresh the browser's recognition of the manifest
+    // Some browsers need the tag to be re-appended to trigger a re-parse
+    const parent = manifestLink.parentNode;
+    if (parent) {
+      parent.removeChild(manifestLink);
+      parent.appendChild(manifestLink);
     }
-  }, [citySlug])
 
-  // 2. Standalone detection + beforeinstallprompt / appinstalled
+    // We do NOT remove the manifest on unmount because the user might 
+    // click "Add to Home Screen" while the component is transitioning.
+  }, [citySlug]);
+
+  // 2. INSTALLATION STATE & NATIVE PROMPTS
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-    }
+    if (typeof window === 'undefined') return;
+
+    const checkStandalone = () => {
+      const isStandalone = 
+        window.matchMedia('(display-mode: standalone)').matches || 
+        (window.navigator as any).standalone === true;
+      setIsInstalled(isStandalone);
+    };
+
+    checkStandalone();
 
     const handler = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as BeforeInstallPromptEvent)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
+      // Prevent the default mini-infobar on Android
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
 
     const appInstalledHandler = () => {
-      setInstallPrompt(null)
-      setIsInstalled(true)
-    }
-    window.addEventListener('appinstalled', appInstalledHandler)
+      setInstallPrompt(null);
+      setIsInstalled(true);
+      setShowMobileOverlay(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', appInstalledHandler);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handler)
-      window.removeEventListener('appinstalled', appInstalledHandler)
-    }
-  }, [])
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', appInstalledHandler);
+    };
+  }, []);
 
   const installPWA = useCallback(async () => {
+    // If native prompt is available (Chrome/Android/Desktop)
     if (installPrompt) {
-      await installPrompt.prompt()
-      await installPrompt.userChoice
-      setInstallPrompt(null)
-      return
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+      return;
     }
-    // No native prompt (e.g. iOS): show "Share >> Add to Home Screen" instructions.
-    if (isMobileIOSOrAndroid()) {
-      setShowMobileOverlay(true)
+
+    // If no native prompt (Safari/iOS), show our custom mobile overlay instructions
+    if (isMobileIOSOrAndroid() && !isInstalled) {
+      setShowMobileOverlay(true);
     }
-  }, [installPrompt])
+  }, [installPrompt, isInstalled]);
 
   const dismissMobileOverlay = useCallback(() => {
-    setShowMobileOverlay(false)
-  }, [])
+    setShowMobileOverlay(false);
+  }, []);
 
   return {
-    isInstallable: !!installPrompt,
+    isInstallable: !!installPrompt || (isMobileIOSOrAndroid() && !isInstalled),
     isInstalled,
     installPWA,
     showMobileOverlay,
     dismissMobileOverlay,
-  }
+  };
 }
