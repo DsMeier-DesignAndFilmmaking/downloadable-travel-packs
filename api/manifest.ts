@@ -36,7 +36,9 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
   const origin =
     proto && host
       ? `${Array.isArray(proto) ? proto[0] : proto}://${Array.isArray(host) ? host[0] : host}`
-      : 'https://travelpacks.example.com'
+      : typeof process !== 'undefined' && process.env?.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'https://travelpacks.example.com'
 
   const manifest = {
     name: `${cityName} Travel Pack`,
@@ -44,17 +46,14 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
     start_url: `/guide/${slug}?utm_source=pwa`,
     display: 'standalone' as const,
-    scope: '/',
+    scope: `/guide/${slug}/`,
     theme_color: '#0f172a',
     background_color: '#0f172a',
     prefer_related_applications: false,
     icons: [
-      {
-        src: `${origin}/vite.svg`,
-        sizes: 'any',
-        type: 'image/svg+xml',
-        purpose: 'any',
-      },
+      { src: `${origin}/pwa-192x192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: `${origin}/pwa-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: `${origin}/pwa-pwa-maskable-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 

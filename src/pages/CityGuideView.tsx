@@ -17,7 +17,6 @@ import {
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
-import { MANIFEST_URL } from '@/services/apiConfig';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
@@ -169,8 +168,9 @@ export default function CityGuideView() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(slug || '');
-  const { isInstallable, installPWA, isInstalled } = usePWAInstall();  
-  
+  // Dynamic manifest (link href = /api/manifest/:slug), isInstalled (standalone), desktop prompt / mobile overlay
+  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(slug ?? '');
+
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -181,18 +181,6 @@ export default function CityGuideView() {
   useEffect(() => {
     if (lastSynced && slug) localStorage.setItem(`sync_${slug}`, lastSynced);
   }, [lastSynced, slug]);
-
-  useEffect(() => {
-    if (!slug) return;
-    const id = 'tp-v2-dynamic-manifest';
-    let link = document.getElementById(id) as HTMLLinkElement;
-    if (!link) {
-      link = document.createElement('link'); link.id = id; link.rel = 'manifest';
-      document.head.appendChild(link);
-    }
-    link.href = MANIFEST_URL(slug);
-    return () => { const el = document.getElementById(id); if (el) el.remove(); };
-  }, [slug]);
 
   useEffect(() => {
     if (!cityData?.countryCode) return;
@@ -447,7 +435,7 @@ export default function CityGuideView() {
         <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
           <button 
             onClick={installPWA}
-            disabled={isInstalled || !isInstallable}
+            disabled={isInstalled}
             className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
               isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
             }`}
@@ -469,6 +457,39 @@ export default function CityGuideView() {
           </button>
         </div>
       </div>
+
+      {/* Mobile overlay: Share → Add to Home Screen (when no beforeinstallprompt) */}
+      <AnimatePresence>
+        {showMobileOverlay && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24"
+            onClick={dismissMobileOverlay}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200"
+            >
+              <p className="text-[#222222] font-bold text-center mb-4">Add to Home Screen</p>
+              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside">
+                <li>Tap the Share icon (box with arrow)</li>
+                <li>Scroll down and tap &quot;Add to Home Screen&quot;</li>
+              </ol>
+              <button
+                onClick={dismissMobileOverlay}
+                className="w-full py-3 rounded-full bg-[#222222] text-white font-bold"
+              >
+                Got it
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
