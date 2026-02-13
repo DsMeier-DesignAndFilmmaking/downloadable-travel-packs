@@ -141,7 +141,9 @@ const itemVariants: Variants = {
 
 const DEFAULT_PASSPORT = 'US';
 
-function AgenticSystemTrigger({ city, onClick }: { city: string; onClick: () => void; }) {
+function AgenticSystemTrigger({ onClick }: {
+  onClick: () => void;
+}) {
   return (
     <motion.button
       variants={itemVariants}
@@ -260,41 +262,67 @@ export default function CityGuideView() {
       </div>
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
-        <div className="flex justify-between items-start mb-10">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <div className="text-right flex flex-col items-end">
-            <h1 
-              className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic" 
-              onClick={() => {
-                setDebugTapCount(p => p + 1);
-                if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); }
-              }}
-            >
-              {cityData.name}
-            </h1>
-            <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
-              {cityData.theme}
-            </p>
-            
-            <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
-              <div className="flex flex-col items-end">
-                <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {isOffline ? "Viewing Offline" : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
-                </span>
-              </div>
-              <div className="h-8 w-[1px] bg-slate-200" />
-              <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
-              <AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
-            </div>
-          </div>
+  <div className="flex justify-between items-start mb-10">
+    <button
+      onClick={() => navigate(-1)}
+      className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+    >
+      <ChevronLeft size={20} />
+    </button>
+
+    <div className="text-right flex flex-col items-end">
+      <h1
+        className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic"
+        onClick={() => {
+          setDebugTapCount(p => p + 1);
+          if (debugTapCount >= 4) {
+            setShowDebug(true);
+            setDebugTapCount(0);
+          }
+        }}
+      >
+        {cityData.name}
+      </h1>
+
+      <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
+        {cityData.theme}
+      </p>
+
+      <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
+        <div className="flex flex-col items-end">
+          <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
+            Local Intel
+          </span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+            {isOffline
+              ? 'Viewing Offline'
+              : `Updated ${new Date(
+                  lastSynced || cityData.last_updated
+                ).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`}
+          </span>
         </div>
-      </header>
+
+        <div className="h-8 w-[1px] bg-slate-200" />
+
+        <SyncButton
+          onSync={handleSync}
+          isOffline={isOffline}
+          status={syncStatus}
+        />
+
+        <AgenticSystemTrigger
+          onClick={() => setIsDiagnosticsOpen(true)}
+        />
+      </div>
+    </div>
+  </div>
+</header>
+
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {/* Survival Section */}
