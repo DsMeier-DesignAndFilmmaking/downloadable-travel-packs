@@ -24,28 +24,39 @@ export function usePWAInstall(citySlug: string) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
-  // 1. DYNAMIC MANIFEST INJECTION
-  // THE "SILVER BULLET": We force-replace the manifest tag with a unique ID and cache-buster
-  // to ensure the OS recognizes each city as a separate standalone application.
+  /// 1. DYNAMIC MANIFEST INJECTION (HOT-SWAP VERSION)
   useEffect(() => {
     if (!citySlug) return;
 
-    // 1. Force-remove ALL existing manifest tags to clear browser internal state
-    const existingManifests = document.querySelectorAll('link[rel="manifest"]');
-    existingManifests.forEach(el => el.remove());
+    const updateManifest = () => {
+      // 1. Clean up ALL old manifests
+      const existing = document.querySelectorAll('link[rel="manifest"]');
+      existing.forEach(el => el.remove());
 
-    // 2. Build the new manifest URL with a cache-buster
-    // Adding the timestamp prevents the browser from using a locally cached manifest file.
-    const manifestUrl = `${MANIFEST_URL(citySlug)}&v=${Date.now()}`;
-    
-    // 3. Create and append a fresh link tag
-    const newManifestLink = document.createElement('link');
-    newManifestLink.rel = 'manifest';
-    newManifestLink.href = manifestUrl;
-    
-    document.head.appendChild(newManifestLink);
+      // 2. Create the new one with a HARD identity in the URL
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      // We use the slug as a path segment to help the browser distinguish identity
+      link.href = `${MANIFEST_URL(citySlug)}&v=${Date.now()}`;
+      
+      // 3. Add a unique ID to the element itself
+      link.id = `manifest-${citySlug}`;
+      
+      document.head.appendChild(link);
+      
+      console.log(`[PWA] Hot-swapped manifest to: ${citySlug}`);
+    };
 
-    console.log(`[PWA] Manifest rotated for: ${citySlug}`);
+    updateManifest();
+
+    // OPTIONAL: A small hack for Chrome/Android
+    // Changing the theme color slightly can sometimes force a manifest re-read
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) {
+      const current = themeMeta.getAttribute('content');
+      themeMeta.setAttribute('content', current === '#0f172a' ? '#0f172b' : '#0f172a');
+    }
+
   }, [citySlug]);
 
   // 2. INSTALLATION STATE & NATIVE PROMPTS
