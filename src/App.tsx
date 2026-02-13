@@ -55,7 +55,7 @@ function AnimatedRoutes() {
         }
       }}
     >
-      <Routes location={location} key={location.pathname + location.key}>
+      <Routes location={location} key={location.pathname}>
         {/* Home */}
         <Route
           path="/"
@@ -66,7 +66,7 @@ function AnimatedRoutes() {
           }
         />
 
-        {/* Dynamic City Guide */}
+        {/* Dynamic City Guide — matches by pathname only; query (e.g. ?utm_source=pwa) is preserved and does not redirect to / */}
         <Route
           path="/guide/:slug"
           element={

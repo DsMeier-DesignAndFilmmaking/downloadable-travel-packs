@@ -17,6 +17,7 @@ import {
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { getCleanSlug } from '@/utils/slug';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
@@ -165,30 +166,43 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
 };
 
 export default function CityGuideView() {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: rawSlug } = useParams<{ slug: string }>();
+  const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
-  const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(slug || '');
+  const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(cleanSlug || undefined);
   // Dynamic manifest (link href = /api/manifest/:slug), isInstalled (standalone), desktop prompt / mobile overlay
-  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(slug ?? '');
+  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(cleanSlug);
 
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem(`sync_${slug}`));
+  const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem(`sync_${cleanSlug}`));
 
   useEffect(() => {
-    if (lastSynced && slug) localStorage.setItem(`sync_${slug}`, lastSynced);
-  }, [lastSynced, slug]);
+    if (lastSynced && cleanSlug) localStorage.setItem(`sync_${cleanSlug}`, lastSynced);
+  }, [lastSynced, cleanSlug]);
 
   useEffect(() => {
     if (!cityData?.countryCode) return;
+    
+    // If we are offline, don't even try the Visa API to avoid hangs
+    if (isOffline) {
+      setIsApiLoading(false);
+      return;
+    }
+
     setIsApiLoading(true);
     fetchVisaCheck(DEFAULT_PASSPORT, cityData.countryCode)
-      .then((data) => { if (data) setVisaData(data); })
+      .then((data) => { 
+        if (data) setVisaData(data); 
+      })
+      .catch(err => {
+        console.error("Visa Check Protocol Failed:", err);
+      })
       .finally(() => setIsApiLoading(false));
-  }, [cityData?.countryCode]);
+  }, [cityData?.countryCode, isOffline]); // Added isOffline to dependency
 
   const handleSync = async () => {
     try {
@@ -223,7 +237,7 @@ export default function CityGuideView() {
 
   return (
     <motion.div 
-      key={slug}
+      key={cleanSlug}
       initial="hidden"
       animate="visible"
       exit="exit"

@@ -1,6 +1,7 @@
 import localData from '../data/cities.json';
 import type { CityPack } from '../types/cityPack';
 import { getCityPackUrl } from './apiConfig';
+import { getCleanSlug } from '../utils/slug';
 
 // Export the list for the Homepage to use
 export const cityPacksList = localData.cities.map(city => ({
@@ -43,18 +44,23 @@ function isCityPack(value: unknown): value is CityPack {
 }
 
 export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isOffline: boolean }> {
+  // Use the clean slug helper inside the fetcher to be 100% safe
+  const cleanSlug = getCleanSlug(slug);
+
   const useLocal = (): { pack: CityPack; isOffline: boolean } => {
-    const localMatch = localData.cities.find((c) => c.slug === slug);
+    const localMatch = localData.cities.find((c) => c.slug === cleanSlug);
     if (!localMatch) throw new Error('City Not Found');
     return { pack: localMatch as CityPack, isOffline: true };
   };
 
   try {
-    const url = getCityPackUrl(slug);
-    const response = await fetch(`${url}?t=${Date.now()}`);
+    const url = getCityPackUrl(cleanSlug);
+    // Force absolute path and cache-busting
+    const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
+    
     if (response.ok) {
       const data: unknown = await response.json();
-      if (isCityPack(data) && data.slug === slug) {
+      if (isCityPack(data)) {
         return { pack: data, isOffline: false };
       }
     }

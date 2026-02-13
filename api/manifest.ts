@@ -26,7 +26,7 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
     res.status(400).setHeader('Content-Type', 'application/json').end(
       JSON.stringify({ error: 'Missing slug' })
     )
-    return
+    return;
   }
 
   const cityName = slugToTitle(slug)
@@ -39,17 +39,16 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
         ? `https://${process.env.VERCEL_URL}`
         : 'https://downloadable-travel-packs.vercel.app'
 
-  // THE FIX: 
-  // 1. start_url includes the query param.
-  // 2. scope is the parent directory (with trailing slash) to ensure start_url is "inside" it.
-  // 3. id is the unique key that prevents Tokyo from overwriting NYC.
   const manifest = {
-    id: `tp-v2-${slug}`, // Unique ID for the OS registry
+    // Unique ID is critical to prevent "Tokyo" showing "NYC"
+    id: `tp-v2-${slug}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
+    // The start_url must be within the scope
     start_url: `/guide/${slug}?utm_source=pwa`,
-    scope: `/guide/${slug}`, // Trailing slash ensures the sub-path is fully owned by this PWA
+    // Trailing slash on scope is a "best practice" for sub-directory PWAs
+    scope: `/guide/${slug}/`, 
     display: 'standalone',
     theme_color: '#0f172a',
     background_color: '#0f172a',
@@ -79,7 +78,6 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
   res
     .status(200)
     .setHeader('Content-Type', 'application/manifest+json')
-    // Crucial: No caching of the manifest response to prevent stale city data
     .setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     .end(JSON.stringify(manifest))
 }

@@ -1,14 +1,14 @@
 /**
  * Environment-aware API config: DEV uses static mock manifests, PROD uses Vercel serverless.
- * Prevents "Syntax Error" when fetching HTML (SPA fallback) instead of JSON in local dev.
+ * All returned URLs are absolute paths from origin (e.g. /api/manifest/:slug) so fetch never
+ * hits a relative path that could resolve incorrectly. Callers must pass a clean slug (no query/fragment).
  */
 
 const DEV = import.meta.env.DEV
 
 /**
  * URL for the PWA manifest (used by the manifest <link> and by optional fetches).
- * - DEV: static JSON under public/mock/manifest/
- * - PROD: Vercel serverless /api/manifest?slug=
+ * Absolute path from origin. Slug must be clean (no utm_source or other query params).
  */
 export function MANIFEST_URL(slug: string): string {
   if (DEV) {
@@ -18,9 +18,9 @@ export function MANIFEST_URL(slug: string): string {
 }
 
 /**
- * URL for fetching city pack data (offline-first service).
- * - DEV: mock path returns manifest-shaped JSON, so fetch fails CityPack check and we fallback to local.
- * - PROD: serverless API (when returning CityPack) or same as manifest route.
+ * URL for fetching city pack data (offline-first service). Absolute path from origin.
+ * - DEV: static JSON under public/mock/manifest/
+ * - PROD: Vercel serverless /api/manifest/:slug (rewritten to ?slug=)
  */
 export function getCityPackUrl(slug: string): string {
   if (DEV) {
