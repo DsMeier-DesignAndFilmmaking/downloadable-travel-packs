@@ -25,37 +25,27 @@ export function usePWAInstall(citySlug: string) {
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
   // 1. DYNAMIC MANIFEST INJECTION
-  // This is the "Silver Bullet": We ensure the browser sees a unique manifest 
-  // for every city slug, preventing the "Everything is Rome" bug.
+  // THE "SILVER BULLET": We force-replace the manifest tag with a unique ID and cache-buster
+  // to ensure the OS recognizes each city as a separate standalone application.
   useEffect(() => {
     if (!citySlug) return;
 
-    const manifestUrl = MANIFEST_URL(citySlug);
+    // 1. Force-remove ALL existing manifest tags to clear browser internal state
+    const existingManifests = document.querySelectorAll('link[rel="manifest"]');
+    existingManifests.forEach(el => el.remove());
+
+    // 2. Build the new manifest URL with a cache-buster
+    // Adding the timestamp prevents the browser from using a locally cached manifest file.
+    const manifestUrl = `${MANIFEST_URL(citySlug)}&v=${Date.now()}`;
     
-    // Check for any existing manifest tags to avoid duplicates
-    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+    // 3. Create and append a fresh link tag
+    const newManifestLink = document.createElement('link');
+    newManifestLink.rel = 'manifest';
+    newManifestLink.href = manifestUrl;
+    
+    document.head.appendChild(newManifestLink);
 
-    if (manifestLink) {
-      // If it exists, update it to the new city-specific URL
-      manifestLink.href = manifestUrl;
-    } else {
-      // Create it if it doesn't exist
-      manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      manifestLink.href = manifestUrl;
-      document.head.appendChild(manifestLink);
-    }
-
-    // Optional: Refresh the browser's recognition of the manifest
-    // Some browsers need the tag to be re-appended to trigger a re-parse
-    const parent = manifestLink.parentNode;
-    if (parent) {
-      parent.removeChild(manifestLink);
-      parent.appendChild(manifestLink);
-    }
-
-    // We do NOT remove the manifest on unmount because the user might 
-    // click "Add to Home Screen" while the component is transitioning.
+    console.log(`[PWA] Manifest rotated for: ${citySlug}`);
   }, [citySlug]);
 
   // 2. INSTALLATION STATE & NATIVE PROMPTS

@@ -1,22 +1,29 @@
-/**
- * Custom Service Worker — injectManifest strategy.
- * Sync Pulse: NetworkFirst for /guide/ (fresh city data when online, cached when offline);
- * CacheFirst for images; precache + cleanup.
- */
+/// <reference lib="webworker" />
+
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
-import { NetworkFirst, CacheFirst } from 'workbox-strategies'
+import { NetworkFirst, CacheFirst, NetworkOnly } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
-declare let self: ServiceWorkerGlobalScope
-
+/**
+ * The triple-slash directive at the very top is the "magic" that 
+ * provides addEventListener and skipWaiting types.
+ */
+declare const self: ServiceWorkerGlobalScope;
 declare const __WB_MANIFEST: Array<{ url: string; revision?: string }>
 
-// 1. Precache the core engine (JS/CSS/Assets)
+// 1. Precache core engine
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// 2. THE SYNC PULSE: City-specific content — online → latest data; offline → cached pack
+// 2. CRITICAL: MANIFEST BYPASS
+// Never cache the dynamic manifest API
+registerRoute(
+  ({ url }) => url.pathname.includes('/api/manifest'),
+  new NetworkOnly()
+)
+
+// 3. THE SYNC PULSE: City-specific content
 registerRoute(
   ({ url }) => url.pathname.startsWith('/guide/'),
   new NetworkFirst({
@@ -30,7 +37,7 @@ registerRoute(
   })
 )
 
-// 3. Cache the images/icons for the packs
+// 4. Cache the images/icons for the packs
 registerRoute(
   ({ request }) => request.destination === 'image',
   new CacheFirst({
@@ -38,6 +45,7 @@ registerRoute(
   })
 )
 
+// 5. These will now be recognized by TS
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting()

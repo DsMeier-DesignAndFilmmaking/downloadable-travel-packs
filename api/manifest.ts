@@ -1,7 +1,6 @@
 /**
  * Vercel Serverless Function: Dynamic PWA manifest.
  * GET /api/manifest?slug=:slug → application/manifest+json
- * Rewrite /api/manifest/:slug to this with slug in query.
  */
 
 type VercelRequest = {
@@ -38,28 +37,49 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
       ? `${Array.isArray(proto) ? proto[0] : proto}://${Array.isArray(host) ? host[0] : host}`
       : typeof process !== 'undefined' && process.env?.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
-        : 'https://travelpacks.example.com'
+        : 'https://downloadable-travel-packs.vercel.app'
 
+  // THE FIX: 
+  // 1. start_url includes the query param.
+  // 2. scope is the parent directory (with trailing slash) to ensure start_url is "inside" it.
+  // 3. id is the unique key that prevents Tokyo from overwriting NYC.
   const manifest = {
+    id: `tp-v2-${slug}`, // Unique ID for the OS registry
     name: `${cityName} Travel Pack`,
-    short_name: `${cityName} Pack`,
+    short_name: cityName,
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
-    start_url: `/guide/${slug}`, // Remove the trailing slash if not needed
-    display: 'standalone' as const,
-    scope: `/guide/${slug}`,     // Match the start_url exactly
+    start_url: `/guide/${slug}?utm_source=pwa`,
+    scope: `/guide/${slug}/`, // Trailing slash ensures the sub-path is fully owned by this PWA
+    display: 'standalone',
     theme_color: '#0f172a',
     background_color: '#0f172a',
     prefer_related_applications: false,
     icons: [
-      { src: `${origin}/pwa-192x192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: `${origin}/pwa-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: `${origin}/pwa-pwa-maskable-512x512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { 
+        src: `${origin}/pwa-192x192.png`, 
+        sizes: '192x192', 
+        type: 'image/png', 
+        purpose: 'any' 
+      },
+      { 
+        src: `${origin}/pwa-512x512.png`, 
+        sizes: '512x512', 
+        type: 'image/png', 
+        purpose: 'any' 
+      },
+      { 
+        src: `${origin}/pwa-pwa-maskable-512x512.png`, 
+        sizes: '512x512', 
+        type: 'image/png', 
+        purpose: 'maskable' 
+      },
     ],
   }
 
   res
     .status(200)
     .setHeader('Content-Type', 'application/manifest+json')
-    .setHeader('Cache-Control', 's-maxage=0')
+    // Crucial: No caching of the manifest response to prevent stale city data
+    .setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     .end(JSON.stringify(manifest))
 }
