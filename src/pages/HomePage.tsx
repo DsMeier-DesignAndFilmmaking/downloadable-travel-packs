@@ -76,30 +76,38 @@ export default function HomePage() {
           variants={itemVariants}
           className="text-6xl font-black tracking-tighter mb-4 uppercase italic leading-[0.85] text-[#222222]"
         >
-          Modern <br /> Field Guides
+          Modern Travel<br /> Field Notes
         </motion.h1>
 
         <motion.p 
         variants={itemVariants}
         className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl"
       >
-        <span className="text-[#222222] font-semibold">Live updates</span> when you’re connected. <br className="hidden md:block" />
-        <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">Offline reliability</span> for when you’re not.
+        <span className="text-[#222222] font-semibold">Live updates</span> to solve on-the-ground friction as it happens.<br className="hidden md:block" />
+        <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">Offline Packs</span> for when the signal is spotty or dead.
       </motion.p>
         </header>
 
-        {/* System Diagnostics Trigger */}
-        <motion.div variants={itemVariants} className="max-w-xl mx-auto px-6 mb-16">
-          <div onClick={() => setIsDiagnosticsOpen(true)} className="cursor-pointer group select-none">
-            <AgenticValueProp />
-            <div className="flex justify-center items-center gap-2 mt-6 opacity-30 group-hover:opacity-100 transition-all duration-300">
-              <Activity size={10} className="text-emerald-600" />
-              <p className="text-[9px] font-black text-[#222222] uppercase tracking-[0.2em]">
-                Tap blocks to inspect system logic
-              </p>
-            </div>
-          </div>
-        </motion.div>
+{/* System Diagnostics Trigger */}
+<motion.div variants={itemVariants} className="max-w-xl mx-auto px-6 mb-16">
+  <div>
+    {/* Now just a static display of your value props */}
+    <AgenticValueProp />
+    
+    {/* This is the ONLY element that triggers the overlay now */}
+    <div className="flex justify-center items-center">
+      <button 
+        onClick={() => setIsDiagnosticsOpen(true)}
+        className="flex items-center gap-2 mt-6 opacity-30 hover:opacity-100 transition-all duration-300 group cursor-pointer border-none bg-transparent"
+      >
+        <Activity size={10} className="text-emerald-600 group-hover:animate-pulse" />
+        <p className="text-[9px] font-black text-[#222222] uppercase tracking-[0.2em]">
+          Click to inspect system logic
+        </p>
+      </button>
+    </div>
+  </div>
+</motion.div>
 
         {/* Catalog Section */}
         <section className="max-w-xl mx-auto px-6 space-y-6">
@@ -129,24 +137,28 @@ export default function HomePage() {
         </div>
       </motion.div>
           
-<motion.div variants={containerVariants} className="grid gap-4">
+      <motion.div variants={containerVariants} className="grid gap-4">
   {cityPacksList.map((city, index) => (
     <React.Fragment key={city.slug}>
-      {/* City Card Block */}
       <motion.div
         variants={itemVariants}
+        layoutId={`city-card-${city.slug}`}  // <-- enables shared layout for smooth transitions
         whileHover={{ y: -4, transition: { duration: 0.2 } }}
         whileTap={{ scale: 0.98 }}
       >
-        <Link 
+        <Link
           to={`/guide/${city.slug}`}
           className="group relative flex items-center justify-between bg-white border border-slate-200 p-6 rounded-[2rem] transition-all duration-300 shadow-sm hover:shadow-xl hover:border-[#FFDD00]/40"
+          onClick={(e) => {
+            // Prevent layout shift on click: pre-calculate scroll restoration
+            e.currentTarget.style.minHeight = `${e.currentTarget.offsetHeight}px`;
+          }}
         >
-          <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
+          <motion.div layoutId={`city-card-bg-${city.slug}`} className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FFDD00] scale-y-0 group-hover:scale-y-100 transition-transform duration-300 rounded-r" />
           <div className="flex items-center gap-5">
-            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 group-hover:bg-[#FFDD00]/10 transition-colors">
+            <motion.div layoutId={`city-card-icon-${city.slug}`} className="bg-slate-50 p-3 rounded-2xl border border-slate-100 group-hover:bg-[#FFDD00]/10 transition-colors">
               <Globe size={22} className="text-slate-400 group-hover:text-[#222222] transition-colors" />
-            </div>
+            </motion.div>
             <div>
               <h3 className="font-bold text-2xl tracking-tighter text-[#222222] uppercase italic leading-none">
                 {city.name}
@@ -160,7 +172,6 @@ export default function HomePage() {
         </Link>
       </motion.div>
 
-      {/* Sibling Injection: Spontaneity Engine stays in the grid flow */}
       {index === 1 && (
         <motion.div variants={itemVariants}>
           <SpontaneityEnginePromo />

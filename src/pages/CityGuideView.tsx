@@ -113,55 +113,54 @@ function getEmergencyGridItems(emergency: Record<string, string | undefined>) {
   return out;
 }
 
+/** FIX: Optimized variants to prevent page shifting */
 const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
-  exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
+  hidden: { 
+    opacity: 0,
+    transition: { when: "afterChildren" }
+  },
+  visible: { 
+    opacity: 1, 
+    transition: { staggerChildren: 0.1, delayChildren: 0.1 } 
+  },
+  exit: { 
+    opacity: 0,
+    filter: "blur(10px)",
+    position: "fixed", // Critical: prevents the next page from jumping down
+    top: 0,
+    left: 0,
+    right: 0,
+    transition: { duration: 0.3, ease: "easeInOut" } 
+  }
 };
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
 const DEFAULT_PASSPORT = 'US';
 
-function AgenticSystemTrigger({
-  city,
-  onClick,
-}: {
-  city: string;
-  onClick: () => void;
-}) {
+function AgenticSystemTrigger({ city, onClick }: { city: string; onClick: () => void; }) {
   return (
     <motion.button
       variants={itemVariants}
       onClick={onClick}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-full 
-                 bg-emerald-50 border border-emerald-200 
-                 text-emerald-700 text-xs font-semibold 
-                 transition-all active:scale-95 
-                 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-      aria-label={`Open personal smart guide for ${city}`}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
     >
-      <Zap size={14} aria-hidden="true" />
+      <Zap size={14} />
       <span>Live Intelligence</span>
-      <Activity size={14} className="opacity-60" aria-hidden="true" />
+      <Activity size={14} className="opacity-60" />
     </motion.button>
   );
 }
 
 const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
-  TH: { code: 'THB', rate: '31.13' },
-  JP: { code: 'JPY', rate: '150.40' },
-  AE: { code: 'AED', rate: '3.67' },
-  GB: { code: 'GBP', rate: '0.87' },
-  FR: { code: 'EUR', rate: '0.94' },
-  IT: { code: 'EUR', rate: '0.94' },
-  ES: { code: 'EUR', rate: '0.94' },
-  DE: { code: 'EUR', rate: '0.94' },
-  MX: { code: 'MXN', rate: '17.05' },
-  US: { code: 'USD', rate: '1.00' },
+  TH: { code: 'THB', rate: '31.13' }, JP: { code: 'JPY', rate: '150.40' },
+  AE: { code: 'AED', rate: '3.67' }, GB: { code: 'GBP', rate: '0.87' },
+  FR: { code: 'EUR', rate: '0.94' }, IT: { code: 'EUR', rate: '0.94' },
+  ES: { code: 'EUR', rate: '0.94' }, DE: { code: 'EUR', rate: '0.94' },
+  MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
 export default function CityGuideView() {
@@ -175,15 +174,10 @@ export default function CityGuideView() {
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-
-  const [lastSynced, setLastSynced] = useState<string | null>(() => {
-    return localStorage.getItem(`sync_${slug}`);
-  });
+  const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem(`sync_${slug}`));
 
   useEffect(() => {
-    if (lastSynced && slug) {
-      localStorage.setItem(`sync_${slug}`, lastSynced);
-    }
+    if (lastSynced && slug) localStorage.setItem(`sync_${slug}`, lastSynced);
   }, [lastSynced, slug]);
 
   useEffect(() => {
@@ -191,9 +185,7 @@ export default function CityGuideView() {
     const id = 'tp-v2-dynamic-manifest';
     let link = document.getElementById(id) as HTMLLinkElement;
     if (!link) {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'manifest';
+      link = document.createElement('link'); link.id = id; link.rel = 'manifest';
       document.head.appendChild(link);
     }
     link.href = MANIFEST_URL(slug);
@@ -231,7 +223,6 @@ export default function CityGuideView() {
       <AlertTriangle className="text-rose-500 w-12 h-12 mb-4" />
       <p className="text-[#222222] font-bold mb-6 text-center">{error.message}</p>
       <button
-        type="button"
         onClick={() => navigate(-1)}
         className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform"
       >
@@ -247,7 +238,7 @@ export default function CityGuideView() {
       animate="visible"
       exit="exit"
       variants={containerVariants}
-      className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40"
+      className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden"
     >
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
@@ -271,7 +262,6 @@ export default function CityGuideView() {
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
           <button
-            type="button"
             onClick={() => navigate(-1)}
             className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
           >
@@ -292,42 +282,22 @@ export default function CityGuideView() {
             </p>
             
             <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
-  <div className="flex flex-col items-end">
-    <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
-      Local Intel
-    </span>
-    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-      {isOffline
-        ? "Viewing Offline"
-        : `Updated ${new Date(
-            lastSynced || cityData.last_updated
-          ).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`}
-    </span>
-  </div>
-
-  <div className="h-8 w-[1px] bg-slate-200" aria-hidden="true" />
-
-  <SyncButton
-    onSync={handleSync}
-    isOffline={isOffline}
-    status={syncStatus}
-  />
-
-  <AgenticSystemTrigger
-    city={cityData.name}
-    onClick={() => setIsDiagnosticsOpen(true)}
-  />
-</div>
+              <div className="flex flex-col items-end">
+                <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+                  {isOffline ? "Viewing Offline" : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+                </span>
+              </div>
+              <div className="h-8 w-[1px] bg-slate-200" />
+              <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
+              <AgenticSystemTrigger city={cityData.name} onClick={() => setIsDiagnosticsOpen(true)} />
+            </div>
           </div>
         </div>
       </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
+        {/* Survival Section */}
         <section className="space-y-6">
           <div className="px-2 flex items-center justify-between">
             <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -335,7 +305,6 @@ export default function CityGuideView() {
               <SourceInfo source="Travel Buddy Protocol v2" lastUpdated="Synced just now" />
             </h2>
           </div>
-
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
               {isApiLoading ? <HighAlertSkeleton /> : (
@@ -350,7 +319,6 @@ export default function CityGuideView() {
               )}
             </AnimatePresence>
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             {getEmergencyGridItems(cityData.emergency).map(({ key, label, number }) => (
               <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg active:scale-95 transition-transform">
@@ -362,6 +330,7 @@ export default function CityGuideView() {
           </div>
         </section>
 
+        {/* Arrival Section */}
         {cityData.arrival && (
           <section className="space-y-4">
             <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
@@ -380,62 +349,39 @@ export default function CityGuideView() {
           </section>
         )}
 
-        {/* TRANSIT INTELLIGENCE SECTION */}
+        {/* Transit Section */}
         {cityData.transit_logic && (
           <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
-              Transit & Transportation
-            </h2>
-            <div className="grid grid-cols-1 gap-4">
-              <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                    <Navigation size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Access & Fare Strategy
-                    </p>
-                   
-                  </div>
+            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Transit & Transportation</h2>
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Fare Strategy</p>
+              </div>
+              <p className="text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.transit_logic.payment_method}</p>
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone size={14} className="text-slate-400" />
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span>
                 </div>
-                
-                <p className="text-[15px] font-medium text-[#222222] leading-relaxed">
-                  {cityData.transit_logic.payment_method}
-                </p>
-
-                <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Phone size={14} className="text-slate-400" />
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                      Primary Apps
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
-                    {cityData.transit_logic.primary_app}
-                  </span>
-                </div>
-
-                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
-                  <p className="text-[13px] font-bold text-slate-600 italic">
-                    "{cityData.transit_logic.etiquette}"
-                  </p>
-                </div>
+                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">{cityData.transit_logic.primary_app}</span>
+              </div>
+              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
+                <p className="text-[13px] font-bold text-slate-600 italic">"{cityData.transit_logic.etiquette}"</p>
               </div>
             </div>
           </section>
         )}
 
+        {/* Basic Needs Section */}
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
-              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
-                {cityData.survival?.tapWater || "Check Local Intel"}
-              </p>
+              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">{cityData.survival?.tapWater || "Check Local Intel"}</p>
             </div>
             <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
               <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
@@ -448,6 +394,7 @@ export default function CityGuideView() {
           {cityData.facility_intel && <FacilityKit data={cityData.facility_intel} />}
         </section>
 
+        {/* Spending Section */}
         <section className="space-y-4">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending Shield</h2>
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
@@ -455,7 +402,9 @@ export default function CityGuideView() {
               <Globe size={14} className="text-slate-400" />
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exchange Rate</p>
             </div>
-            <div className="text-3xl font-black text-[#222222] tabular-nums">1 USD = {visaData?.destination?.exchange || CURRENCY_PROTOCOL[cityData.countryCode]?.rate || '---'}</div>
+            <div className="text-3xl font-black text-[#222222] tabular-nums">
+              1 USD = {visaData?.destination?.exchange || CURRENCY_PROTOCOL[cityData.countryCode]?.rate || '---'}
+            </div>
             <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[14px] font-bold text-amber-900 leading-snug">
               {cityData.survival?.tipping || "Standard 10% is expected."}
             </div>
@@ -463,37 +412,35 @@ export default function CityGuideView() {
         </section>
       </main>
 
-{/* FIXED DOWNLOAD BAR */}
-<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-  {/* The Blur Layer */}
-  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50 mask-gradient-edge" 
-       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-
-  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
-    <button 
-      onClick={installPWA}
-      disabled={isInstalled || !isInstallable}
-      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
-        isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
-      }`}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`p-2 rounded-xl ${isInstalled ? 'bg-slate-200 text-slate-400' : 'bg-[#FFDD00] text-black'}`}>
-          <Download size={20} strokeWidth={3} />
-        </div>
-        <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-            {isInstalled ? 'Pack Installed' : 'Download Pack'}
-          </span>
-          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-            {isInstalled ? 'Available Offline' : `Store ${cityData.name} for Offline Use // 2.4MB`}
-          </span>
+      {/* FIXED DOWNLOAD BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+        <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
+             style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
+        <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+          <button 
+            onClick={installPWA}
+            disabled={isInstalled || !isInstallable}
+            className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
+              isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`p-2 rounded-xl ${isInstalled ? 'bg-slate-200 text-slate-400' : 'bg-[#FFDD00] text-black'}`}>
+                <Download size={20} strokeWidth={3} />
+              </div>
+              <div className="flex flex-col items-start text-left">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+                  {isInstalled ? 'Pack Installed' : 'Download Pack'}
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
+                  {isInstalled ? 'Available Offline' : `Store ${cityData.name} Offline // 2.4MB`}
+                </span>
+              </div>
+            </div>
+            <div className={`h-1.5 w-1.5 rounded-full ${isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
+          </button>
         </div>
       </div>
-      <div className={`h-1.5 w-1.5 rounded-full ${isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
-    </button>
-  </div>
-</div>
     </motion.div>
   );
 }

@@ -3,44 +3,44 @@ import { CloudOff, Globe, Zap } from 'lucide-react';
 const COLUMNS = [
   {
     icon: Globe,
-    title: 'Live Sync',
-    detail:
-      'Automatic background updates for 2026 entry rules and visa alerts the second you’re back on the grid.',
+    detail: 'Instant sync for on-the-ground logic and local alerts—keeping your field intel fresh whenever you have a signal.',
   },
   {
     icon: CloudOff,
-    title: 'Offline Storage',
-    detail:
-      'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.',
+    detail: 'Downloadable travel packs that stay 100% functional. Access your critical city guides without Wi-Fi or roaming.',
   },
   {
     icon: Zap,
-    title: 'On-Ground Intel',
-    detail:
-      'Real-world solutions for navigation, local logistics, and arrival hurdles—engineered to solve travel’s most common in-the-moment challenges.',
+    detail: 'Real-world solutions for navigation, local logistics, and arrival hurdles—engineered to solve travel’s most common in-the-moment challenges.',
   },
 ] as const;
+
+/** * Helper to prevent widows by replacing the last space with a non-breaking space
+ */
+const balanceText = (text: string) => {
+  const words = text.split(' ');
+  if (words.length <= 1) return text;
+  const lastTwo = words.splice(-2).join('\u00A0'); // '\u00A0' is the unicode for &nbsp;
+  return [...words, lastTwo].join(' ');
+};
 
 export default function AgenticValueProp() {
   return (
     <section aria-labelledby="core-benefits-heading" className="w-full">
-      {/* Accessible Section Heading */}
       <h2 id="core-benefits-heading" className="sr-only">
         Core Travel Benefits
       </h2>
 
-      {/* 2 Top, 1 Bottom Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {COLUMNS.map((col, index) => {
           const Icon = col.icon;
 
           return (
             <div
-              key={col.title}
-              className={`bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center text-center shadow-sm h-full
+              key={index}
+              className={`bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center text-center shadow-sm h-full select-none
                 ${index === 2 ? 'md:col-span-2 md:max-w-xl md:mx-auto' : ''}`}
             >
-              {/* Decorative Icon */}
               <div className="mb-4 p-3 rounded-xl text-slate-700 bg-slate-100">
                 <Icon
                   size={24}
@@ -50,15 +50,13 @@ export default function AgenticValueProp() {
                 />
               </div>
 
-              {/* Card Heading */}
-              <h3 className="text-base font-bold text-slate-900 leading-snug mb-3">
-                {col.title}
-              </h3>
-
-              {/* Description */}
-              <div className="pt-4 mt-auto border-t border-slate-200 w-full">
-                <p className="text-sm text-slate-700 leading-relaxed">
-                  {col.detail}
+              {/* Description Container */}
+              <div className="pt-6 border-t border-slate-100 w-full"> 
+                {/* Added balanceText() and text-balance (Tailwind) 
+                  text-balance is a modern CSS property that handles orphans well 
+                */}
+                <p className="text-sm text-slate-700 leading-relaxed font-medium text-balance">
+                  {balanceText(col.detail)}
                 </p>
               </div>
             </div>
