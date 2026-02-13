@@ -49,7 +49,7 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
     short_name: cityName,
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
     start_url: `/guide/${slug}?utm_source=pwa`,
-    scope: `/guide/${slug}/`, // Trailing slash ensures the sub-path is fully owned by this PWA
+    scope: `/guide/${slug}`, // Trailing slash ensures the sub-path is fully owned by this PWA
     display: 'standalone',
     theme_color: '#0f172a',
     background_color: '#0f172a',
