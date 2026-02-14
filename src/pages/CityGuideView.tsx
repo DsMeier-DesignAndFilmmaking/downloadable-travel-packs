@@ -6,7 +6,7 @@ import {
   Download,
   Zap,
   ChevronLeft,
-  
+  Plane,
   Wifi,
   Info,
   Activity,
@@ -514,7 +514,7 @@ useEffect(() => {
             <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
-                <Droplets size={20} className="text-[#222222]" />
+                <Plane size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
               </div>
               <div className="p-8 text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</div>

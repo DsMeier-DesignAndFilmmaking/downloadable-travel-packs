@@ -65,31 +65,49 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
 }
 
 export function injectManifest(manifest: WebAppManifest): void {
-  // Use the manifest ID as the identity tracker
   const identity = manifest.id || 'default';
+  const cityName = manifest.short_name;
 
-  // 1. Clean up existing manifests and revoke old Blob URLs to save memory
+  // 1. Cleanup old manifests
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
-    if (href?.startsWith('blob:')) {
-      URL.revokeObjectURL(href);
-    }
+    if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
     el.remove();
   });
 
-  // 2. Create Blob with strict MIME type
+  // 2. NEW: Update Meta Tags for iOS Share Sheet / Home Screen Name
+  // This fixes the "TravelPacks V2" default name issue
+  let metaAppTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (!metaAppTitle) {
+    metaAppTitle = document.createElement('meta');
+    metaAppTitle.setAttribute('name', 'apple-mobile-web-app-title');
+    document.head.appendChild(metaAppTitle);
+  }
+  metaAppTitle.setAttribute('content', cityName);
+
+  // Update the Title tag (often used as fallback for the icon name)
+  document.title = `${cityName} Travel Pack`;
+
+  // 3. NEW: Update iOS Icon Link
+  // iOS often looks for apple-touch-icon before the manifest
+  let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!appleIcon) {
+    appleIcon = document.createElement('link');
+    appleIcon.setAttribute('rel', 'apple-touch-icon');
+    document.head.appendChild(appleIcon);
+  }
+  // Use the 512x512 icon from your manifest
+  const iconSrc = manifest.icons.find(i => i.sizes === '512x512')?.src || manifest.icons[0].src;
+  appleIcon.setAttribute('href', iconSrc);
+
+  // 4. Create and Inject Blob Manifest (Your existing logic)
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
-  // 3. Inject the new link tag
   const link = document.createElement('link');
   link.rel = 'manifest';
   link.href = manifestURL;
-  
-  // CRITICAL: This allows CityGuideView.tsx to identify the current city
   link.setAttribute('data-identity', identity); 
-  
-  // Ensures credentials (cookies/auth) are sent if icons are protected
   link.setAttribute('crossorigin', 'use-credentials'); 
   
   document.head.appendChild(link);
