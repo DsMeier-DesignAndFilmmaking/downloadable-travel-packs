@@ -15,10 +15,10 @@ import {
   Navigation,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
+import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
-import { useManifest } from '@/utils/manifest-generator';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
@@ -27,6 +27,41 @@ import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import GuideDebugPanel from '@/components/GuideDebugPanel';
+
+// ---------------------------------------------------------------------------
+// IndexedDB: persist city pack after load (same store as cityPackIdb, keyPath 'slug')
+// ---------------------------------------------------------------------------
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('travel-packs-db', 1);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains('city-packs')) {
+        db.createObjectStore('city-packs', { keyPath: 'slug' });
+      }
+    };
+  });
+}
+
+async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction('city-packs', 'readwrite');
+  const store = tx.objectStore('city-packs');
+  store.put({
+    slug,
+    pack: cityData,
+    data: cityData,
+    lastUpdated: Date.now(),
+  });
+  await new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  console.log('💾 Saved to IndexedDB:', slug);
+}
 
 /** 1. Reserved Space Skeleton */
 function HighAlertSkeleton() {
@@ -168,9 +203,6 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
-/** Scope for guide-specific SW registration (isolates this guide when installed as PWA). */
-const SW_PATH = '/sw.js';
-
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
@@ -189,7 +221,46 @@ export default function CityGuideView() {
   );
 
   // Dynamic manifest scoped to this guide (start_url/scope = /guide/{slug})
-  useManifest(cleanSlug ?? '', cityData?.name ?? '', '#0f172a');
+  useEffect(() => {
+    if (!cleanSlug) return;
+
+    const cityName = cleanSlug.split('-')[0];
+    const capitalizedCity = cityName.charAt(0).toUpperCase() + cityName.slice(1);
+
+    const existingManifest = document.querySelector('link[rel="manifest"]');
+    if (existingManifest) {
+      existingManifest.remove();
+    }
+
+    const manifest = {
+      name: `${capitalizedCity} Travel Pack`,
+      short_name: capitalizedCity,
+      start_url: `/guide/${cleanSlug}`,
+      scope: `/guide/${cleanSlug}`,
+      display: 'standalone',
+      background_color: '#ffffff',
+      theme_color: '#000000',
+      icons: [
+        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    };
+
+    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(blob);
+
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    console.log('✅ Dynamic manifest injected for:', cleanSlug);
+
+    return () => {
+      URL.revokeObjectURL(manifestURL);
+      link.remove();
+    };
+  }, [cleanSlug]);
 
   // Online/offline and offline-availability state
   const isOnline = !isOffline;
@@ -215,18 +286,27 @@ export default function CityGuideView() {
     isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
   }, [cleanSlug]);
 
-  // Register service worker with scope limited to this guide (for PWA install isolation)
+  // After city data loads successfully, persist to IndexedDB for offline use
   useEffect(() => {
-    if (!cleanSlug || typeof navigator === 'undefined' || !navigator.serviceWorker) return;
-    const scope = `/guide/${cleanSlug}/`;
+    if (!cleanSlug || !cityData) return;
+    saveCityToIndexedDB(cleanSlug, cityData).catch((err) => {
+      console.warn('Failed to save city to IndexedDB:', err);
+    });
+  }, [cleanSlug, cityData]);
+
+  // Register SW with scope limited to this guide and tell SW which city to cache
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !cleanSlug) return;
+
     navigator.serviceWorker
-      .register(SW_PATH, { scope })
-      .then(() => {
-        // Optional: log for debugging
+      .register('/sw.js', { scope: `/guide/${cleanSlug}/` })
+      .then((reg) => {
+        console.log('✅ SW registered for', cleanSlug, 'with scope:', reg.scope);
+        if (reg.active) {
+          reg.active.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
+        }
       })
-      .catch((err) => {
-        console.warn('[CityGuide] Guide-scoped SW registration failed (fallback to root SW):', err);
-      });
+      .catch((err) => console.error('SW registration failed:', err));
   }, [cleanSlug]);
 
   useEffect(() => {
