@@ -2,6 +2,7 @@ import localData from '../data/cities.json';
 import type { CityPack } from '../types/cityPack';
 import { getCityPackUrl } from './apiConfig';
 import { getCleanSlug } from '../utils/slug';
+import { getCityPackFromIDB, setCityPackInIDB } from '../utils/cityPackIdb';
 
 // Export the list for the Homepage to use
 export const cityPacksList = localData.cities.map(city => ({
@@ -46,7 +47,6 @@ function isCityPack(value: unknown): value is CityPack {
 const FETCH_TIMEOUT_MS = 2500;
 
 export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isOffline: boolean }> {
-  // Use the clean slug helper inside the fetcher to be 100% safe
   const cleanSlug = getCleanSlug(slug);
 
   const useLocal = (): { pack: CityPack; isOffline: boolean } => {
@@ -54,6 +54,19 @@ export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isO
     if (!localMatch) throw new Error('City Not Found');
     return { pack: localMatch as CityPack, isOffline: true };
   };
+
+  /** Try IndexedDB first; if found return it, else throw. */
+  const tryIDB = async (): Promise<{ pack: CityPack; isOffline: boolean }> => {
+    const pack = await getCityPackFromIDB(cleanSlug);
+    if (pack) return { pack, isOffline: true };
+    return useLocal();
+  };
+
+  const isOnline = typeof navigator !== 'undefined' && navigator.onLine;
+
+  if (!isOnline) {
+    return tryIDB();
+  }
 
   const fetchWithTimeout = (): Promise<{ pack: CityPack; isOffline: boolean }> => {
     const url = getCityPackUrl(cleanSlug);
@@ -64,20 +77,23 @@ export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isO
     })
       .then((response) => {
         clearTimeout(timeoutId);
-        if (!response.ok) return useLocal();
-        return response.json().then((data: unknown) => {
-          if (isCityPack(data)) return { pack: data, isOffline: false };
-          return useLocal();
+        if (!response.ok) return tryIDB();
+        return response.json().then(async (data: unknown) => {
+          if (isCityPack(data)) {
+            await setCityPackInIDB(cleanSlug, data).catch(() => {});
+            return { pack: data, isOffline: false };
+          }
+          return tryIDB();
         });
       })
-      .catch((e) => {
+      .catch(async (e) => {
         clearTimeout(timeoutId);
         if (e?.name === 'AbortError') {
-          console.warn('City pack fetch timed out, using local data');
+          console.warn('City pack fetch timed out, trying IndexedDB then local');
         } else {
-          console.warn('Network fetch failed, falling back to local data', e);
+          console.warn('Network fetch failed, trying IndexedDB then local', e);
         }
-        return useLocal();
+        return tryIDB();
       });
   };
 
@@ -85,11 +101,7 @@ export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isO
     fetchWithTimeout(),
     new Promise<{ pack: CityPack; isOffline: boolean }>((resolve, reject) => {
       setTimeout(() => {
-        try {
-          resolve(useLocal());
-        } catch (e) {
-          reject(e);
-        }
+        tryIDB().then(resolve).catch(reject);
       }, FETCH_TIMEOUT_MS);
     }),
   ]);

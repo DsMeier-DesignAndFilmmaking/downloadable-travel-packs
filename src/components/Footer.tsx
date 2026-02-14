@@ -38,6 +38,7 @@ export default function Footer() {
               <li><Link to="/" className="hover:text-emerald-600 transition-colors">Global Catalog</Link></li>
               <li><Link to="/specs" className="hover:text-emerald-600 transition-colors">System Specs</Link></li>
               <li><Link to="/security-protocol" className="hover:text-emerald-600 transition-colors">Security Protocol</Link></li>
+              <li><Link to="/settings" className="hover:text-emerald-600 transition-colors">Settings</Link></li>
             </ul>
           </div>
           <div className="space-y-4">

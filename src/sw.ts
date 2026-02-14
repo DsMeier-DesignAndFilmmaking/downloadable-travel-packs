@@ -1,91 +1,191 @@
 /// <reference lib="webworker" />
 
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching'
-import { registerRoute, NavigationRoute } from 'workbox-routing'
-import { NetworkFirst, CacheFirst, NetworkOnly } from 'workbox-strategies'
-import { ExpirationPlugin } from 'workbox-expiration'
-
-declare const self: ServiceWorkerGlobalScope;
-declare const __WB_MANIFEST: Array<{ url: string; revision?: string }>
+const ctx = self as unknown as ServiceWorkerGlobalScope;
+const CACHE_VERSION = 'v1';
+const CACHE_PREFIX = 'travel-guide';
+const IMAGES_CACHE_NAME = 'guide-images-v1';
 
 /**
- * 1. LIFECYCLE MANAGEMENT
- * Fixes the "Accessing Field Intel" hang by forcing the SW to become active 
- * and take control of the page immediately upon installation.
+ * Extract city guide slug from a request URL.
+ * Matches /guide/{slug} or /api/manifest/{slug}
  */
-self.addEventListener('install', () => {
-  // Force the waiting service worker to become the active service worker.
-  self.skipWaiting();
+function getGuideSlugFromUrl(url: URL): string | null {
+  const guideMatch = url.pathname.match(/^\/guide\/([^/]+)\/?$/);
+  if (guideMatch) return guideMatch[1];
+  const apiMatch = url.pathname.match(/^\/api\/manifest\/([^/]+)$/);
+  if (apiMatch) return apiMatch[1];
+  return null;
+}
+
+/**
+ * Cache name for a specific guide only (e.g. "travel-guide-tokyo-japan-v1").
+ */
+function getGuideCacheName(slug: string): string {
+  return `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
+}
+
+// ---------------------------------------------------------------------------
+// Install: no full precache; guide caches are filled on first fetch or via CACHE_GUIDE
+// ---------------------------------------------------------------------------
+
+ctx.addEventListener('install', () => {
+  ctx.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+// ---------------------------------------------------------------------------
+// Activate: claim clients and clean old guide caches
+// ---------------------------------------------------------------------------
+
+ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Enable navigation preload if supported (Optimizes first-load speed)
-      if ('navigationPreload' in self.registration) {
-        await self.registration.navigationPreload.enable();
+      if ('navigationPreload' in ctx.registration) {
+        await ctx.registration.navigationPreload.enable();
       }
-      // Tell the active service worker to take control of all open clients.
-      await self.clients.claim();
+      await ctx.clients.claim();
+
+      // Remove caches that don't match current prefix/version
+      const names = await caches.keys();
+      await Promise.all(
+        names.filter((name) => {
+          if (!name.startsWith(CACHE_PREFIX)) return false;
+          const suffix = name.slice(CACHE_PREFIX.length);
+          return !suffix.endsWith(CACHE_VERSION);
+        }).map((name) => caches.delete(name))
+      );
     })()
   );
 });
 
-/**
- * 2. PRECACHING & ASSETS
- */
-precacheAndRoute(self.__WB_MANIFEST)
-cleanupOutdatedCaches()
+// ---------------------------------------------------------------------------
+// Fetch: guide data (doc + api) per-guide cache-first; images cache-first
+// ---------------------------------------------------------------------------
 
-/**
- * 3. CRITICAL: MANIFEST BYPASS
- * Ensures the unique identity of Tokyo vs NYC is always fetched fresh.
- */
-registerRoute(
-  ({ url }) => url.pathname.includes('/api/manifest'),
-  new NetworkOnly()
-)
+ctx.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
 
-/**
- * 4. THE SYNC PULSE: City-specific content
- * Using NetworkFirst ensures we show fresh data if online,
- * but fall back to the "Field Intel" we stored earlier if offline.
- */
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/guide/'),
-  new NetworkFirst({
-    cacheName: 'city-pack-data',
-    networkTimeoutSeconds: 5, // Fallback to cache quickly if network is spotty
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 20,
-        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
-      }),
-    ],
-  })
-)
+  if (url.origin !== ctx.location.origin) return;
 
-/**
- * 5. IMAGE CACHING
- */
-registerRoute(
-  ({ request }) => request.destination === 'image',
-  new CacheFirst({
-    cacheName: 'pack-images',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 50,
-        maxAgeSeconds: 30 * 24 * 60 * 60,
-      }),
-    ],
-  })
-)
-
-/**
- * 6. EXTERNAL CONTROLS
- */
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting()
+  // Runtime caching: images (cache-first, shared cache)
+  if (request.destination === 'image') {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(IMAGES_CACHE_NAME);
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok && response.type !== 'error') cache.put(request, response.clone());
+          return response;
+        } catch {
+          return (await cache.match(request)) ?? new Response('', { status: 504, statusText: 'Offline' });
+        }
+      })()
+    );
+    return;
   }
-})
+
+  const slug = getGuideSlugFromUrl(url);
+  if (slug === null) {
+    // Not a guide request: do not cache (no home page, no other guides)
+    return;
+  }
+
+  const cacheName = getGuideCacheName(slug);
+
+  event.respondWith(
+    (async () => {
+      try {
+        const cache = await caches.open(cacheName);
+        const cached = await cache.match(request);
+        if (cached) return cached;
+
+        const response = await fetch(request);
+        if (response.ok && response.type !== 'error') {
+          cache.put(request, response.clone());
+        }
+        return response;
+      } catch {
+        const cached = await caches.open(cacheName).then((c) => c.match(request));
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          return new Response(
+            getOfflinePageHtml(slug),
+            { headers: new Headers({ 'Content-Type': 'text/html;charset=utf-8' }) }
+          );
+        }
+        throw new Error('Offline and not cached');
+      }
+    })()
+  );
+});
+
+function getOfflinePageHtml(slug: string): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline – Guide</title></head><body><p>You're offline. This guide (${slug}) is cached; reload when back online to use the full app.</p></body></html>`;
+}
+
+// ---------------------------------------------------------------------------
+// Message handlers for manual caching commands
+// ---------------------------------------------------------------------------
+
+ctx.addEventListener('message', async (event) => {
+  const data = event.data as { type: string; slug?: string } | undefined;
+  if (!data?.type) return;
+
+  const source = event.source as unknown as { postMessage?(payload: unknown): void } | null;
+
+  switch (data.type) {
+    case 'SKIP_WAITING':
+      ctx.skipWaiting();
+      break;
+
+    case 'CACHE_GUIDE': {
+      const slug = data.slug;
+      if (!slug || typeof slug !== 'string') {
+        source?.postMessage?.({ type: 'CACHE_GUIDE_RESULT', success: false, error: 'Missing slug' });
+        return;
+      }
+      try {
+        const cacheName = getGuideCacheName(slug);
+        const cache = await caches.open(cacheName);
+        await Promise.all([
+          cache.add(`/guide/${slug}`).catch(() => {}),
+          cache.add(`/api/manifest/${slug}`).catch(() => {}),
+        ]);
+        source?.postMessage?.({ type: 'CACHE_GUIDE_RESULT', success: true, slug });
+      } catch (err) {
+        source?.postMessage?.({ type: 'CACHE_GUIDE_RESULT', success: false, error: String(err) });
+      }
+      break;
+    }
+
+    case 'GET_CACHED_GUIDES': {
+      try {
+        const names = await caches.keys();
+        const guides = names
+          .filter((n) => n.startsWith(CACHE_PREFIX) && n.endsWith(CACHE_VERSION))
+          .map((n) => n.slice(CACHE_PREFIX.length + 1, n.length - CACHE_VERSION.length - 1));
+        source?.postMessage?.({ type: 'CACHED_GUIDES', slugs: guides });
+      } catch (err) {
+        source?.postMessage?.({ type: 'CACHED_GUIDES', slugs: [], error: String(err) });
+      }
+      break;
+    }
+
+    case 'CLEAR_GUIDE': {
+      const slug = data.slug;
+      if (!slug || typeof slug !== 'string') {
+        source?.postMessage?.({ type: 'CLEAR_GUIDE_RESULT', success: false, error: 'Missing slug' });
+        return;
+      }
+      try {
+        const deleted = await caches.delete(getGuideCacheName(slug));
+        source?.postMessage?.({ type: 'CLEAR_GUIDE_RESULT', success: true, slug, deleted });
+      } catch (err) {
+        source?.postMessage?.({ type: 'CLEAR_GUIDE_RESULT', success: false, error: String(err) });
+      }
+      break;
+    }
+  }
+});

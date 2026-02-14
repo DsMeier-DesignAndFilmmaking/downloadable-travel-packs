@@ -17,6 +17,7 @@ import TermsOfServiceView from './pages/TermsOfServiceView';
 import TravelDisclaimerView from './pages/TravelDisclaimerView';
 import SystemSpecsView from './pages/SystemSpecsView';
 import SecurityProtocolView from './pages/SecurityProtocolView';
+import SettingsView from './pages/SettingsView';
 
 // Components
 import PageTransition from './components/PageTransition';
@@ -91,6 +92,14 @@ function AnimatedRoutes() {
           element={
             <PageTransition>
               <SecurityProtocolView />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PageTransition>
+              <SettingsView />
             </PageTransition>
           }
         />

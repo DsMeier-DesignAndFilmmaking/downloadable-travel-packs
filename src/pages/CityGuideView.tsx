@@ -1,29 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Phone, 
-  AlertTriangle, 
-  Download, 
-  Zap, 
+import {
+  Phone,
+  AlertTriangle,
+  Download,
+  Zap,
   ChevronLeft,
-  Plane, 
-  Wifi, 
-  Info, 
+  Plane,
+  Wifi,
+  Info,
   Activity,
   Droplets,
   Globe,
-  Navigation
+  Navigation,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
+import { useManifest } from '@/utils/manifest-generator';
+import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
+import GuideDebugPanel from '@/components/GuideDebugPanel';
 
 /** 1. Reserved Space Skeleton */
 function HighAlertSkeleton() {
@@ -165,20 +168,66 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
+/** Scope for guide-specific SW registration (isolates this guide when installed as PWA). */
+const SW_PATH = '/sw.js';
+
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
-  const { cityData, isLoading: packLoading, isOffline, syncStatus, error, refetch } = useCityPack(cleanSlug || undefined);
-  // Dynamic manifest (link href = /api/manifest/:slug), isInstalled (standalone), desktop prompt / mobile overlay
-  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(cleanSlug);
+  const {
+    cityData,
+    isLoading: packLoading,
+    isOffline,
+    isLocalData,
+    syncStatus,
+    error,
+    refetch,
+  } = useCityPack(cleanSlug ?? undefined);
+  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(
+    cleanSlug ?? ''
+  );
+
+  // Dynamic manifest scoped to this guide (start_url/scope = /guide/{slug})
+  useManifest(cleanSlug ?? '', cityData?.name ?? '', '#0f172a');
+
+  // Online/offline and offline-availability state
+  const isOnline = !isOffline;
+  const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
+
+  const isOfflineAvailable = useMemo(
+    () => Boolean(cityData && (isOffline || isLocalData)),
+    [cityData, isOffline, isLocalData]
+  );
 
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(() => localStorage.getItem(`sync_${cleanSlug}`));
+  const [lastSynced, setLastSynced] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
+  );
+
+  // Check IndexedDB for this guide on mount (for "available offline" badge before data loads)
+  useEffect(() => {
+    if (!cleanSlug) return;
+    isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
+  }, [cleanSlug]);
+
+  // Register service worker with scope limited to this guide (for PWA install isolation)
+  useEffect(() => {
+    if (!cleanSlug || typeof navigator === 'undefined' || !navigator.serviceWorker) return;
+    const scope = `/guide/${cleanSlug}/`;
+    navigator.serviceWorker
+      .register(SW_PATH, { scope })
+      .then(() => {
+        // Optional: log for debugging
+      })
+      .catch((err) => {
+        console.warn('[CityGuide] Guide-scoped SW registration failed (fallback to root SW):', err);
+      });
+  }, [cleanSlug]);
 
   useEffect(() => {
     if (lastSynced && cleanSlug) localStorage.setItem(`sync_${cleanSlug}`, lastSynced);
@@ -261,18 +310,27 @@ export default function CityGuideView() {
       <div 
         onClick={() => setIsDiagnosticsOpen(true)}
         className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
-          isOffline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
+          !isOnline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
-          {isOffline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
+          <div className={`w-1.5 h-1.5 rounded-full ${!isOnline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
+          {!isOnline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
+          {(offlineAvailable || isOfflineAvailable) && (
+            <span className="opacity-80"> · Available offline</span>
+          )}
         </div>
         <div className="flex items-center gap-2 opacity-60">
           <Activity size={10} />
           <span>Under the hood</span>
         </div>
       </div>
+
+      {import.meta.env.DEV && cleanSlug && (
+        <div className="px-6 max-w-2xl mx-auto mt-2">
+          <GuideDebugPanel slug={cleanSlug} />
+        </div>
+      )}
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
   <div className="flex justify-between items-start mb-10">
@@ -474,7 +532,11 @@ export default function CityGuideView() {
                   {isInstalled ? 'Pack Installed' : 'Download Pack'}
                 </span>
                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  {isInstalled ? 'Available Offline' : `Store ${cityData.name} Offline // 2.4MB`}
+                  {isInstalled
+                    ? 'Available Offline'
+                    : isOfflineAvailable || offlineAvailable
+                      ? 'Cached · Add to Home Screen'
+                      : `Store ${cityData.name} Offline // 2.4MB`}
                 </span>
               </div>
             </div>

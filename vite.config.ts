@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import fs from 'node:fs'
 
-/** Copy cities.json into build output so Workbox can precache it for 100% offline. */
+/** Copy cities.json into build output for offline/fallback use. */
 function copyCitiesJson() {
   return {
     name: 'copy-cities-json',
@@ -21,6 +21,16 @@ function copyCitiesJson() {
   }
 }
 
+/**
+ * PWA / Service worker strategy (vite-plugin-pwa):
+ * - Manual registration: injectRegister: null — we register in main.tsx (root) and per-guide in CityGuideView.
+ * - No precaching: injectionPoint: undefined — no __WB_MANIFEST; only per-guide runtime caching.
+ * - Runtime caching (guide data + images) is in src/sw.ts; plugin compiles it to dist/sw.js.
+ *
+ * Alternative (no plugin): remove VitePWA; add a Vite plugin that copies src/sw.ts → dist/sw.js (e.g. esbuild
+ * or rollup to compile TS), and ensure index.html is not modified. Register SW in main.tsx with
+ * navigator.serviceWorker.register('/sw.js', { scope: '/' }). Manifest would be static (e.g. public/manifest.webmanifest).
+ */
 // https://vite.dev/config/
 export default defineConfig({
   resolve: {
@@ -36,7 +46,9 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
+      // Manual registration: app registers SW in main.tsx and per-guide in CityGuideView; no auto-injected script
       injectRegister: null,
+      // Plugin only supports 'autoUpdate' | 'prompt'; we use injectRegister: null for manual/per-guide registration
       registerType: 'prompt',
       scope: '/',
       manifest: {
@@ -61,6 +73,9 @@ export default defineConfig({
       injectManifest: {
         rollupFormat: 'iife',
         maximumFileSizeToCacheInBytes: 3000000,
+        // Disable precaching: no __WB_MANIFEST; SW in src/sw.ts caches only per-guide at runtime
+        injectionPoint: undefined,
+        // Built SW is emitted to dist/sw.js by the plugin (no separate copy step)
       },
       devOptions: {
         enabled: true,

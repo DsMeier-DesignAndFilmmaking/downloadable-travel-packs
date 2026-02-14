@@ -24,19 +24,36 @@ export function useCityPack(slug: string | undefined): UseCityPackResult {
   // Tactical States
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
   const [lastSynced, setLastSynced] = useState<number | null>(null)
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
-  
+  const [networkOffline, setNetworkOffline] = useState(!navigator.onLine)
+  const [debugSimulateOffline, setDebugSimulateOffline] = useState(
+    typeof import.meta !== 'undefined' && import.meta.env?.DEV && typeof sessionStorage !== 'undefined'
+      ? sessionStorage.getItem('debug_simulate_offline') === '1'
+      : false
+  )
+  const isOffline =
+    typeof import.meta !== 'undefined' && import.meta.env?.DEV && debugSimulateOffline
+      ? true
+      : networkOffline
+
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // 1. Real-time Network Listener
   useEffect(() => {
-    const handleStatus = () => setIsOffline(!navigator.onLine)
+    const handleStatus = () => setNetworkOffline(!navigator.onLine)
     window.addEventListener('online', handleStatus)
     window.addEventListener('offline', handleStatus)
     return () => {
       window.removeEventListener('online', handleStatus)
       window.removeEventListener('offline', handleStatus)
     }
+  }, [])
+
+  // DEV: listen for debug "simulate offline" toggle
+  useEffect(() => {
+    if (typeof import.meta === 'undefined' || !import.meta.env?.DEV) return
+    const handler = (e: Event) => setDebugSimulateOffline((e as CustomEvent<boolean>).detail)
+    window.addEventListener('debug-simulate-offline', handler)
+    return () => window.removeEventListener('debug-simulate-offline', handler)
   }, [])
 
   // 2. Data Loading Logic
