@@ -3,7 +3,8 @@ import {
   Routes, 
   Route, 
   useLocation, 
-  useNavigationType 
+  useNavigationType,
+  useNavigate 
 } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useRef } from 'react';
@@ -124,9 +125,35 @@ function AnimatedRoutes() {
   );
 }
 
+/**
+ * When PWA is opened in standalone, redirect from "/" to last viewed pack if stored.
+ */
+function PWAStandaloneRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as { standalone?: boolean }).standalone === true;
+    if (!isStandalone || location.pathname !== '/') return;
+    try {
+      const lastPack = localStorage.getItem('pwa_last_pack');
+      if (lastPack && lastPack !== '/' && lastPack.startsWith('/guide/')) {
+        navigate(lastPack, { replace: true });
+      }
+    } catch {
+      // ignore
+    }
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <Router>
+      <PWAStandaloneRedirect />
       <div className="flex flex-col min-h-screen bg-[#F7F7F7]">
         <main className="flex-grow">
           <AnimatedRoutes />

@@ -184,6 +184,17 @@ export default function CityGuideView() {
     if (lastSynced && cleanSlug) localStorage.setItem(`sync_${cleanSlug}`, lastSynced);
   }, [lastSynced, cleanSlug]);
 
+  // Deep-link guard: remember last viewed pack for PWA standalone re-open
+  useEffect(() => {
+    if (cleanSlug && cityData && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('pwa_last_pack', window.location.pathname);
+      } catch {
+        // ignore quota or private mode
+      }
+    }
+  }, [cleanSlug, cityData]);
+
   useEffect(() => {
     if (!cityData?.countryCode) return;
     

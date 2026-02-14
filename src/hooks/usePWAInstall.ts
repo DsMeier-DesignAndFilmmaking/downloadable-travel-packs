@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { MANIFEST_URL } from '@/services/apiConfig';
 
 /**
  * BeforeInstallPromptEvent interface for Chrome/Android native prompts.
@@ -19,47 +18,17 @@ function isMobileIOSOrAndroid(): boolean {
   return /iphone|ipad|ipod|android/.test(ua);
 }
 
-export function usePWAInstall(citySlug: string) {
+/**
+ * Single app-wide PWA: manifest is served from build (start_url and id "/", scope "/").
+ * No per-city manifest or version params to avoid URL pollution and "sticky pack" installs.
+ * citySlug kept for API compatibility; install is now app-wide.
+ */
+export function usePWAInstall(_citySlug: string) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
-  /// 1. DYNAMIC MANIFEST INJECTION (HOT-SWAP VERSION)
-  useEffect(() => {
-    if (!citySlug) return;
-
-    const updateManifest = () => {
-      // 1. Clean up ALL old manifests
-      const existing = document.querySelectorAll('link[rel="manifest"]');
-      existing.forEach(el => el.remove());
-
-      // 2. Create the new one with a HARD identity in the URL
-      const link = document.createElement('link');
-      link.rel = 'manifest';
-      // We use the slug as a path segment to help the browser distinguish identity
-      link.href = `${MANIFEST_URL(citySlug)}&v=${Date.now()}`;
-      
-      // 3. Add a unique ID to the element itself
-      link.id = `manifest-${citySlug}`;
-      
-      document.head.appendChild(link);
-      
-      console.log(`[PWA] Hot-swapped manifest to: ${citySlug}`);
-    };
-
-    updateManifest();
-
-    // OPTIONAL: A small hack for Chrome/Android
-    // Changing the theme color slightly can sometimes force a manifest re-read
-    const themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta) {
-      const current = themeMeta.getAttribute('content');
-      themeMeta.setAttribute('content', current === '#0f172a' ? '#0f172b' : '#0f172a');
-    }
-
-  }, [citySlug]);
-
-  // 2. INSTALLATION STATE & NATIVE PROMPTS
+  // INSTALLATION STATE & NATIVE PROMPTS (manifest comes from index.html / build)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

@@ -37,7 +37,27 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       injectRegister: null,
-      manifest: false,
+      registerType: 'prompt',
+      scope: '/',
+      manifest: {
+        name: 'TravelPacks',
+        short_name: 'TravelPacks',
+        description: 'Downloadable travel packs — survival, emergency & arrival. Works offline.',
+        start_url: '/',
+        id: '/',
+        scope: '/',
+        display: 'standalone',
+        theme_color: '#0f172a',
+        background_color: '#0f172a',
+        icons: [
+          { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+      },
       injectManifest: {
         rollupFormat: 'iife',
         maximumFileSizeToCacheInBytes: 3000000,

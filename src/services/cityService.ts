@@ -43,6 +43,8 @@ function isCityPack(value: unknown): value is CityPack {
   );
 }
 
+const FETCH_TIMEOUT_MS = 2500;
+
 export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isOffline: boolean }> {
   // Use the clean slug helper inside the fetcher to be 100% safe
   const cleanSlug = getCleanSlug(slug);
@@ -53,20 +55,42 @@ export async function fetchCityPack(slug: string): Promise<{ pack: CityPack; isO
     return { pack: localMatch as CityPack, isOffline: true };
   };
 
-  try {
+  const fetchWithTimeout = (): Promise<{ pack: CityPack; isOffline: boolean }> => {
     const url = getCityPackUrl(cleanSlug);
-    // Force absolute path and cache-busting
-    const response = await fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`);
-    
-    if (response.ok) {
-      const data: unknown = await response.json();
-      if (isCityPack(data)) {
-        return { pack: data, isOffline: false };
-      }
-    }
-  } catch (e) {
-    console.warn('Network fetch failed, falling back to local data', e);
-  }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    return fetch(`${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`, {
+      signal: controller.signal,
+    })
+      .then((response) => {
+        clearTimeout(timeoutId);
+        if (!response.ok) return useLocal();
+        return response.json().then((data: unknown) => {
+          if (isCityPack(data)) return { pack: data, isOffline: false };
+          return useLocal();
+        });
+      })
+      .catch((e) => {
+        clearTimeout(timeoutId);
+        if (e?.name === 'AbortError') {
+          console.warn('City pack fetch timed out, using local data');
+        } else {
+          console.warn('Network fetch failed, falling back to local data', e);
+        }
+        return useLocal();
+      });
+  };
 
-  return useLocal();
+  return Promise.race([
+    fetchWithTimeout(),
+    new Promise<{ pack: CityPack; isOffline: boolean }>((resolve, reject) => {
+      setTimeout(() => {
+        try {
+          resolve(useLocal());
+        } catch (e) {
+          reject(e);
+        }
+      }, FETCH_TIMEOUT_MS);
+    }),
+  ]);
 }
