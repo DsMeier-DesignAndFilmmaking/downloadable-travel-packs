@@ -41,7 +41,7 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
     theme_color: '#0f172a',
     icons: [
       { 
-        src: '/pwa-192x192.png', // Leading slash ensures it looks at the root
+        src: `${origin}/pwa-192x192.png`, 
         sizes: '192x192', 
         type: 'image/png', 
         purpose: 'any' 
@@ -69,24 +69,23 @@ export function injectManifest(manifest: WebAppManifest): void {
   const cityName = manifest.short_name;
   const origin = window.location.origin;
 
-  // 1. Update Title and Apple Title for the Share Sheet
+  // 1. Force Title and Meta Name
   document.title = `${cityName} Pack`;
-  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (appleTitle) {
-    appleTitle.setAttribute('content', cityName);
-  }
+  
+  const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appleTitle) appleTitle.setAttribute('content', cityName);
 
-  // 2. FORCE THE ICON: This replaces the default "T" icon
+  // 2. FORCE UPDATE THE ICON FOR THE SHARE PANEL
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
   if (!appleIcon) {
     appleIcon = document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
     document.head.appendChild(appleIcon);
   }
-  // Ensure this points to the exact same file cached in vite.config.ts
+  // Use the specific 192px icon for the share sheet
   appleIcon.setAttribute('href', `${origin}/pwa-192x192.png`);
 
-  // 3. Clean up and Inject Manifest Blob (Your existing logic)
+  // 3. Cleanup and Inject Manifest Blob (Existing Logic)
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
     if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
@@ -101,7 +100,6 @@ export function injectManifest(manifest: WebAppManifest): void {
   link.href = manifestURL;
   link.setAttribute('data-identity', identity); 
   link.setAttribute('crossorigin', 'use-credentials'); 
-  
   document.head.appendChild(link);
 }
 
