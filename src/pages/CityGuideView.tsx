@@ -27,9 +27,10 @@ import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import GuideDebugPanel from '@/components/GuideDebugPanel';
+import { generateCityGuideManifest, injectManifest, updateThemeColor } from '@/utils/manifest-generator';
 
 // ---------------------------------------------------------------------------
-// IndexedDB: persist city pack after load (same store as cityPackIdb, keyPath 'slug')
+// IndexedDB: persist city pack after load
 // ---------------------------------------------------------------------------
 
 function openDB(): Promise<IDBDatabase> {
@@ -63,7 +64,10 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
   console.log('💾 Saved to IndexedDB:', slug);
 }
 
-/** 1. Reserved Space Skeleton */
+// ---------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------
+
 function HighAlertSkeleton() {
   return (
     <div className="w-full h-[140px] rounded-2xl bg-slate-200/50 animate-pulse border border-slate-200/60" />
@@ -151,12 +155,8 @@ function getEmergencyGridItems(emergency: Record<string, string | undefined>) {
   return out;
 }
 
-/** FIX: Optimized variants to prevent page shifting */
 const containerVariants: Variants = {
-  hidden: { 
-    opacity: 0,
-    transition: { when: "afterChildren" }
-  },
+  hidden: { opacity: 0 },
   visible: { 
     opacity: 1, 
     transition: { staggerChildren: 0.1, delayChildren: 0.1 } 
@@ -164,10 +164,8 @@ const containerVariants: Variants = {
   exit: { 
     opacity: 0,
     filter: "blur(10px)",
-    position: "fixed", // Critical: prevents the next page from jumping down
-    top: 0,
-    left: 0,
-    right: 0,
+    position: "fixed",
+    top: 0, left: 0, right: 0,
     transition: { duration: 0.3, ease: "easeInOut" } 
   }
 };
@@ -177,16 +175,12 @@ const itemVariants: Variants = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const DEFAULT_PASSPORT = 'US';
-
-function AgenticSystemTrigger({ onClick }: {
-  onClick: () => void;
-}) {
+function AgenticSystemTrigger({ onClick }: { onClick: () => void; }) {
   return (
     <motion.button
       variants={itemVariants}
       onClick={onClick}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-all active:scale-95 focus:outline-none"
     >
       <Zap size={14} />
       <span>Live Intelligence</span>
@@ -203,10 +197,17 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
+const DEFAULT_PASSPORT = 'US';
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
+
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
+
   const {
     cityData,
     isLoading: packLoading,
@@ -216,42 +217,12 @@ export default function CityGuideView() {
     error,
     refetch,
   } = useCityPack(cleanSlug ?? undefined);
+
   const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(
     cleanSlug ?? ''
   );
 
-  // Dynamic manifest scoped to this guide (start_url/scope = /guide/{slug})
-  // /Users/danielmeier/Desktop/Downloadable_Travel-Packs/src/pages/CityGuideView.tsx
-
-  useEffect(() => {
-    if (!cleanSlug) return;
-  
-    // 1. Remove "Ghost" manifests
-    document.querySelectorAll('link[rel="manifest"]').forEach(el => el.remove());
-  
-    // 2. Inject Fresh Identity
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.setAttribute('type', 'application/manifest+json'); // Force JSON interpretation
-    link.crossOrigin = 'use-credentials'; 
-    
-    // Use query param style to match sw.ts bypass logic
-    link.href = `/api/manifest?slug=${cleanSlug}&v=${Date.now()}`;
-    
-    document.head.appendChild(link);
-    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-  
-    console.log(`🎯 Identity Swap: Manifest requested for ${cleanSlug}`);
-  }, [cleanSlug]);
-  // Online/offline and offline-availability state
-  const isOnline = !isOffline;
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-
-  const isOfflineAvailable = useMemo(
-    () => Boolean(cityData && (isOffline || isLocalData)),
-    [cityData, isOffline, isLocalData]
-  );
-
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -261,60 +232,85 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
-  // Check IndexedDB for this guide on mount (for "available offline" badge before data loads)
-useEffect(() => {
-  if (!cleanSlug) return;
-  isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
-}, [cleanSlug]);
+  const isOnline = !isOffline;
+  const isOfflineAvailable = useMemo(
+    () => Boolean(cityData && (isOffline || isLocalData)),
+    [cityData, isOffline, isLocalData]
+  );
 
-// Persist to IndexedDB
-useEffect(() => {
-  if (!cleanSlug || !cityData || isOffline) return; // Don't try to write if we know we're offline
-  saveCityToIndexedDB(cleanSlug, cityData).catch((err) => {
-    console.warn('💾 IDB Write Failed:', err);
-  });
-}, [cleanSlug, cityData, isOffline]);
+  /**
+   * 1. IDENTITY ROTATION (The Core Fix)
+   * Injects Blob-based manifest and updates global state for this pack.
+   */
+  useEffect(() => {
+    if (!cleanSlug || !cityData) return;
 
-/**
- * BLOCK 2: DATA CACHING
- * Tells the Service Worker to download the specific assets for this city.
- */
-useEffect(() => {
-  // Use 'controller' to ensure the SW is active and ready for messages
-  if (!('serviceWorker' in navigator) || !cleanSlug || !navigator.serviceWorker.controller) {
-    return;
-  }
+    // Generate unique identity with specific scope/id
+    const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
+    
+    // Inject via Blob URL (triggers browser re-parse immediately)
+    injectManifest(manifest);
+    updateThemeColor('#0f172a');
 
-  // Tell the global SW to partition data for this specific slug
-  navigator.serviceWorker.controller.postMessage({ 
-    type: 'CACHE_CITY', 
-    citySlug: cleanSlug 
-  });
-  
-  console.log(`📡 SW Signaling: Caching intel for ${cleanSlug}`);
-}, [cleanSlug, cityData]); // Re-runs if slug changes or data refreshes
+    // Deep-link guard for PWA re-entry
+    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
 
-// --- END OF PWA BLOCKS ---
+    // Browser Notification: Title "Bump"
+    const originalTitle = document.title;
+    document.title = `Loading ${cityData.name}...`;
+    const t = setTimeout(() => { document.title = originalTitle; }, 150);
 
+    console.log(`🎯 Identity Rotated: ${cityData.name} (${cleanSlug})`);
+
+    return () => {
+      clearTimeout(t);
+      // We don't revoke the blob here to ensure the "Install" process
+      // has access to the manifest resource if triggered immediately.
+    };
+  }, [cleanSlug, cityData]);
+
+  /**
+   * 2. PERSISTENCE & OFFLINE BADGING
+   * Handles IndexedDB storage and status check.
+   */
+  useEffect(() => {
+    if (!cleanSlug) return;
+    isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
+  }, [cleanSlug]);
+
+  useEffect(() => {
+    if (!cleanSlug || !cityData || isOffline) return;
+    saveCityToIndexedDB(cleanSlug, cityData)
+      .then(() => setOfflineAvailable(true))
+      .catch((err) => console.warn('💾 IDB Write Failed:', err));
+  }, [cleanSlug, cityData, isOffline]);
+
+  /**
+   * 3. SERVICE WORKER ASSET CACHING
+   * Signals SW to download images and other static assets.
+   */
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !cleanSlug || !navigator.serviceWorker.controller) {
+      return;
+    }
+
+    navigator.serviceWorker.controller.postMessage({ 
+      type: 'CACHE_CITY', 
+      citySlug: cleanSlug 
+    });
+    
+    console.log(`📡 SW Signaling: Caching assets for ${cleanSlug}`);
+  }, [cleanSlug, cityData]);
+
+  /**
+   * 4. SYNC & EXTERNAL DATA
+   */
   useEffect(() => {
     if (lastSynced && cleanSlug) localStorage.setItem(`sync_${cleanSlug}`, lastSynced);
   }, [lastSynced, cleanSlug]);
 
-  // Deep-link guard: remember last viewed pack for PWA standalone re-open
-  useEffect(() => {
-    if (cleanSlug && cityData && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('pwa_last_pack', window.location.pathname);
-      } catch {
-        // ignore quota or private mode
-      }
-    }
-  }, [cleanSlug, cityData]);
-
   useEffect(() => {
     if (!cityData?.countryCode) return;
-    
-    // If we are offline, don't even try the Visa API to avoid hangs
     if (isOffline) {
       setIsApiLoading(false);
       return;
@@ -322,14 +318,10 @@ useEffect(() => {
 
     setIsApiLoading(true);
     fetchVisaCheck(DEFAULT_PASSPORT, cityData.countryCode)
-      .then((data) => { 
-        if (data) setVisaData(data); 
-      })
-      .catch(err => {
-        console.error("Visa Check Protocol Failed:", err);
-      })
+      .then((data) => { if (data) setVisaData(data); })
+      .catch(err => console.error("Visa Protocol Failed:", err))
       .finally(() => setIsApiLoading(false));
-  }, [cityData?.countryCode, isOffline]); // Added isOffline to dependency
+  }, [cityData?.countryCode, isOffline]);
 
   const handleSync = async () => {
     try {
@@ -400,67 +392,66 @@ useEffect(() => {
       )}
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
-  <div className="flex justify-between items-start mb-10">
-    <button
-      onClick={() => navigate(-1)}
-      className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
-    >
-      <ChevronLeft size={20} />
-    </button>
+        <div className="flex justify-between items-start mb-10">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+          >
+            <ChevronLeft size={20} />
+          </button>
 
-    <div className="text-right flex flex-col items-end">
-      <h1
-        className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic"
-        onClick={() => {
-          setDebugTapCount(p => p + 1);
-          if (debugTapCount >= 4) {
-            setShowDebug(true);
-            setDebugTapCount(0);
-          }
-        }}
-      >
-        {cityData.name}
-      </h1>
+          <div className="text-right flex flex-col items-end">
+            <h1
+              className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic"
+              onClick={() => {
+                setDebugTapCount(p => p + 1);
+                if (debugTapCount >= 4) {
+                  setShowDebug(true);
+                  setDebugTapCount(0);
+                }
+              }}
+            >
+              {cityData.name}
+            </h1>
 
-      <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
-        {cityData.theme}
-      </p>
+            <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">
+              {cityData.theme}
+            </p>
 
-      <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
-        <div className="flex flex-col items-end">
-          <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
-            Local Intel
-          </span>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-            {isOffline
-              ? 'Viewing Offline'
-              : `Updated ${new Date(
-                  lastSynced || cityData.last_updated
-                ).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}`}
-          </span>
+            <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
+              <div className="flex flex-col items-end">
+                <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">
+                  Local Intel
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
+                  {isOffline
+                    ? 'Viewing Offline'
+                    : `Updated ${new Date(
+                        lastSynced || cityData.last_updated
+                      ).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}`}
+                </span>
+              </div>
+
+              <div className="h-8 w-[1px] bg-slate-200" />
+
+              <SyncButton
+                onSync={handleSync}
+                isOffline={isOffline}
+                status={syncStatus}
+              />
+
+              <AgenticSystemTrigger
+                onClick={() => setIsDiagnosticsOpen(true)}
+              />
+            </div>
+          </div>
         </div>
-
-        <div className="h-8 w-[1px] bg-slate-200" />
-
-        <SyncButton
-          onSync={handleSync}
-          isOffline={isOffline}
-          status={syncStatus}
-        />
-
-        <AgenticSystemTrigger
-          onClick={() => setIsDiagnosticsOpen(true)}
-        />
-      </div>
-    </div>
-  </div>
-</header>
-
+      </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {/* Survival Section */}
@@ -612,7 +603,6 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Mobile overlay: Share → Add to Home Screen (when no beforeinstallprompt) */}
       <AnimatePresence>
         {showMobileOverlay && (
           <motion.div
