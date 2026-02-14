@@ -51,8 +51,8 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
-    start_url: `/guide/${slug}?utm_source=pwa`,
-    scope: `/guide/${slug}`, // Removed trailing slash to match the prefix of start_url exactly
+    start_url: `/guide/${slug}?utm_source=pwa`, // Relative is usually safer here
+    scope: `/guide/${slug}`, // Relative and matches start_url prefix
     display: 'standalone',
     theme_color: '#0f172a',
     background_color: '#0f172a',

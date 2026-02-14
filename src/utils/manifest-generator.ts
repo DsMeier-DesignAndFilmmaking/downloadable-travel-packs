@@ -22,19 +22,20 @@ export interface WebAppManifest {
 }
 
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
-  // We MUST use absolute URLs because the manifest is hosted on a blob: origin
   const origin = window.location.origin;
-  const scope = `${origin}/guide/${cityId}`;
   
+  // FIXED: Use absolute paths that strictly match for validation
+  // start_url MUST start with the scope string.
+  const scope = `/guide/${cityId}`; 
+  const startUrl = `/guide/${cityId}?utm_source=pwa`;
+
   return {
     id: `tp-v2-${cityId}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    // Absolute URL for start_url
-    start_url: `${scope}?utm_source=pwa`,
-    // Absolute URL for scope
-    scope: scope,
+    start_url: startUrl, 
+    scope: scope, 
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
