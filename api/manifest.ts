@@ -39,16 +39,20 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
         ? `https://${process.env.VERCEL_URL}`
         : 'https://downloadable-travel-packs.vercel.app'
 
+  /**
+   * THE FIX EXPLAINED:
+   * To prevent "property 'scope' ignored", the start_url MUST start with the scope string.
+   * We use "/guide/${slug}" as the scope (no trailing slash).
+   * We use "/guide/${slug}?utm_source=pwa" as start_url.
+   * Since "/guide/${slug}?..." starts with "/guide/${slug}", the browser validates it.
+   */
   const manifest = {
-    // Unique ID is critical to prevent "Tokyo" showing "NYC"
     id: `tp-v2-${slug}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Superior travel pack for ${cityName} — survival, emergency & arrival. Works offline.`,
-    // The start_url must be within the scope
     start_url: `/guide/${slug}?utm_source=pwa`,
-    // Trailing slash on scope is a "best practice" for sub-directory PWAs
-    scope: `/guide/${slug}/`, 
+    scope: `/guide/${slug}`, // Removed trailing slash to match the prefix of start_url exactly
     display: 'standalone',
     theme_color: '#0f172a',
     background_color: '#0f172a',
