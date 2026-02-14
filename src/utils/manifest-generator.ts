@@ -68,19 +68,24 @@ export function injectManifest(manifest: WebAppManifest): void {
   const identity = manifest.id || 'default';
   const cityName = manifest.short_name;
 
-  // 1. Update Title and Apple Title immediately
+  // 1. FORCE UPDATE META TAGS FOR SHARE SHEET
   document.title = `${cityName} Pack`;
-  
-  // Specifically target the Apple Home Screen Name
-  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (appleTitle) {
-    appleTitle.setAttribute('content', cityName);
-  } else {
-    const meta = document.createElement('meta');
-    meta.name = "apple-mobile-web-app-title";
-    meta.content = cityName;
-    document.head.appendChild(meta);
-  }
+
+  const metaTags = [
+    { name: 'apple-mobile-web-app-title', content: cityName },
+    { name: 'application-name', content: cityName },
+    { name: 'og:title', content: `${cityName} Travel Pack` }
+  ];
+
+  metaTags.forEach(tag => {
+    let element = document.querySelector(`meta[name="${tag.name}"], meta[property="${tag.name}"]`);
+    if (!element) {
+      element = document.createElement('meta');
+      element.setAttribute(tag.name.includes('og:') ? 'property' : 'name', tag.name);
+      document.head.appendChild(element);
+    }
+    element.setAttribute('content', tag.content);
+  });
 
   // 2. Cleanup old manifest links
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
