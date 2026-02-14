@@ -67,34 +67,32 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
 export function injectManifest(manifest: WebAppManifest): void {
   const identity = manifest.id || 'default';
   const cityName = manifest.short_name;
+  const origin = window.location.origin;
 
-  // 1. FORCE UPDATE META TAGS FOR SHARE SHEET
+  // 1. Update Title and Apple Title for the Share Sheet
   document.title = `${cityName} Pack`;
+  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appleTitle) {
+    appleTitle.setAttribute('content', cityName);
+  }
 
-  const metaTags = [
-    { name: 'apple-mobile-web-app-title', content: cityName },
-    { name: 'application-name', content: cityName },
-    { name: 'og:title', content: `${cityName} Travel Pack` }
-  ];
+  // 2. FORCE THE ICON: This replaces the default "T" icon
+  let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  if (!appleIcon) {
+    appleIcon = document.createElement('link');
+    appleIcon.setAttribute('rel', 'apple-touch-icon');
+    document.head.appendChild(appleIcon);
+  }
+  // Ensure this points to the exact same file cached in vite.config.ts
+  appleIcon.setAttribute('href', `${origin}/pwa-192x192.png`);
 
-  metaTags.forEach(tag => {
-    let element = document.querySelector(`meta[name="${tag.name}"], meta[property="${tag.name}"]`);
-    if (!element) {
-      element = document.createElement('meta');
-      element.setAttribute(tag.name.includes('og:') ? 'property' : 'name', tag.name);
-      document.head.appendChild(element);
-    }
-    element.setAttribute('content', tag.content);
-  });
-
-  // 2. Cleanup old manifest links
+  // 3. Clean up and Inject Manifest Blob (Your existing logic)
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
     if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
     el.remove();
   });
 
-  // 3. Create and Inject Blob Manifest
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 

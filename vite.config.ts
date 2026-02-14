@@ -31,26 +31,29 @@ export default defineConfig({
     react(),
     tailwindcss(),
     copyCitiesJson(),
-    VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.ts',
-      injectRegister: null, // Manual registration in main.tsx/CityGuideView
-      registerType: 'prompt',
-      /* CRITICAL FIX: Set manifest to false. 
-         This prevents Vite from injecting a <link rel="manifest"> 
-         into index.html, allowing our Dynamic Manifest to take over.
-      */
-      manifest: false, 
-      injectManifest: {
-        rollupFormat: 'iife',
-        maximumFileSizeToCacheInBytes: 3000000,
-        injectionPoint: undefined,
-      },
-      devOptions: {
-        enabled: true,
-        type: 'module',
-      },
-    }),
+    // Inside VitePWA() configuration:
+VitePWA({
+  strategies: 'injectManifest',
+  srcDir: 'src',
+  filename: 'sw.ts',
+  injectRegister: null,
+  registerType: 'prompt',
+  manifest: false, 
+  injectManifest: {
+    rollupFormat: 'iife',
+    maximumFileSizeToCacheInBytes: 3000000,
+    // ADD THIS: Explicitly cache the shell and icons
+    globPatterns: [
+      '**/*.{js,css,html}',  // Merged: covers index.html AND all assets
+          'pwa-192x192.png',     // Specific icon for Share Panel
+          'pwa-512x512.png',     // Specific icon for Home Screen
+          'vite.svg'
+    ],
+  },
+  devOptions: {
+    enabled: true,
+    type: 'module',
+  },
+})
   ],
 })

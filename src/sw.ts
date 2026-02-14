@@ -45,13 +45,35 @@ ctx.addEventListener('activate', (event) => {
 
 // --- FETCH HANDLER ---
 
+// --- FETCH HANDLER ---
+
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Skip cross-origin requests
   if (url.origin !== ctx.location.origin) return;
 
-  // 1. IDENTITY BYPASS (Manifests)
+  // 1. THE "WHITE SCREEN" FIX: SPA NAVIGATION FALLBACK
+  // This intercepts page loads (e.g., /guide/tokyo) and serves the app shell
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        // If network fails (offline), serve the cached index.html
+        const cache = await caches.match('/index.html');
+        if (cache) return cache;
+        
+        // Final fallback if even index.html is missing
+        return new Response("Offline: App Shell not available", { 
+          status: 503, 
+          headers: { 'Content-Type': 'text/html' } 
+        });
+      })
+    );
+    return;
+  }
+
+  // 2. IDENTITY BYPASS (Manifests)
   // Network-First strategy to ensure city icons/names swap correctly
   if (url.pathname.includes('/api/manifest')) {
     event.respondWith(
@@ -73,7 +95,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. IMAGE CACHING
+  // 3. IMAGE CACHING
   if (request.destination === 'image') {
     event.respondWith(
       (async (): Promise<Response> => {
@@ -92,7 +114,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. GUIDE CONTENT (Pages & API Data)
+  // 4. GUIDE DATA (API Data)
   const slug = getGuideSlugFromUrl(url);
   if (!slug) return;
 
@@ -115,15 +137,7 @@ ctx.addEventListener('fetch', (event) => {
         }
       }
       
-      if (cached) return cached;
-
-      if (request.mode === 'navigate') {
-        return new Response(getOfflinePageHtml(slug), {
-          headers: { 'Content-Type': 'text/html;charset=utf-8' }
-        });
-      }
-
-      return new Response('Resource unavailable offline', { status: 503 });
+      return cached || new Response('Resource unavailable offline', { status: 503 });
     })()
   );
 });
