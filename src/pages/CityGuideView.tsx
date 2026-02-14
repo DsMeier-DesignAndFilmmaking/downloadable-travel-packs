@@ -6,7 +6,7 @@ import {
   Download,
   Zap,
   ChevronLeft,
-  Plane,
+  
   Wifi,
   Info,
   Activity,
