@@ -1,4 +1,5 @@
-// Removed unused useEffect import to fix TS6133 error
+// src/utils/manifest-generator.ts
+
 export interface ManifestIcon {
   src: string;
   sizes: string;
@@ -20,46 +21,66 @@ export interface WebAppManifest {
   icons: ManifestIcon[];
 }
 
-const DEFAULT_ICONS: ManifestIcon[] = [
-  { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-  { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-  { src: '/pwa-pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-];
-
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
-  const scope = `/guide/${cityId}`;
+  // We MUST use absolute URLs because the manifest is hosted on a blob: origin
+  const origin = window.location.origin;
+  const scope = `${origin}/guide/${cityId}`;
+  
   return {
     id: `tp-v2-${cityId}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
+    // Absolute URL for start_url
     start_url: `${scope}?utm_source=pwa`,
+    // Absolute URL for scope
     scope: scope,
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
-    icons: DEFAULT_ICONS,
+    icons: [
+      { 
+        src: `${origin}/pwa-192x192.png`, 
+        sizes: '192x192', 
+        type: 'image/png', 
+        purpose: 'any' 
+      },
+      { 
+        src: `${origin}/pwa-512x512.png`, 
+        sizes: '512x512', 
+        type: 'image/png', 
+        purpose: 'any' 
+      },
+      { 
+        src: `${origin}/pwa-pwa-maskable-512x512.png`, 
+        sizes: '512x512', 
+        type: 'image/png', 
+        purpose: 'maskable' 
+      },
+    ],
   };
 }
 
 export function injectManifest(manifest: WebAppManifest): void {
-  // 1. Clean up any existing manifests and revoke old Blob URLs to prevent memory leaks
+  // 1. Clean up
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
-    if (href?.startsWith('blob:')) {
-      URL.revokeObjectURL(href);
-    }
+    if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
     el.remove();
   });
 
-  // 2. Create the manifest Blob
+  // 2. Create Blob
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
-  // 3. Inject the new link tag
+  // 3. Inject
   const link = document.createElement('link');
   link.rel = 'manifest';
   link.href = manifestURL;
+  // Crucial: some browsers need this to resolve the relative paths correctly 
+  // if they weren't made absolute (though we made them absolute above for safety)
+  link.setAttribute('crossorigin', 'use-credentials'); 
+  
   document.head.appendChild(link);
 }
 
