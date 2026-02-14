@@ -24,21 +24,26 @@ export interface WebAppManifest {
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
   
-  // FIXED: Use absolute paths that strictly match for validation
-  // start_url MUST start with the scope string.
-  const scope = `/guide/${cityId}`; 
-  const startUrl = `/guide/${cityId}?utm_source=pwa`;
+  // By using the full origin prefix, we bypass the "Blob relative path" security issue.
+  // Example: https://yourdomain.com/guide/tokyo
+  const absoluteScope = `${origin}/guide/${cityId}`;
+  const absoluteStartUrl = `${origin}/guide/${cityId}?utm_source=pwa`;
 
   return {
     id: `tp-v2-${cityId}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    start_url: startUrl, 
-    scope: scope, 
+    
+    // FORCE ABSOLUTE URLS
+    start_url: absoluteStartUrl,
+    scope: absoluteScope,
+    
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
+    
+    // ICONS MUST ALSO BE ABSOLUTE
     icons: [
       { 
         src: `${origin}/pwa-192x192.png`, 
