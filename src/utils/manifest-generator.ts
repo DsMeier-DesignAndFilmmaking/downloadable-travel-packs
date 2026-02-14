@@ -19,13 +19,13 @@ export interface WebAppManifest {
   theme_color: string;
   orientation?: 'any' | 'natural' | 'landscape' | 'portrait';
   icons: ManifestIcon[];
+  v?: number; // Internal versioning
 }
 
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
   
-  // By using the full origin prefix, we bypass the "Blob relative path" security issue.
-  // Example: https://yourdomain.com/guide/tokyo
+  // Absolute URLs prevent the browser from getting lost when manifest is a Blob
   const absoluteScope = `${origin}/guide/${cityId}`;
   const absoluteStartUrl = `${origin}/guide/${cityId}?utm_source=pwa`;
 
@@ -34,16 +34,11 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    
-    // FORCE ABSOLUTE URLS
     start_url: absoluteStartUrl,
     scope: absoluteScope,
-    
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
-    
-    // ICONS MUST ALSO BE ABSOLUTE
     icons: [
       { 
         src: `${origin}/pwa-192x192.png`, 
@@ -64,27 +59,37 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
         purpose: 'maskable' 
       },
     ],
+    // Add a timestamp to the object so every generation is unique
+    v: Date.now() 
   };
 }
 
 export function injectManifest(manifest: WebAppManifest): void {
-  // 1. Clean up
+  // Use the manifest ID as the identity tracker
+  const identity = manifest.id || 'default';
+
+  // 1. Clean up existing manifests and revoke old Blob URLs to save memory
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
-    if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
+    if (href?.startsWith('blob:')) {
+      URL.revokeObjectURL(href);
+    }
     el.remove();
   });
 
-  // 2. Create Blob
+  // 2. Create Blob with strict MIME type
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
-  // 3. Inject
+  // 3. Inject the new link tag
   const link = document.createElement('link');
   link.rel = 'manifest';
   link.href = manifestURL;
-  // Crucial: some browsers need this to resolve the relative paths correctly 
-  // if they weren't made absolute (though we made them absolute above for safety)
+  
+  // CRITICAL: This allows CityGuideView.tsx to identify the current city
+  link.setAttribute('data-identity', identity); 
+  
+  // Ensures credentials (cookies/auth) are sent if icons are protected
   link.setAttribute('crossorigin', 'use-credentials'); 
   
   document.head.appendChild(link);

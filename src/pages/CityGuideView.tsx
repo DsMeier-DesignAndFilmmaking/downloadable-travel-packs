@@ -239,35 +239,52 @@ export default function CityGuideView() {
   );
 
   /**
-   * 1. IDENTITY ROTATION (The Core Fix)
-   * Injects Blob-based manifest and updates global state for this pack.
-   */
-  useEffect(() => {
-    if (!cleanSlug || !cityData) return;
+ * IDENTITY ROTATION WITH AUTO-SYNC GUARD
+ * This ensures the PWA manifest matches the current city without 
+ * introducing infinite reload loops or stale UI state.
+ */
+useEffect(() => {
+  if (!cleanSlug || !cityData) return;
 
-    // Generate unique identity with specific scope/id
-    const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
+  const manifestId = `tp-v2-${cleanSlug}`;
+  const existingLink = document.querySelector('link[rel="manifest"]');
+  const currentManifestId = existingLink?.getAttribute('data-identity');
+
+  // 1. Check if the manifest is missing or belongs to a different city
+  if (!currentManifestId || currentManifestId !== manifestId) {
     
-    // Inject via Blob URL (triggers browser re-parse immediately)
-    injectManifest(manifest);
-    updateThemeColor('#0f172a');
+    // 2. Anti-Loop Guard: Check if we already tried to rotate this specific city
+    const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
 
-    // Deep-link guard for PWA re-entry
-    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+    if (!hasRotated) {
+      console.log(`🔄 Identity Mismatch: ${currentManifestId} -> ${manifestId}. Rotating...`);
+      
+      // Inject the new manifest immediately
+      const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
+      injectManifest(manifest);
+      
+      // Set the lock and trigger a single "Soft Refresh" to bind the new manifest
+      sessionStorage.setItem('pwa_rotator_lock', manifestId);
+      
+      // Use replace so we don't mess up the back-button history
+      window.location.replace(window.location.href);
+      return;
+    }
+  }
 
-    // Browser Notification: Title "Bump"
-    const originalTitle = document.title;
-    document.title = `Loading ${cityData.name}...`;
-    const t = setTimeout(() => { document.title = originalTitle; }, 150);
+  // 3. If we reach here, identity is synced. Perform secondary UI updates.
+  updateThemeColor('#0f172a');
+  localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
 
-    console.log(`🎯 Identity Rotated: ${cityData.name} (${cleanSlug})`);
+  // Visual Title Bump (Confirms to user the identity is live)
+  const originalTitle = document.title;
+  document.title = `✨ ${cityData.name} Pack`;
+  const t = setTimeout(() => { document.title = originalTitle; }, 1000);
 
-    return () => {
-      clearTimeout(t);
-      // We don't revoke the blob here to ensure the "Install" process
-      // has access to the manifest resource if triggered immediately.
-    };
-  }, [cleanSlug, cityData]);
+  return () => {
+    clearTimeout(t);
+  };
+}, [cleanSlug, cityData]);
 
   /**
    * 2. PERSISTENCE & OFFLINE BADGING
