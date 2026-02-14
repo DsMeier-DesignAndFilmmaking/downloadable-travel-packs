@@ -68,39 +68,28 @@ export function injectManifest(manifest: WebAppManifest): void {
   const identity = manifest.id || 'default';
   const cityName = manifest.short_name;
 
-  // 1. Cleanup old manifests
+  // 1. Update Title and Apple Title immediately
+  document.title = `${cityName} Pack`;
+  
+  // Specifically target the Apple Home Screen Name
+  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appleTitle) {
+    appleTitle.setAttribute('content', cityName);
+  } else {
+    const meta = document.createElement('meta');
+    meta.name = "apple-mobile-web-app-title";
+    meta.content = cityName;
+    document.head.appendChild(meta);
+  }
+
+  // 2. Cleanup old manifest links
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
     if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
     el.remove();
   });
 
-  // 2. NEW: Update Meta Tags for iOS Share Sheet / Home Screen Name
-  // This fixes the "TravelPacks V2" default name issue
-  let metaAppTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (!metaAppTitle) {
-    metaAppTitle = document.createElement('meta');
-    metaAppTitle.setAttribute('name', 'apple-mobile-web-app-title');
-    document.head.appendChild(metaAppTitle);
-  }
-  metaAppTitle.setAttribute('content', cityName);
-
-  // Update the Title tag (often used as fallback for the icon name)
-  document.title = `${cityName} Travel Pack`;
-
-  // 3. NEW: Update iOS Icon Link
-  // iOS often looks for apple-touch-icon before the manifest
-  let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-  if (!appleIcon) {
-    appleIcon = document.createElement('link');
-    appleIcon.setAttribute('rel', 'apple-touch-icon');
-    document.head.appendChild(appleIcon);
-  }
-  // Use the 512x512 icon from your manifest
-  const iconSrc = manifest.icons.find(i => i.sizes === '512x512')?.src || manifest.icons[0].src;
-  appleIcon.setAttribute('href', iconSrc);
-
-  // 4. Create and Inject Blob Manifest (Your existing logic)
+  // 3. Create and Inject Blob Manifest
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
