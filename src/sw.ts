@@ -1,10 +1,21 @@
 /// <reference lib="webworker" />
 
+/**
+ * MANDATORY: This tells Workbox where to inject the precache manifest.
+ * During build, Vite replaces 'self.__WB_MANIFEST' with the array of 
+ * files found by your globPatterns in vite.config.ts.
+ */
+// @ts-ignore
+const _precacheManifest = self.__WB_MANIFEST;
+
 const ctx = self as unknown as ServiceWorkerGlobalScope;
 const CACHE_VERSION = 'v2';
 const CACHE_PREFIX = 'travel-guide';
 const IMAGES_CACHE_NAME = 'guide-images-v2';
 
+/**
+ * Extract city slug from various URL patterns
+ */
 function getGuideSlugFromUrl(url: URL): string | null {
   const guideMatch = url.pathname.match(/^\/guide\/([^/?#]+)\/?$/);
   if (guideMatch) return guideMatch[1];
@@ -22,17 +33,21 @@ function getGuideCacheName(slug: string): string {
 // --- INSTALL & ACTIVATE ---
 
 ctx.addEventListener('install', () => {
+  // Activate the new service worker immediately without waiting for tabs to close
   ctx.skipWaiting();
 });
 
 ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      // Enable navigation preload if supported for faster page loads
       if ('navigationPreload' in ctx.registration) {
         await ctx.registration.navigationPreload.enable();
       }
+      // Take control of all open tabs immediately
       await ctx.clients.claim();
       
+      // Clean up old city caches that don't match current version
       const names = await caches.keys();
       await Promise.all(
         names
@@ -45,8 +60,6 @@ ctx.addEventListener('activate', (event) => {
 
 // --- FETCH HANDLER ---
 
-// --- FETCH HANDLER ---
-
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -55,15 +68,16 @@ ctx.addEventListener('fetch', (event) => {
   if (url.origin !== ctx.location.origin) return;
 
   // 1. THE "WHITE SCREEN" FIX: SPA NAVIGATION FALLBACK
-  // This intercepts page loads (e.g., /guide/tokyo) and serves the app shell
+  // Intercepts page navigations (e.g. /guide/tokyo) and serves the cached index.html shell.
+  // This allows React Router to boot up and handle the route offline.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
-        // If network fails (offline), serve the cached index.html
+        // Serve the App Shell from the precache
         const cache = await caches.match('/index.html');
         if (cache) return cache;
         
-        // Final fallback if even index.html is missing
+        // Final fallback if shell is missing
         return new Response("Offline: App Shell not available", { 
           status: 503, 
           headers: { 'Content-Type': 'text/html' } 
@@ -74,7 +88,7 @@ ctx.addEventListener('fetch', (event) => {
   }
 
   // 2. IDENTITY BYPASS (Manifests)
-  // Network-First strategy to ensure city icons/names swap correctly
+  // Network-First strategy to ensure city identity (names/icons) stays fresh
   if (url.pathname.includes('/api/manifest')) {
     event.respondWith(
       fetch(request)
@@ -114,7 +128,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. GUIDE DATA (API Data)
+  // 4. GUIDE DATA (API Data & Static Guide Pages)
   const slug = getGuideSlugFromUrl(url);
   if (!slug) return;
 
@@ -144,15 +158,6 @@ ctx.addEventListener('fetch', (event) => {
 
 // --- UTILS & MESSAGING ---
 
-function getOfflinePageHtml(slug: string): string {
-  return `<!DOCTYPE html><html lang="en">
-    <head><meta charset="utf-8"><title>Offline</title></head>
-    <body style="font-family:sans-serif; padding: 40px; text-align:center;">
-      <h2>Intel Pack Offline</h2>
-      <p>The guide for <b>${slug}</b> is available, but you need an internet connection for live updates.</p>
-    </body></html>`;
-}
-
 async function cacheCity(slug: string): Promise<void> {
   const cacheName = getGuideCacheName(slug);
   const cache = await caches.open(cacheName);
@@ -168,6 +173,7 @@ ctx.addEventListener('message', (event) => {
   const data = event.data;
   if (!data?.type) return;
 
+  // Handles caching requests from the UI (CityGuideView)
   if (data.type === 'CACHE_CITY' || data.type === 'CACHE_GUIDE') {
     const slug = data.citySlug || data.slug;
     if (slug) event.waitUntil(cacheCity(slug));

@@ -41,7 +41,7 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
     theme_color: '#0f172a',
     icons: [
       { 
-        src: `${origin}/pwa-192x192.png`, 
+        src: '/pwa-192x192.png', // Leading slash ensures it looks at the root
         sizes: '192x192', 
         type: 'image/png', 
         purpose: 'any' 
