@@ -239,6 +239,7 @@ export default function CityGuideView() {
   );
 
   /**
+ /**
  * IDENTITY ROTATION WITH AUTO-SYNC GUARD
  * This ensures the PWA manifest matches the current city without 
  * introducing infinite reload loops or stale UI state.
@@ -283,9 +284,12 @@ useEffect(() => {
 
   return () => {
     clearTimeout(t);
+    // CLEANUP: We remove the lock for THIS specific city when leaving the page.
+    // This ensures that if the user navigates back later, the sync guard 
+    // can verify the manifest identity fresh.
+    sessionStorage.removeItem('pwa_rotator_lock');
   };
 }, [cleanSlug, cityData]);
-
   /**
    * 2. PERSISTENCE & OFFLINE BADGING
    * Handles IndexedDB storage and status check.
