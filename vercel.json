@@ -2,34 +2,21 @@
   "cleanUrls": false,
   "rewrites": [
     { "source": "/api/manifest/:slug", "destination": "/api/manifest?slug=:slug" },
-    { "source": "/manifests/city-:slug.json", "destination": "/api/manifest?slug=:slug" },
     { "source": "/guide/:slug*", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/sw.js",
+      "source": "/api/manifest/:slug",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        }
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "no-store, must-revalidate" }
       ]
     },
     {
-      "source": "/api/manifest/(.*)",
+      "source": "/sw.js",
       "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "no-cache, no-store" }
       ]
     }
   ]

@@ -79,9 +79,9 @@ export default function handler(req: VercelRequest, res: VercelResponse): void {
     ],
   }
 
-  res
-    .status(200)
+// MUST stringify and MUST set the header
+  res.status(200)
     .setHeader('Content-Type', 'application/manifest+json')
-    .setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-    .end(JSON.stringify(manifest))
+    .setHeader('Cache-Control', 'no-store')
+    .end(JSON.stringify(manifest));
 }

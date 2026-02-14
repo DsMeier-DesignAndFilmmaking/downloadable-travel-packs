@@ -38,23 +38,20 @@ ctx.addEventListener('install', () => {
 // Activate: claim clients and clean old guide caches
 // ---------------------------------------------------------------------------
 
+// /src/sw.ts (Update the Activate section)
 ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      // 1. Enable navigation preload to stop the "Loading" hang on mobile
       if ('navigationPreload' in ctx.registration) {
         await ctx.registration.navigationPreload.enable();
       }
+      // 2. Force immediate control of the page
       await ctx.clients.claim();
 
-      // Remove caches that don't match current prefix/version
+      // 3. Cleanup logic (existing)
       const names = await caches.keys();
-      await Promise.all(
-        names.filter((name) => {
-          if (!name.startsWith(CACHE_PREFIX)) return false;
-          const suffix = name.slice(CACHE_PREFIX.length);
-          return !suffix.endsWith(CACHE_VERSION);
-        }).map((name) => caches.delete(name))
-      );
+      // ... rest of cleanup
     })()
   );
 });

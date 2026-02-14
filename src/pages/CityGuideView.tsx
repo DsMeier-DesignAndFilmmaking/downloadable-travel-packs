@@ -221,46 +221,46 @@ export default function CityGuideView() {
   );
 
   // Dynamic manifest scoped to this guide (start_url/scope = /guide/{slug})
-  useEffect(() => {
-    if (!cleanSlug) return;
+  // /Users/danielmeier/Desktop/Downloadable_Travel-Packs/src/pages/CityGuideView.tsx
 
-    const cityName = cleanSlug.split('-')[0];
-    const capitalizedCity = cityName.charAt(0).toUpperCase() + cityName.slice(1);
+// Replace your existing useEffect with this surgical version:
+useEffect(() => {
+  if (!cleanSlug) return;
 
-    const existingManifest = document.querySelector('link[rel="manifest"]');
-    if (existingManifest) {
-      existingManifest.remove();
-    }
+  /**
+   * 1. Remove any "Ghost" manifests
+   * This clears out previous city identities so the browser sees a fresh PWA.
+   */
+  const cleanupExisting = () => {
+    const manifests = document.querySelectorAll('link[rel="manifest"]');
+    manifests.forEach(el => el.remove());
+  };
 
-    const manifest = {
-      name: `${capitalizedCity} Travel Pack`,
-      short_name: capitalizedCity,
-      start_url: `/guide/${cleanSlug}`,
-      scope: `/guide/${cleanSlug}`,
-      display: 'standalone',
-      background_color: '#ffffff',
-      theme_color: '#000000',
-      icons: [
-        { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-      ],
-    };
+  cleanupExisting();
 
-    const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-    const manifestURL = URL.createObjectURL(blob);
+  /**
+   * 2. Inject the Dynamic API Route
+   * Instead of a Blob, we point directly to our serverless manifest function.
+   * We add a version tag (?v=) to force the mobile browser to re-read it.
+   */
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = `/api/manifest/${cleanSlug}?v=${Date.now()}`;
+  document.head.appendChild(link);
 
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = manifestURL;
-    document.head.appendChild(link);
+  /**
+   * 3. Set the "Last Pack" reference
+   * This supports your App.tsx logic for standalone redirects.
+   */
+  localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
 
-    console.log('✅ Dynamic manifest injected for:', cleanSlug);
+  console.log(`🎯 Identity Swap: Manifest pointing to /api/manifest/${cleanSlug}`);
 
-    return () => {
-      URL.revokeObjectURL(manifestURL);
-      link.remove();
-    };
-  }, [cleanSlug]);
+  return () => {
+    // Optional: Only cleanup if you want the "Default" PWA manifest to return
+    // link.remove(); 
+  };
+}, [cleanSlug]);
 
   // Online/offline and offline-availability state
   const isOnline = !isOffline;
