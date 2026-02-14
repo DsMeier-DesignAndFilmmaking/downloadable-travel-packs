@@ -237,12 +237,28 @@ export default function CityGuideView() {
       </div>
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto flex justify-between items-start">
-        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm"><ChevronLeft size={20} /></button>
+        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+          <ChevronLeft size={20} />
+        </button>
         <div className="text-right">
           <h1 className="text-4xl font-black italic uppercase leading-none">{cityData.name}</h1>
+          
+          {/* Use lastSynced here to resolve TS6133 */}
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+            {lastSynced 
+              ? `Last Intel Sync: ${new Date(lastSynced).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : 'Sync required for live data'}
+          </p>
+
           <div className="mt-4 flex items-center gap-4 justify-end">
             <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
-            <motion.button variants={itemVariants} onClick={() => setIsDiagnosticsOpen(true)} className="p-2 bg-emerald-50 rounded-full text-emerald-600"><Zap size={14} /></motion.button>
+            <motion.button 
+              variants={itemVariants} 
+              onClick={() => setIsDiagnosticsOpen(true)} 
+              className="p-2 bg-emerald-50 rounded-full text-emerald-600"
+            >
+              <Zap size={14} />
+            </motion.button>
           </div>
         </div>
       </header>
