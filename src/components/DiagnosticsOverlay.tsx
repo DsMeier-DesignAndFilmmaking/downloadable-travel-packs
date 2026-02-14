@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Zap, Database, Activity } from 'lucide-react';
+import { ShieldCheck, Zap, Database, Activity, RefreshCcw, ChevronRight } from 'lucide-react';
 
 interface DiagnosticsProps {
   city: string;
@@ -10,6 +10,42 @@ interface DiagnosticsProps {
 
 export default function DiagnosticsOverlay({ city, isOpen, onClose }: DiagnosticsProps) {
   const [showTechnical, setShowTechnical] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  // --- HARD REFRESH LOGIC ---
+  const handleHardRefresh = async () => {
+    const confirmed = window.confirm(
+      "PERFORM SYSTEM RESET?\n\nThis will unregister the Service Worker and clear all cached city packs. The app will reload to fetch the latest manifest."
+    );
+
+    if (!confirmed) return;
+
+    setIsResetting(true);
+    try {
+      // 1. Unregister Service Workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+
+      // 2. Clear all named Caches (travel-guide-v1, v2, etc.)
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+
+      // 3. Clear PWA state memory
+      localStorage.removeItem('pwa_last_pack');
+
+      // 4. Force hard reload from server
+      window.location.reload();
+    } catch (err) {
+      console.error("Reset failed:", err);
+      setIsResetting(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -68,6 +104,27 @@ export default function DiagnosticsOverlay({ city, isOpen, onClose }: Diagnostic
                 showTech={showTechnical}
               />
             </div>
+
+            {/* --- NEW RECOVERY BLOCK --- */}
+            <section className="mb-6">
+              <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] mb-3 ml-1">System Recovery</p>
+              <button 
+                onClick={handleHardRefresh}
+                disabled={isResetting}
+                className="w-full flex items-center justify-between p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl group active:scale-[0.98] transition-all"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-rose-500/20 rounded-xl text-rose-500">
+                    <RefreshCcw size={18} className={isResetting ? 'animate-spin' : ''} />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-black text-rose-500 uppercase tracking-tight">Hard Reset Engine</p>
+                    <p className="text-[9px] font-bold text-rose-500/60 uppercase">Flush Manifest & SW Registry</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-rose-500/40 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </section>
 
             <section className="bg-white/5 rounded-3xl p-6 border border-white/5">
               <div className="flex items-center gap-2 mb-4">

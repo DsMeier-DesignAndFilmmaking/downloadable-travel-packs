@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_PREFIX = 'travel-guide';
-const IMAGES_CACHE_NAME = 'guide-images-v1';
+const IMAGES_CACHE_NAME = 'guide-images-v2';
 
 let currentCitySlug: string | null = null;
 
@@ -12,10 +12,15 @@ let currentCitySlug: string | null = null;
  * Matches /guide/{slug} or /api/manifest/{slug}
  */
 function getGuideSlugFromUrl(url: URL): string | null {
-  const guideMatch = url.pathname.match(/^\/guide\/([^/]+)\/?$/);
+  // 1. Match the page itself: /guide/tokyo-japan
+  const guideMatch = url.pathname.match(/^\/guide\/([^/?#]+)\/?$/);
   if (guideMatch) return guideMatch[1];
-  const apiMatch = url.pathname.match(/^\/api\/manifest\/([^/]+)$/);
+
+  // 2. Match the manifest API: /api/manifest/tokyo-japan
+  // Note: We remove the version query param before matching
+  const apiMatch = url.pathname.match(/^\/api\/manifest\/([^/?#]+)/);
   if (apiMatch) return apiMatch[1];
+
   return null;
 }
 
@@ -133,7 +138,7 @@ async function cacheCity(slug: string): Promise<void> {
 
   const urlsToCache = [
     `/guide/${slug}`,
-    `/api/manifest/${slug}`,
+    `/api/manifest?slug=${slug}`, // ✅ Match the surviving API route
   ];
 
   console.log('📥 Caching URLs:', urlsToCache);

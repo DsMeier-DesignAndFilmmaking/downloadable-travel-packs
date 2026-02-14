@@ -7,6 +7,7 @@ import './index.css'
 const SW_READY_TIMEOUT_MS = 2500
 
 const updateSW = registerSW({
+  immediate: true, // ADD THIS: ensures the SW takes control immediately on page load
   onNeedRefresh() {
     if (confirm('New content available. Reload?')) {
       updateSW(true)

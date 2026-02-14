@@ -223,43 +223,25 @@ export default function CityGuideView() {
   // Dynamic manifest scoped to this guide (start_url/scope = /guide/{slug})
   // /Users/danielmeier/Desktop/Downloadable_Travel-Packs/src/pages/CityGuideView.tsx
 
-// Replace your existing useEffect with this surgical version:
+/**
+ * BLOCK 1: IDENTITY & REDIRECT 
+ * Updates the manifest identity and the 'last pack' memory.
+ */
 useEffect(() => {
   if (!cleanSlug) return;
 
-  /**
-   * 1. Remove any "Ghost" manifests
-   * This clears out previous city identities so the browser sees a fresh PWA.
-   */
-  const cleanupExisting = () => {
-    const manifests = document.querySelectorAll('link[rel="manifest"]');
-    manifests.forEach(el => el.remove());
-  };
+  // 1. Clear old identities
+  document.querySelectorAll('link[rel="manifest"]').forEach(el => el.remove());
 
-  cleanupExisting();
-
-  /**
-   * 2. Inject the Dynamic API Route
-   * Instead of a Blob, we point directly to our serverless manifest function.
-   * We add a version tag (?v=) to force the mobile browser to re-read it.
-   */
+  // 2. Inject new identity pointing to the query-based API
   const link = document.createElement('link');
   link.rel = 'manifest';
-  link.href = `/api/manifest/${cleanSlug}?v=${Date.now()}`;
+  link.crossOrigin = 'use-credentials'; 
+  link.href = `/api/manifest?slug=${cleanSlug}&v=${Date.now()}`; // ✅ Query param format
   document.head.appendChild(link);
 
-  /**
-   * 3. Set the "Last Pack" reference
-   * This supports your App.tsx logic for standalone redirects.
-   */
   localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-
-  console.log(`🎯 Identity Swap: Manifest pointing to /api/manifest/${cleanSlug}`);
-
-  return () => {
-    // Optional: Only cleanup if you want the "Default" PWA manifest to return
-    // link.remove(); 
-  };
+  console.log(`🎯 Identity Swap: ${cleanSlug}`);
 }, [cleanSlug]);
 
   // Online/offline and offline-availability state
@@ -294,20 +276,26 @@ useEffect(() => {
     });
   }, [cleanSlug, cityData]);
 
-  // Register SW with scope limited to this guide and tell SW which city to cache
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug) return;
+/**
+ * BLOCK 2: DATA CACHING
+ * Tells the Service Worker to download the specific assets for this city.
+ */
+useEffect(() => {
+  // Use 'controller' to ensure the SW is active and ready for messages
+  if (!('serviceWorker' in navigator) || !cleanSlug || !navigator.serviceWorker.controller) {
+    return;
+  }
 
-    navigator.serviceWorker
-      .register('/sw.js', { scope: `/guide/${cleanSlug}/` })
-      .then((reg) => {
-        console.log('✅ SW registered for', cleanSlug, 'with scope:', reg.scope);
-        if (reg.active) {
-          reg.active.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
-        }
-      })
-      .catch((err) => console.error('SW registration failed:', err));
-  }, [cleanSlug]);
+  // Tell the global SW to partition data for this specific slug
+  navigator.serviceWorker.controller.postMessage({ 
+    type: 'CACHE_CITY', 
+    citySlug: cleanSlug 
+  });
+  
+  console.log(`📡 SW Signaling: Caching intel for ${cleanSlug}`);
+}, [cleanSlug, cityData]); // Re-runs if slug changes or data refreshes
+
+// --- END OF PWA BLOCKS ---
 
   useEffect(() => {
     if (lastSynced && cleanSlug) localStorage.setItem(`sync_${cleanSlug}`, lastSynced);

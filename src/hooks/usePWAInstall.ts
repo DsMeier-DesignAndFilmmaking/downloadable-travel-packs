@@ -1,8 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 
-/**
- * BeforeInstallPromptEvent interface for Chrome/Android native prompts.
- */
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
   readonly userChoice: Promise<{
@@ -19,31 +16,35 @@ function isMobileIOSOrAndroid(): boolean {
 }
 
 /**
- * Single app-wide PWA: manifest is served from build (start_url and id "/", scope "/").
- * No per-city manifest or version params to avoid URL pollution and "sticky pack" installs.
- * citySlug kept for API compatibility; install is now app-wide.
+ * UPDATED: Per-city PWA logic. 
+ * This hook now resets the installation prompt whenever the citySlug changes,
+ * forcing the browser to associate the install event with the NEW manifest.
  */
-export function usePWAInstall(_citySlug: string) {
+export function usePWAInstall(citySlug: string) {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showMobileOverlay, setShowMobileOverlay] = useState(false);
 
-  // INSTALLATION STATE & NATIVE PROMPTS (manifest comes from index.html / build)
+  // 1. Standalone Check (Runs on mount and slug change)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isStandalone = 
+      window.matchMedia('(display-mode: standalone)').matches || 
+      (window.navigator as any).standalone === true;
+    setIsInstalled(isStandalone);
+  }, [citySlug]);
+
+  // 2. NATIVE PROMPT LISTENER
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const checkStandalone = () => {
-      const isStandalone = 
-        window.matchMedia('(display-mode: standalone)').matches || 
-        (window.navigator as any).standalone === true;
-      setIsInstalled(isStandalone);
-    };
-
-    checkStandalone();
+    // CRITICAL: Clear the old prompt when the slug changes.
+    // This forces the app to "wait" for a new prompt associated with the new manifest.
+    setInstallPrompt(null);
 
     const handler = (e: Event) => {
-      // Prevent the default mini-infobar on Android
       e.preventDefault();
+      console.log(`📥 Install prompt captured for: ${citySlug}`);
       setInstallPrompt(e as BeforeInstallPromptEvent);
     };
 
@@ -51,6 +52,7 @@ export function usePWAInstall(_citySlug: string) {
       setInstallPrompt(null);
       setIsInstalled(true);
       setShowMobileOverlay(false);
+      console.log(`✅ App successfully installed: ${citySlug}`);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -60,10 +62,9 @@ export function usePWAInstall(_citySlug: string) {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', appInstalledHandler);
     };
-  }, []);
+  }, [citySlug]); // Dependency on citySlug is vital here
 
   const installPWA = useCallback(async () => {
-    // If native prompt is available (Chrome/Android/Desktop)
     if (installPrompt) {
       await installPrompt.prompt();
       const { outcome } = await installPrompt.userChoice;
@@ -73,7 +74,6 @@ export function usePWAInstall(_citySlug: string) {
       return;
     }
 
-    // If no native prompt (Safari/iOS), show our custom mobile overlay instructions
     if (isMobileIOSOrAndroid() && !isInstalled) {
       setShowMobileOverlay(true);
     }
@@ -84,6 +84,7 @@ export function usePWAInstall(_citySlug: string) {
   }, []);
 
   return {
+    // Only show installable if we have a prompt or it's iOS/Android
     isInstallable: !!installPrompt || (isMobileIOSOrAndroid() && !isInstalled),
     isInstalled,
     installPWA,
