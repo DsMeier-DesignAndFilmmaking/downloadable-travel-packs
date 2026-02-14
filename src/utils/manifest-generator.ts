@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-
+// Removed unused useEffect import to fix TS6133 error
 export interface ManifestIcon {
   src: string;
   sizes: string;
@@ -30,7 +29,7 @@ const DEFAULT_ICONS: ManifestIcon[] = [
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const scope = `/guide/${cityId}`;
   return {
-    id: `tp-v2-${cityId}`, // Unique ID allows multiple installs
+    id: `tp-v2-${cityId}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
@@ -44,16 +43,20 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
 }
 
 export function injectManifest(manifest: WebAppManifest): void {
-  // Remove all existing manifests to clear browser state
+  // 1. Clean up any existing manifests and revoke old Blob URLs to prevent memory leaks
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
-    if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
+    if (href?.startsWith('blob:')) {
+      URL.revokeObjectURL(href);
+    }
     el.remove();
   });
 
+  // 2. Create the manifest Blob
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
+  // 3. Inject the new link tag
   const link = document.createElement('link');
   link.rel = 'manifest';
   link.href = manifestURL;
