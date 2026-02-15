@@ -93,10 +93,22 @@ const installPWA = useCallback(async () => {
   // If we can't install as an app, at least make it work offline in the browser.
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     console.log(`📡 Triggering background sync for: ${citySlug}`);
-    
+
+    // Scrape shell assets so desktop offline users don't get a white screen
+    const shellAssets = [
+      ...Array.from(document.querySelectorAll('script[src]')).map((s) => s.getAttribute('src')),
+      ...Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => l.getAttribute('href')),
+      '/',
+      '/index.html',
+    ].filter(Boolean) as string[];
+
+    navigator.serviceWorker.controller.postMessage({
+      type: 'PRECACHE_ASSETS',
+      assets: shellAssets,
+    });
     navigator.serviceWorker.controller.postMessage({
       type: 'CACHE_CITY',
-      citySlug: citySlug
+      citySlug: citySlug,
     });
 
     // Provide immediate feedback since there is no system dialog

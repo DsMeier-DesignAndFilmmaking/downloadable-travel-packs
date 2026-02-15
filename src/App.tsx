@@ -144,7 +144,11 @@ function PWAStandaloneRedirect() {
   const [routerReady, setRouterReady] = useState(false);
 
   useEffect(() => {
-    setRouterReady(true);
+    // Defer until Router has mounted and painted (prevents white screen race on offline launch)
+    const raf = typeof requestAnimationFrame !== 'undefined'
+      ? requestAnimationFrame
+      : (cb: () => void) => setTimeout(cb, 0);
+    raf(() => setRouterReady(true));
   }, []);
 
   useEffect(() => {

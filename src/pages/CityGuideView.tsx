@@ -178,9 +178,12 @@ export default function CityGuideView() {
     cleanSlug ?? ''
   );
 
+  const SHELL_CACHE_VERSION = 'v1';
+  const shellCachedKey = `shell_cached_${SHELL_CACHE_VERSION}`;
+
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
-    typeof localStorage !== 'undefined' && localStorage.getItem('shell_v1_cached') === 'true' ? 'complete' : 'idle'
+    typeof localStorage !== 'undefined' && localStorage.getItem(shellCachedKey) === 'true' ? 'complete' : 'idle'
   );
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
@@ -200,14 +203,14 @@ export default function CityGuideView() {
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
    * Listens for the 'CACHE_COMPLETE' event from sw.ts to update UI feedback.
-   * Only set offlineSyncStatus to 'complete' if city data exists AND shell_v1_cached is true.
+   * Only set offlineSyncStatus to 'complete' if city data exists AND shell engine is cached.
    */
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
-        const shellCached = localStorage.getItem('shell_v1_cached') === 'true';
+        const shellCached = localStorage.getItem(shellCachedKey) === 'true';
         if (shellCached && cityData) {
           console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
           const now = new Date().toISOString();
@@ -221,7 +224,7 @@ export default function CityGuideView() {
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData]);
+  }, [cleanSlug, cityData, shellCachedKey]);
 
   /** Extract image URLs from DOM and city content. */
   function extractImageUrlsFromContent(): string[] {
@@ -308,7 +311,7 @@ export default function CityGuideView() {
       setOfflineAvailable(true);
 
       await confirmation;
-      localStorage.setItem('shell_v1_cached', 'true');
+      localStorage.setItem(shellCachedKey, 'true');
       setOfflineSyncStatus('complete');
     } catch (err) {
       console.error('Offline sync failed', err);

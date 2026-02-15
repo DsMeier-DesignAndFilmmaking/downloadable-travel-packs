@@ -1,25 +1,37 @@
 /// <reference lib="webworker" />
 
 /**
- * SERVICE WORKER: TRAVEL PACK CORE - V5
- * Status: Offline shell + entry bundles precache, SWR for scripts, rock-solid nav fallback
+ * SERVICE WORKER: TRAVEL PACK CORE - V6 (Ultra-Resilient)
+ * Focus: Elimination of 'undefined' responses and First-Launch Airplane Mode support.
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v7'; // Bump for install bundle precache + SWR + catch-all
+const CACHE_VERSION = 'v8'; 
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
 
-// Assets to keep the "frame" of the app working offline
 const SHELL_ASSETS = ['/', '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
-/** Absolute URL for the app shell (index.html) — used for navigation fallback */
-function getShellDocumentUrl(): string {
-  return new URL('/index.html', ctx.location.origin).href;
+// --- UTILS & FALLBACKS ---
+
+/** Returns a standard fallback response to prevent white screens if all else fails */
+function createErrorResponse(message: string, status = 503): Response {
+  return new Response(message, {
+    status,
+    headers: { 'Content-Type': 'text/plain' },
+  });
 }
 
-/** Parse index.html and return same-origin script/link asset URLs (e.g. /assets/*.js, *.css) */
+/** Robust Navigation Fallback: Essential for Standalone Offline Launch */
+async function getNavigationFallback(): Promise<Response> {
+  const cache = await caches.open(SHELL_CACHE_NAME);
+  const match = (await cache.match('/index.html')) || (await cache.match('/'));
+  return match || createErrorResponse('Offline: App shell not found. Please open once while online.', 503);
+}
+
+// --- ASSET DISCOVERY ---
+
 async function getEntryAssetUrls(): Promise<string[]> {
   const base = ctx.location.origin;
   try {
@@ -27,61 +39,33 @@ async function getEntryAssetUrls(): Promise<string[]> {
     if (!res.ok) return [];
     const html = await res.text();
     const urls: string[] = [];
+    
     const scriptRe = /<script[^>]+src\s*=\s*["']([^"']+)["']/gi;
     const linkRelHref = /<link[^>]*rel\s*=\s*["']?[^"']*stylesheet[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
-    const linkHrefRel = /<link[^>]+href\s*=\s*["']([^"']+)["'][^>]*rel\s*=\s*["'][^"']*stylesheet[^"']*["']/gi;
+    
     let m: RegExpExecArray | null;
     while ((m = scriptRe.exec(html)) !== null) urls.push(m[1]);
     while ((m = linkRelHref.exec(html)) !== null) urls.push(m[1]);
-    while ((m = linkHrefRel.exec(html)) !== null) urls.push(m[1]);
+    
     return urls
       .map(href => (href.startsWith('http') ? href : new URL(href, base).href))
-      .filter(href => href.startsWith(base) && (href.includes('/assets/') || href.endsWith('.js') || href.endsWith('.css')));
+      .filter(href => href.startsWith(base));
   } catch {
     return [];
   }
 }
 
-// --- HELPERS ---
-
-function getGuideSlugFromUrl(url: URL): string | null {
-  const guideMatch = url.pathname.match(/^\/guide\/([^/?#]+)\/?$/);
-  return guideMatch ? guideMatch[1] : null;
-}
-
-function getGuideCacheName(slug: string): string {
-  return `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
-}
-
-// --- LIFECYCLE: INSTALL & ACTIVATE ---
+// --- LIFECYCLE ---
 
 ctx.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
-      // Primary entry points first (prevents white screen on offline launch)
-      try {
-        await cache.add('/');
-        await cache.add('/index.html');
-      } catch (e) {
-        console.warn('📡 SW: Could not pre-cache primary entry points', e);
-      }
-      for (const asset of SHELL_ASSETS) {
-        if (asset === '/' || asset === '/index.html') continue;
-        try {
-          await cache.add(asset);
-        } catch (e) {
-          console.warn(`📡 SW: Could not pre-cache ${asset}`);
-        }
-      }
+      // Cache core assets
+      await Promise.allSettled(SHELL_ASSETS.map(url => cache.add(url)));
+      // Discover and cache Vite bundles
       const entryUrls = await getEntryAssetUrls();
-      for (const url of entryUrls) {
-        try {
-          await cache.add(url);
-        } catch (e) {
-          console.warn(`📡 SW: Could not pre-cache entry asset ${url}`);
-        }
-      }
+      await Promise.allSettled(entryUrls.map(url => cache.add(url)));
     })()
   );
   ctx.skipWaiting();
@@ -97,7 +81,6 @@ ctx.addEventListener('activate', (event) => {
           .map(name => caches.delete(name))
       );
       await ctx.clients.claim();
-      console.log('📡 SW: Activation Complete. Ready for Offline.');
     })()
   );
 });
@@ -108,192 +91,110 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // 1. NAVIGATION FALLBACK (Prevents Safari Browser Error)
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(SHELL_CACHE_NAME);
-        // Match root or index.html regardless of the current URL
-        return (await cache.match('/index.html')) || (await cache.match('/'));
-      })
+      fetch(request).catch(() => getNavigationFallback())
     );
     return;
   }
 
-  // 2. Critical Assets (Vite JS/CSS) — Stale-While-Revalidate
+  // 2. CRITICAL ASSETS (Vite bundles) - Stale-While-Revalidate
   if (request.destination === 'script' || request.destination === 'style' || url.pathname.includes('/assets/')) {
     event.respondWith(
-      caches.open(SHELL_CACHE_NAME).then(async (cache) => {
+      (async () => {
+        const cache = await caches.open(SHELL_CACHE_NAME);
         const cached = await cache.match(request);
-        const revalidate = () => {
-          fetch(request).then((netRes) => {
-            if (netRes.ok) cache.put(request, netRes.clone());
-          }).catch(() => {});
-        };
-        if (cached) {
-          revalidate();
-          return cached;
-        }
-        try {
-          const netRes = await fetch(request);
-          if (netRes.ok) cache.put(request, netRes.clone());
-          return netRes;
-        } catch {
-          return cached || new Response('Asset unavailable offline', { status: 404, headers: { 'Content-Type': 'text/plain' } });
-        }
-      })
+        
+        const fetchPromise = fetch(request).then((networkRes) => {
+          if (networkRes.ok) cache.put(request, networkRes.clone());
+          return networkRes;
+        });
+
+        return cached || fetchPromise.catch(() => createErrorResponse('Asset offline', 404));
+      })()
     );
     return;
   }
 
-  // 3. IMAGES (Cache-First)
+  // 3. IMAGES - Cache-First
   if (request.destination === 'image') {
     event.respondWith(
-      caches.open(IMAGES_CACHE_NAME).then(async (cache) => {
+      (async () => {
+        const cache = await caches.open(IMAGES_CACHE_NAME);
         const cached = await cache.match(request);
         if (cached) return cached;
+
         try {
-          const response = await fetch(request);
-          if (response.ok) cache.put(request, response.clone());
-          return response;
+          const networkRes = await fetch(request);
+          if (networkRes.ok) cache.put(request, networkRes.clone());
+          return networkRes;
         } catch {
-          return new Response('', { status: 404 });
+          return createErrorResponse('Image offline', 404);
         }
-      })
+      })()
     );
     return;
   }
 
-  // 4. CITY DATA API (CACHE_CITY messaging — do not remove)
-  const slug = getGuideSlugFromUrl(url);
-  if (slug) {
-    const cacheName = getGuideCacheName(slug);
-    event.respondWith(
-      caches.open(cacheName).then(async (cache) => {
-        try {
-          const response = await fetch(request);
-          if (response.ok) {
-            cache.put(request, response.clone());
-            return response;
-          }
-          throw new Error('Offline');
-        } catch {
-          const cachedMatch = await cache.match(request);
-          return cachedMatch || new Response('Intel unavailable offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
-        }
-      })
-    );
-    return;
-  }
-
-  // 5. Catch-all: avoid undefined response (white screen). Same-origin only.
+  // 4. DATA API / CATCH-ALL
   event.respondWith(
-    caches.match(request).then((m) => m || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
+    (async () => {
+      try {
+        const res = await fetch(request);
+        return res;
+      } catch {
+        const cached = await caches.match(request);
+        return cached || createErrorResponse('Offline', 503);
+      }
+    })()
   );
 });
 
-// --- DYNAMIC CACHING LOGIC ---
+// --- MESSAGING (Handshake Logic) ---
 
-async function cacheCityIntel(slug: string) {
-  const cacheName = getGuideCacheName(slug);
-  const cache = await caches.open(cacheName);
-  const urls = [`/guide/${slug}`, `/api/guide/${slug}`];
-  
-  for (const url of urls) {
-    try {
-      const resp = await fetch(url);
-      if (resp.ok) await cache.put(url, resp);
-    } catch (e) {
-      console.error(`📡 SW: Failed to cache ${url}`, e);
-    }
-  }
-
-  // NEW: Tell the React app we are finished!
-  const clients = await ctx.clients.matchAll();
-  clients.forEach(client => {
-    client.postMessage({ 
-      type: 'CACHE_COMPLETE', 
-      slug: slug 
-    });
-  });
-}
-
-/** Precache asset URLs sent from the client (Registration Handshake). Same-origin only; uses cache.addAll. */
-async function precacheAssetUrls(assetUrls: unknown): Promise<void> {
-  if (!Array.isArray(assetUrls)) return;
-  const origin = ctx.location.origin;
-  const urls = assetUrls
-    .filter((u): u is string => typeof u === 'string')
-    .map((u) => {
-      try {
-        return new URL(u, origin).href;
-      } catch {
-        return '';
-      }
-    })
-    .filter((href) => href.startsWith(origin) && href.length > 0);
-  if (urls.length === 0) return;
-  try {
-    const cache = await caches.open(SHELL_CACHE_NAME);
-    await cache.addAll(urls);
-  } catch (e) {
-    console.warn('📡 SW: PRECACHE_ASSETS addAll failed', e);
-  }
-}
-
-// Inside sw.ts
 ctx.addEventListener('message', (event) => {
-  // Existing City Data Logic
-  if (event.data?.type === 'CACHE_CITY' || event.data?.type === 'CACHE_GUIDE') {
-    const slug = event.data.citySlug || event.data.slug;
-    if (slug) event.waitUntil(cacheCityIntel(slug));
+  const { type, assets, urls, citySlug, slug } = event.data;
+  const port = event.ports?.[0];
+
+  // Logic for individual city packs
+  if (type === 'CACHE_CITY' || type === 'CACHE_GUIDE') {
+    const targetSlug = citySlug || slug;
+    if (targetSlug) event.waitUntil(cacheCityIntel(targetSlug));
   }
 
-  // Proactive Asset Caching (shell: scripts + stylesheets)
-  if (event.data?.type === 'PRECACHE_ASSETS') {
-    const { assets } = event.data;
-    const port = event.ports?.[0];
+  // Logic for the App Shell (Vite Bundles)
+  if (type === 'PRECACHE_ASSETS' && Array.isArray(assets)) {
     event.waitUntil(
       (async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        await cache.addAll(Array.isArray(assets) ? assets : []);
+        await cache.addAll(assets);
         if (port) port.postMessage({ ok: true });
-      })().catch((e) => {
-        console.warn('📡 SW: PRECACHE_ASSETS addAll failed', e);
-        if (port) port.postMessage({ ok: false });
-      })
+      })().catch(() => port?.postMessage({ ok: false }))
     );
   }
 
-  // Proactive Image Caching (media from city content)
-  if (event.data?.type === 'PRECACHE_IMAGES') {
-    const { urls } = event.data;
-    event.waitUntil(precacheImageUrls(urls));
+  // Logic for City Images
+  if (type === 'PRECACHE_IMAGES' && Array.isArray(urls)) {
+    event.waitUntil(
+      (async () => {
+        const cache = await caches.open(IMAGES_CACHE_NAME);
+        await Promise.allSettled(urls.map(u => cache.add(u)));
+      })()
+    );
   }
 });
 
-/** Precache image URLs into IMAGES_CACHE_NAME. Same-origin only. */
-async function precacheImageUrls(urls: unknown): Promise<void> {
-  if (!Array.isArray(urls)) return;
-  const origin = ctx.location.origin;
-  const validUrls = urls
-    .filter((u): u is string => typeof u === 'string')
-    .map((u) => {
-      try {
-        return new URL(u, origin).href;
-      } catch {
-        return '';
-      }
-    })
-    .filter((href) => href.startsWith(origin) && href.length > 0);
-  if (validUrls.length === 0) return;
-  try {
-    const cache = await caches.open(IMAGES_CACHE_NAME);
-    await Promise.all(
-      validUrls.map((url) =>
-        cache.add(url).catch((e) => console.warn(`SW: PRECACHE_IMAGES failed for ${url}`, e))
-      )
-    );
-  } catch (e) {
-    console.warn('SW: PRECACHE_IMAGES addAll failed', e);
-  }
+async function cacheCityIntel(slug: string) {
+  const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
+  const cache = await caches.open(cacheName);
+  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
+  
+  await Promise.allSettled(urlsToCache.map(async (url) => {
+    const res = await fetch(url);
+    if (res.ok) await cache.put(url, res);
+  }));
+
+  const clients = await ctx.clients.matchAll();
+  clients.forEach(c => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
 }
