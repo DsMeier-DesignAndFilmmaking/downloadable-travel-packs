@@ -108,20 +108,12 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // CRITICAL: Navigation Fallback for Standalone (prevents Safari "No Internet" error)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const base = ctx.location.origin;
-        const fallbackUrl = new URL('/', base).href;
-        const indexUrl = new URL('/index.html', base).href;
-        const match = await cache.match(fallbackUrl) || await cache.match(indexUrl);
-        if (match) return match;
-        return new Response("Offline entry point not found. Please open once while online.", {
-          status: 200,
-          headers: { 'Content-Type': 'text/html' }
-        });
+        // Match root or index.html regardless of the current URL
+        return (await cache.match('/index.html')) || (await cache.match('/'));
       })
     );
     return;
@@ -259,8 +251,16 @@ ctx.addEventListener('message', (event) => {
   // Proactive Asset Caching (shell: scripts + stylesheets)
   if (event.data?.type === 'PRECACHE_ASSETS') {
     const { assets } = event.data;
+    const port = event.ports?.[0];
     event.waitUntil(
-      precacheAssetUrls(assets)
+      (async () => {
+        const cache = await caches.open(SHELL_CACHE_NAME);
+        await cache.addAll(Array.isArray(assets) ? assets : []);
+        if (port) port.postMessage({ ok: true });
+      })().catch((e) => {
+        console.warn('📡 SW: PRECACHE_ASSETS addAll failed', e);
+        if (port) port.postMessage({ ok: false });
+      })
     );
   }
 

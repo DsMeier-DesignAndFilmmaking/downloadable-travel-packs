@@ -179,7 +179,9 @@ export default function CityGuideView() {
   );
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
+    typeof localStorage !== 'undefined' && localStorage.getItem('shell_v1_cached') === 'true' ? 'complete' : 'idle'
+  );
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -198,24 +200,28 @@ export default function CityGuideView() {
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
    * Listens for the 'CACHE_COMPLETE' event from sw.ts to update UI feedback.
+   * Only set offlineSyncStatus to 'complete' if city data exists AND shell_v1_cached is true.
    */
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
-        console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
-        const now = new Date().toISOString();
-        setLastSynced(now);
-        localStorage.setItem(`sync_${cleanSlug}`, now);
-        setOfflineAvailable(true);
-        setOfflineSyncStatus('complete');
+        const shellCached = localStorage.getItem('shell_v1_cached') === 'true';
+        if (shellCached && cityData) {
+          console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
+          const now = new Date().toISOString();
+          setLastSynced(now);
+          localStorage.setItem(`sync_${cleanSlug}`, now);
+          setOfflineAvailable(true);
+          setOfflineSyncStatus('complete');
+        }
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug]);
+  }, [cleanSlug, cityData]);
 
   /** Extract image URLs from DOM and city content. */
   function extractImageUrlsFromContent(): string[] {
@@ -264,30 +270,45 @@ export default function CityGuideView() {
 
     setOfflineSyncStatus('syncing');
 
+    const sw = navigator.serviceWorker.controller;
     try {
-      // Step A: Shell — script and stylesheet URLs
-      const scriptAssets = Array.from(document.querySelectorAll('script[src]')).map((s) => (s as HTMLScriptElement).src);
-      const styleAssets = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).map((l) => (l as HTMLLinkElement).href);
-      navigator.serviceWorker.controller.postMessage({
-        type: 'PRECACHE_ASSETS',
-        assets: [...scriptAssets, ...styleAssets],
+      // Step A: Shell — scrape DOM for current hashed assets + entry points
+      const currentAssets = [
+        ...Array.from(document.querySelectorAll('script[src]')).map((s) => s.getAttribute('src')),
+        ...Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => l.getAttribute('href')),
+        '/',
+        '/index.html',
+      ].filter(Boolean) as string[];
+
+      const confirmation = new Promise<void>((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = () => {
+          channel.port1.close();
+          resolve();
+        };
+        sw.postMessage(
+          { type: 'PRECACHE_ASSETS', assets: currentAssets },
+          [channel.port2]
+        );
+        // Fallback: if SW doesn't implement response, resolve after 2s
+        setTimeout(() => resolve(), 2000);
       });
 
       // Step B: Data — CACHE_CITY
-      navigator.serviceWorker.controller.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
+      sw.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
 
       // Step C: Media — images from DOM and city content
       const imageUrls = extractImageUrlsFromContent();
       if (imageUrls.length > 0) {
-        navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_IMAGES', urls: imageUrls });
+        sw.postMessage({ type: 'PRECACHE_IMAGES', urls: imageUrls });
       }
 
       // Save to IndexedDB
       await saveCityToIndexedDB(cleanSlug, cityData);
       setOfflineAvailable(true);
 
-      // Wait briefly for SW to process
-      await new Promise((r) => setTimeout(r, 500));
+      await confirmation;
+      localStorage.setItem('shell_v1_cached', 'true');
       setOfflineSyncStatus('complete');
     } catch (err) {
       console.error('Offline sync failed', err);

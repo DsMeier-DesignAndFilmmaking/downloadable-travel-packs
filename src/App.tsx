@@ -155,7 +155,13 @@ function PWAStandaloneRedirect() {
     try {
       const lastPack = localStorage.getItem('pwa_last_pack');
       if (lastPack && lastPack !== '/' && lastPack.startsWith('/guide/')) {
-        navigate(lastPack, { replace: true });
+        // Defer redirect until React Router is fully initialized (prevents white screen race)
+        const doRedirect = () => navigate(lastPack, { replace: true });
+        if (typeof requestAnimationFrame !== 'undefined') {
+          requestAnimationFrame(doRedirect);
+        } else {
+          setTimeout(doRedirect, 0);
+        }
       }
     } catch {
       // ignore
