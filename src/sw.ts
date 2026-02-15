@@ -6,18 +6,13 @@
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v5'; 
+const CACHE_VERSION = 'v6'; // Version bump for new messaging logic
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
-const IMAGES_CACHE_NAME = 'guide-images-v5';
+const IMAGES_CACHE_NAME = 'guide-images-v6';
 
 // Assets to keep the "frame" of the app working offline
-const SHELL_ASSETS = [
-'/',
-  '/index.html',
-  '/pwa-192x192.png',
-  '/vite.svg'
-];
+const SHELL_ASSETS = ['/', '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
 // --- HELPERS ---
 
@@ -142,10 +137,8 @@ ctx.addEventListener('fetch', (event) => {
 // --- DYNAMIC CACHING LOGIC ---
 
 async function cacheCityIntel(slug: string) {
-  const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
+  const cacheName = getGuideCacheName(slug);
   const cache = await caches.open(cacheName);
-  
-  // We only cache the data. The manifest is handled by your JS utility.
   const urls = [`/guide/${slug}`, `/api/guide/${slug}`];
   
   for (const url of urls) {
@@ -156,10 +149,20 @@ async function cacheCityIntel(slug: string) {
       console.error(`📡 SW: Failed to cache ${url}`, e);
     }
   }
+
+  // NEW: Tell the React app we are finished!
+  const clients = await ctx.clients.matchAll();
+  clients.forEach(client => {
+    client.postMessage({ 
+      type: 'CACHE_COMPLETE', 
+      slug: slug 
+    });
+  });
 }
 
 ctx.addEventListener('message', (event) => {
-  if (event.data?.type === 'CACHE_CITY') {
-    event.waitUntil(cacheCityIntel(event.data.citySlug));
+  if (event.data?.type === 'CACHE_CITY' || event.data?.type === 'CACHE_GUIDE') {
+    const slug = event.data.citySlug || event.data.slug;
+    if (slug) event.waitUntil(cacheCityIntel(slug));
   }
 });

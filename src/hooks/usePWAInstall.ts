@@ -72,25 +72,39 @@ export function usePWAInstall(citySlug: string) {
     };
   }, [citySlug]); // Triggered every time the user switches cities
 
-  const installPWA = useCallback(async () => {
-    // If the browser fired the 'beforeinstallprompt' event for the NEW city manifest
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      console.log(`👤 User choice for ${citySlug}: ${outcome}`);
-      
-      if (outcome === 'accepted') {
-        setInstallPrompt(null);
-      }
-      return;
-    }
+  // /src/hooks/usePWAInstall.ts
 
-    // Fallback for iOS or Browsers that don't support beforeinstallprompt
-    // We show the overlay instructing users to use the Share menu
-    if (isMobileIOSOrAndroid() && !isInstalled) {
-      setShowMobileOverlay(true);
-    }
-  }, [installPrompt, isInstalled, citySlug]);
+const installPWA = useCallback(async () => {
+  // 1. Browser-native Install Prompt (Chrome/Edge/Android)
+  if (installPrompt) {
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') setInstallPrompt(null);
+    return;
+  }
+
+  // 2. iOS/Mobile Fallback (Show the "Add to Home Screen" overlay)
+  if (isMobileIOSOrAndroid() && !isInstalled) {
+    setShowMobileOverlay(true);
+    return;
+  }
+
+  // 3. DESKTOP/LAPTOP FALLBACK (Manual Sync)
+  // If we can't install as an app, at least make it work offline in the browser.
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    console.log(`📡 Triggering background sync for: ${citySlug}`);
+    
+    navigator.serviceWorker.controller.postMessage({
+      type: 'CACHE_CITY',
+      citySlug: citySlug
+    });
+
+    // Provide immediate feedback since there is no system dialog
+    alert("Pack downloaded! This guide is now available offline in this browser.");
+  } else {
+    alert("Offline mode is not supported by this browser.");
+  }
+}, [installPrompt, isInstalled, citySlug]);
 
   const dismissMobileOverlay = useCallback(() => {
     setShowMobileOverlay(false);
