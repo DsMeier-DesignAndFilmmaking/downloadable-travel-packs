@@ -227,6 +227,7 @@ export default function CityGuideView() {
     const existingLink = document.querySelector('link[rel="manifest"]');
     const currentManifestId = existingLink?.getAttribute('data-identity');
 
+    // --- 1. IDENTITY ROTATION LOGIC (Preserved) ---
     if (!currentManifestId || currentManifestId !== manifestId) {
       const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
       if (!hasRotated) {
@@ -235,7 +236,6 @@ export default function CityGuideView() {
         injectManifest(manifest);
         sessionStorage.setItem('pwa_rotator_lock', manifestId);
         
-        // Immediate UI updates before refresh
         document.title = `${cityData.name} Pack`;
         updateThemeColor('#0f172a');
         
@@ -244,7 +244,34 @@ export default function CityGuideView() {
       }
     }
 
-    // Secondary UI Updates once identity is confirmed
+    // --- 2. PROACTIVE ASSET CACHING & CITY SYNC ---
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      // A. Signal the Service Worker to cache the city-specific data
+      navigator.serviceWorker.controller.postMessage({ 
+        type: 'CACHE_CITY', 
+        citySlug: cleanSlug 
+      });
+
+      /**
+       * B. PROACTIVE SHELL CACHING
+       * This extracts the actual hashed .js and .css files from the current DOM.
+       * Sending these to the SW ensures the Home Screen app has the code 
+       * it needs to boot, even if it's never been opened online before.
+       */
+      const scriptAssets = Array.from(document.querySelectorAll('script[src]'))
+        .map(s => (s as HTMLScriptElement).src);
+      const styleAssets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map(l => (l as HTMLLinkElement).href);
+
+      navigator.serviceWorker.controller.postMessage({
+        type: 'PRECACHE_ASSETS',
+        assets: [...scriptAssets, ...styleAssets]
+      });
+      
+      console.log('📡 Proactive Shell Sync: Handshake sent to SW');
+    }
+
+    // Secondary UI Updates
     const cityName = cityData.name;
     document.title = `${cityName} Pack`;
     const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
@@ -252,14 +279,6 @@ export default function CityGuideView() {
     
     updateThemeColor('#0f172a');
     localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-
-    // Trigger SW to ensure this specific city is in the runtime cache
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ 
-        type: 'CACHE_CITY', 
-        citySlug: cleanSlug 
-      });
-    }
 
     return () => {
       sessionStorage.removeItem('pwa_rotator_lock');

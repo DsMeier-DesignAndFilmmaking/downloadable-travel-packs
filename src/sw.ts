@@ -108,16 +108,22 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  if (url.origin !== ctx.location.origin) return;
-  if (url.protocol === 'blob:') return;
-
-  // 1. Navigation Fallback (Home Screen / deep link) — always return a valid Response to prevent white screen
+  // CRITICAL: Navigation Fallback for Standalone
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const match = (await cache.match('/')) || (await cache.match('/index.html'));
-        return match || new Response('Offline: Shell not cached', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+        // We MUST match the root or index.html to boot the React app
+        const match = await cache.match('/') || await cache.match('/index.html');
+        
+        if (match) return match;
+        
+        // Final safety net: if nothing is found, return a fallback response
+        // instead of letting the browser throw the "No Internet" error.
+        return new Response("Offline entry point not found. Please open once while online.", {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' }
+        });
       })
     );
     return;
@@ -244,13 +250,26 @@ async function precacheAssetUrls(assetUrls: unknown): Promise<void> {
   }
 }
 
+// Inside sw.ts
 ctx.addEventListener('message', (event) => {
+  // Existing City Data Logic
   if (event.data?.type === 'CACHE_CITY' || event.data?.type === 'CACHE_GUIDE') {
     const slug = event.data.citySlug || event.data.slug;
     if (slug) event.waitUntil(cacheCityIntel(slug));
-    return;
   }
-  if (event.data?.type === 'PRECACHE_ASSETS' && event.data.assets) {
-    event.waitUntil(precacheAssetUrls(event.data.assets));
+
+  // NEW: Proactive Asset Caching Logic
+  if (event.data?.type === 'PRECACHE_ASSETS') {
+    const { assets } = event.data;
+    event.waitUntil(
+      caches.open(SHELL_CACHE_NAME).then((cache) => {
+        // Use addAll to ensure these critical files are stored for offline boot
+        return Promise.all(
+          assets.map((url: string) => 
+            cache.add(url).catch(err => console.warn(`SW: Precache failed for ${url}`, err))
+          )
+        );
+      })
+    );
   }
 });
