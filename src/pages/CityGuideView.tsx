@@ -26,7 +26,6 @@ import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
-import GuideDebugPanel from '@/components/GuideDebugPanel';
 import { generateCityGuideManifest, injectManifest, updateThemeColor } from '@/utils/manifest-generator';
 
 // ---------------------------------------------------------------------------
