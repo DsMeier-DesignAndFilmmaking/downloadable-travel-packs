@@ -1,11 +1,17 @@
 /// <reference lib="webworker" />
 
+/**
+ * SERVICE WORKER: TRAVEL PACK CORE - V4
+ * Status: Fixed Missing Install Listener & Type-Safe Returns
+ */
+
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4'; // Bumped for a fresh start
 const CACHE_PREFIX = 'travel-guide';
-const IMAGES_CACHE_NAME = 'guide-images-v3';
+const IMAGES_CACHE_NAME = 'guide-images-v4';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 
+// Assets to keep the "frame" of the app working offline
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -17,13 +23,49 @@ const SHELL_ASSETS = [
 
 function getGuideSlugFromUrl(url: URL): string | null {
   const guideMatch = url.pathname.match(/^\/guide\/([^/?#]+)\/?$/);
-  if (guideMatch) return guideMatch[1];
-  return null;
+  return guideMatch ? guideMatch[1] : null;
 }
 
 function getGuideCacheName(slug: string): string {
   return `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
 }
+
+// --- LIFECYCLE: INSTALL & ACTIVATE ---
+
+ctx.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(SHELL_CACHE_NAME).then(async (cache) => {
+      console.log('📡 SW: Pre-caching Core Shell Assets');
+      
+      // We use a "forgiving" install: critical first, others next.
+      const critical = ['/', '/index.html'];
+      const nonCritical = ['/pwa-192x192.png', '/vite.svg'];
+
+      await cache.addAll(critical);
+      
+      // If an icon is missing, don't kill the whole Service Worker
+      return Promise.allSettled(
+        nonCritical.map(asset => cache.add(asset))
+      );
+    })
+  );
+  ctx.skipWaiting();
+});
+
+ctx.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
+          .map(name => caches.delete(name))
+      );
+      await ctx.clients.claim();
+      console.log('📡 SW: Activation Complete. Ready for Offline.');
+    })()
+  );
+});
 
 // --- FETCH HANDLERS ---
 
@@ -33,20 +75,19 @@ ctx.addEventListener('fetch', (event) => {
 
   if (url.origin !== ctx.location.origin) return;
 
-  // 1. NAVIGATION (The "White Screen" Fix)
+  // 1. NAVIGATION (Serve the HTML shell)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
         const match = (await cache.match('/')) || (await cache.match('/index.html'));
-        // FIX: Provide a fallback Response instead of undefined
-        return match || new Response("Offline: Shell missing", { status: 503 });
+        return match || new Response("Offline: Shell missing. Sync required.", { status: 503 });
       })
     );
     return;
   }
 
-  // 2. VITE ASSETS (Scripts/Styles)
+  // 2. VITE ASSETS (Hashed Scripts/Styles)
   if (request.destination === 'script' || request.destination === 'style') {
     event.respondWith(
       caches.open(SHELL_CACHE_NAME).then(async (cache) => {
@@ -59,7 +100,6 @@ ctx.addEventListener('fetch', (event) => {
           throw new Error('Offline');
         } catch {
           const cachedMatch = await cache.match(request);
-          // FIX: Ensure we return a Response, even on 404
           return cachedMatch || new Response('', { status: 404 });
         }
       })
@@ -67,7 +107,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. IMAGES
+  // 3. IMAGES (Cache-First)
   if (request.destination === 'image') {
     event.respondWith(
       caches.open(IMAGES_CACHE_NAME).then(async (cache) => {
@@ -85,7 +125,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. CITY DATA
+  // 4. CITY DATA API
   const slug = getGuideSlugFromUrl(url);
   if (slug) {
     const cacheName = getGuideCacheName(slug);
@@ -100,12 +140,31 @@ ctx.addEventListener('fetch', (event) => {
           throw new Error('Offline');
         } catch {
           const cachedMatch = await cache.match(request);
-          // FIX: Final fallback response
-          return cachedMatch || new Response('Data unavailable offline', { status: 503 });
+          return cachedMatch || new Response('Intel unavailable offline', { status: 503 });
         }
       })
     );
   }
 });
 
-// ... (Rest of your messaging and install logic)
+// --- MESSAGING ---
+
+async function cacheCity(slug: string): Promise<void> {
+  const cacheName = getGuideCacheName(slug);
+  const cache = await caches.open(cacheName);
+  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
+  
+  try {
+    await cache.addAll(urlsToCache);
+    console.log(`📡 SW: City Intel Cached for ${slug}`);
+  } catch (err) {
+    console.warn(`📡 SW: Error pre-caching ${slug}`, err);
+  }
+}
+
+ctx.addEventListener('message', (event) => {
+  if (event.data?.type === 'CACHE_CITY' || event.data?.type === 'CACHE_GUIDE') {
+    const slug = event.data.citySlug || event.data.slug;
+    if (slug) event.waitUntil(cacheCity(slug));
+  }
+});
