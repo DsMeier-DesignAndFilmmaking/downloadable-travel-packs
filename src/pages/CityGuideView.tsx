@@ -316,21 +316,62 @@ useEffect(() => {
   }, [cleanSlug, cityData, isOffline]);
 
   /**
-   * 3. SERVICE WORKER ASSET CACHING
-   * Signals SW to download images and other static assets.
-   */
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug || !navigator.serviceWorker.controller) {
+ * CONSOLIDATED IDENTITY & OFFLINE SIGNALING
+ * Handles: Manifest Rotation, Meta Tags (Title), and SW Caching.
+ */
+useEffect(() => {
+  if (!cleanSlug || !cityData) return;
+
+  const manifestId = `tp-v2-${cleanSlug}`;
+  const existingLink = document.querySelector('link[rel="manifest"]');
+  const currentManifestId = existingLink?.getAttribute('data-identity');
+
+  // --- PHASE 1: IDENTITY ROTATION ---
+  if (!currentManifestId || currentManifestId !== manifestId) {
+    const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
+
+    if (!hasRotated) {
+      console.log(`🔄 Rotating Identity: ${cleanSlug}`);
+      
+      // Force titles immediately so Safari sees them before the reload
+      document.title = `${cityData.name} Pack`;
+      const appleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (appleMeta) appleMeta.setAttribute('content', cityData.name);
+
+      const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
+      injectManifest(manifest);
+      
+      sessionStorage.setItem('pwa_rotator_lock', manifestId);
+      
+      // Delay refresh slightly to "bake" the meta tags in Safari's memory
+      setTimeout(() => window.location.replace(window.location.href), 100);
       return;
     }
+  }
 
+  // --- PHASE 2: POST-ROTATION SYNC ---
+  // If we reach here, the manifest is correct. Re-apply titles to overwrite index.html fallbacks.
+  const cityName = cityData.name;
+  document.title = `${cityName} Pack`;
+  const metaFinal = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (metaFinal) metaFinal.setAttribute('content', cityName);
+  
+  updateThemeColor('#0f172a');
+  localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+
+  // --- PHASE 3: SW SIGNALING ---
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
     navigator.serviceWorker.controller.postMessage({ 
       type: 'CACHE_CITY', 
       citySlug: cleanSlug 
     });
-    
-    console.log(`📡 SW Signaling: Caching assets for ${cleanSlug}`);
-  }, [cleanSlug, cityData]);
+  }
+
+  return () => {
+    // We only remove the lock when the user actually navigates away from this city
+    sessionStorage.removeItem('pwa_rotator_lock');
+  };
+}, [cleanSlug, cityData]);
 
   /**
    * 4. SYNC & EXTERNAL DATA
