@@ -1,18 +1,46 @@
 /// <reference lib="webworker" />
 
 /**
- * SERVICE WORKER: TRAVEL PACK CORE - V4
- * Status: Fixed Missing Install Listener & Type-Safe Returns
+ * SERVICE WORKER: TRAVEL PACK CORE - V5
+ * Status: Offline shell + entry bundles precache, SWR for scripts, rock-solid nav fallback
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v6'; // Version bump for new messaging logic
+const CACHE_VERSION = 'v7'; // Bump for install bundle precache + SWR + catch-all
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
 
 // Assets to keep the "frame" of the app working offline
 const SHELL_ASSETS = ['/', '/index.html', '/pwa-192x192.png', '/vite.svg'];
+
+/** Absolute URL for the app shell (index.html) — used for navigation fallback */
+function getShellDocumentUrl(): string {
+  return new URL('/index.html', ctx.location.origin).href;
+}
+
+/** Parse index.html and return same-origin script/link asset URLs (e.g. /assets/*.js, *.css) */
+async function getEntryAssetUrls(): Promise<string[]> {
+  const base = ctx.location.origin;
+  try {
+    const res = await fetch(new URL('/index.html', base).href, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const urls: string[] = [];
+    const scriptRe = /<script[^>]+src\s*=\s*["']([^"']+)["']/gi;
+    const linkRelHref = /<link[^>]*rel\s*=\s*["']?[^"']*stylesheet[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
+    const linkHrefRel = /<link[^>]+href\s*=\s*["']([^"']+)["'][^>]*rel\s*=\s*["'][^"']*stylesheet[^"']*["']/gi;
+    let m: RegExpExecArray | null;
+    while ((m = scriptRe.exec(html)) !== null) urls.push(m[1]);
+    while ((m = linkRelHref.exec(html)) !== null) urls.push(m[1]);
+    while ((m = linkHrefRel.exec(html)) !== null) urls.push(m[1]);
+    return urls
+      .map(href => (href.startsWith('http') ? href : new URL(href, base).href))
+      .filter(href => href.startsWith(base) && (href.includes('/assets/') || href.endsWith('.js') || href.endsWith('.css')));
+  } catch {
+    return [];
+  }
+}
 
 // --- HELPERS ---
 
@@ -29,8 +57,8 @@ function getGuideCacheName(slug: string): string {
 
 ctx.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(SHELL_CACHE_NAME).then(async (cache) => {
-      // Loop through assets so one failure doesn't stop the others
+    (async () => {
+      const cache = await caches.open(SHELL_CACHE_NAME);
       for (const asset of SHELL_ASSETS) {
         try {
           await cache.add(asset);
@@ -38,7 +66,15 @@ ctx.addEventListener('install', (event) => {
           console.warn(`📡 SW: Could not pre-cache ${asset}`);
         }
       }
-    })
+      const entryUrls = await getEntryAssetUrls();
+      for (const url of entryUrls) {
+        try {
+          await cache.add(url);
+        } catch (e) {
+          console.warn(`📡 SW: Could not pre-cache entry asset ${url}`);
+        }
+      }
+    })()
   );
   ctx.skipWaiting();
 });
@@ -67,41 +103,44 @@ ctx.addEventListener('fetch', (event) => {
   if (url.origin !== ctx.location.origin) return;
   if (url.protocol === 'blob:') return;
 
-  // 1. Navigation Fallback (The Home Screen entry point)
+  // 1. Navigation Fallback (Home Screen / deep link) — always return shell for SPA
   if (request.mode === 'navigate') {
+    const shellUrl = getShellDocumentUrl();
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const match = await cache.match('/index.html') || await cache.match('/');
-        // Ensure we NEVER return undefined. Fallback to a hardcoded Response if needed.
-        return match || new Response("Offline: Shell not cached", { status: 503 });
+        const match = await cache.match(shellUrl) || await cache.match(new URL('/', ctx.location.origin).href);
+        return match || new Response('Offline: Shell not cached', { status: 503, headers: { 'Content-Type': 'text/plain' } });
       })
     );
     return;
   }
 
-// 2. Critical Assets (Vite JS/CSS bundles)
-if (request.destination === 'script' || request.destination === 'style' || url.pathname.includes('/assets/')) {
-  event.respondWith(
-    caches.open(SHELL_CACHE_NAME).then(async (cache) => {
-      const cachedResponse = await cache.match(request);
-      
-      // We try to fetch fresh, but return cached if network fails
-      try {
-        const networkResponse = await fetch(request);
-        if (networkResponse.ok) {
-          cache.put(request, networkResponse.clone());
-          return networkResponse;
+  // 2. Critical Assets (Vite JS/CSS) — Stale-While-Revalidate
+  if (request.destination === 'script' || request.destination === 'style' || url.pathname.includes('/assets/')) {
+    event.respondWith(
+      caches.open(SHELL_CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(request);
+        const revalidate = () => {
+          fetch(request).then((netRes) => {
+            if (netRes.ok) cache.put(request, netRes.clone());
+          }).catch(() => {});
+        };
+        if (cached) {
+          revalidate();
+          return cached;
         }
-        return cachedResponse || networkResponse;
-      } catch (err) {
-        // This is the critical fallback for offline white screens
-        return cachedResponse || new Response("Asset unavailable offline", { status: 404 });
-      }
-    })
-  );
-  return;
-}
+        try {
+          const netRes = await fetch(request);
+          if (netRes.ok) cache.put(request, netRes.clone());
+          return netRes;
+        } catch {
+          return cached || new Response('Asset unavailable offline', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+        }
+      })
+    );
+    return;
+  }
 
   // 3. IMAGES (Cache-First)
   if (request.destination === 'image') {
@@ -121,7 +160,7 @@ if (request.destination === 'script' || request.destination === 'style' || url.p
     return;
   }
 
-  // 4. CITY DATA API
+  // 4. CITY DATA API (CACHE_CITY messaging — do not remove)
   const slug = getGuideSlugFromUrl(url);
   if (slug) {
     const cacheName = getGuideCacheName(slug);
@@ -136,11 +175,17 @@ if (request.destination === 'script' || request.destination === 'style' || url.p
           throw new Error('Offline');
         } catch {
           const cachedMatch = await cache.match(request);
-          return cachedMatch || new Response('Intel unavailable offline', { status: 503 });
+          return cachedMatch || new Response('Intel unavailable offline', { status: 503, headers: { 'Content-Type': 'text/plain' } });
         }
       })
     );
+    return;
   }
+
+  // 5. Catch-all: avoid undefined response (white screen). Same-origin only.
+  event.respondWith(
+    caches.match(request).then((m) => m || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
+  );
 });
 
 // --- DYNAMIC CACHING LOGIC ---

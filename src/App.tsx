@@ -7,7 +7,7 @@ import {
   useNavigate 
 } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Views
 import HomePage from './pages/HomePage';
@@ -136,13 +136,19 @@ function AnimatedRoutes() {
 
 /**
  * When PWA is opened in standalone, redirect from "/" to last viewed pack if stored.
+ * Runs only after router is ready to avoid race conditions that cause a white screen on offline launch.
  */
 function PWAStandaloneRedirect() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [routerReady, setRouterReady] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    setRouterReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!routerReady || typeof window === 'undefined') return;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as { standalone?: boolean }).standalone === true;
     if (!isStandalone || location.pathname !== '/') return;
@@ -154,7 +160,7 @@ function PWAStandaloneRedirect() {
     } catch {
       // ignore
     }
-  }, [location.pathname, navigate]);
+  }, [routerReady, location.pathname, navigate]);
 
   return null;
 }
