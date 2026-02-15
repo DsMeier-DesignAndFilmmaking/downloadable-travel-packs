@@ -68,12 +68,21 @@ export function injectManifest(manifest: WebAppManifest): void {
   const identity = manifest.id || 'default';
   const cityName = manifest.short_name;
   const origin = window.location.origin;
+  const displayTitle = `${cityName} Pack`;
 
-  // 1. Force Title and Meta Name
-  document.title = `${cityName} Pack`;
+  // 1. FORCE BROWSER & APPLE TITLES
+  // document.title affects the "Name" field in many share sheets
+  document.title = displayTitle;
   
-  const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (appleTitle) appleTitle.setAttribute('content', cityName);
+  // Robust update for apple-mobile-web-app-title
+  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (!appleTitle) {
+    appleTitle = document.createElement('meta');
+    appleTitle.setAttribute('name', 'apple-mobile-web-app-title');
+    document.head.appendChild(appleTitle);
+  }
+  // We use cityName (e.g., "Tokyo") specifically here as iOS has short character limits
+  appleTitle.setAttribute('content', cityName);
 
   // 2. FORCE UPDATE THE ICON FOR THE SHARE PANEL
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
@@ -82,25 +91,35 @@ export function injectManifest(manifest: WebAppManifest): void {
     appleIcon.setAttribute('rel', 'apple-touch-icon');
     document.head.appendChild(appleIcon);
   }
-  // Use the specific 192px icon for the share sheet
+  // Ensuring the href is absolute helps iOS identify the resource immediately
   appleIcon.setAttribute('href', `${origin}/pwa-192x192.png`);
 
-  // 3. Cleanup and Inject Manifest Blob (Existing Logic)
+  // 3. CLEANUP AND INJECT MANIFEST BLOB
+  // Remove any existing manifests to force the browser to re-read the new identity
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
-    if (href?.startsWith('blob:')) URL.revokeObjectURL(href);
+    if (href?.startsWith('blob:')) {
+      URL.revokeObjectURL(href);
+    }
     el.remove();
   });
 
+  // Create the new manifest blob
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
   const link = document.createElement('link');
   link.rel = 'manifest';
   link.href = manifestURL;
-  link.setAttribute('data-identity', identity); 
+  
+  // Custom attributes to help with debugging and identity tracking
+  link.setAttribute('data-identity', identity);
+  link.setAttribute('data-city', cityName);
   link.setAttribute('crossorigin', 'use-credentials'); 
+  
   document.head.appendChild(link);
+
+  console.log(`✅ Identity Rotated: ${cityName} manifest injected.`);
 }
 
 export function updateThemeColor(color: string): void {
