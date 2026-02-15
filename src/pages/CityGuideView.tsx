@@ -271,6 +271,13 @@ useEffect(() => {
       window.location.replace(window.location.href);
       return;
     }
+    const cityName = cityData.name;
+    document.title = `${cityName} Pack`;
+    
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) {
+      appleTitle.setAttribute('content', cityName);
+    }
   }
 
   // 3. If we reach here, identity is synced. Perform secondary UI updates.

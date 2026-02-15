@@ -68,21 +68,22 @@ export function injectManifest(manifest: WebAppManifest): void {
   const identity = manifest.id || 'default';
   const cityName = manifest.short_name;
   const origin = window.location.origin;
-  const displayTitle = `${cityName} Pack`;
+
 
   // 1. FORCE BROWSER & APPLE TITLES
   // document.title affects the "Name" field in many share sheets
-  document.title = displayTitle;
+  document.title = `${cityName} Pack`;
   
-  // Robust update for apple-mobile-web-app-title
-  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (!appleTitle) {
-    appleTitle = document.createElement('meta');
-    appleTitle.setAttribute('name', 'apple-mobile-web-app-title');
-    document.head.appendChild(appleTitle);
-  }
-  // We use cityName (e.g., "Tokyo") specifically here as iOS has short character limits
+// 2. Force the Apple Home Screen Meta Tag
+let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+if (appleTitle) {
   appleTitle.setAttribute('content', cityName);
+} else {
+  const meta = document.createElement('meta');
+  meta.name = "apple-mobile-web-app-title";
+  meta.content = cityName;
+  document.head.appendChild(meta);
+}
 
   // 2. FORCE UPDATE THE ICON FOR THE SHARE PANEL
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
