@@ -35,22 +35,18 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      injectRegister: null, // Manual registration in main.tsx/CityGuideView
+      injectRegister: null, // Manual registration via CityGuideView
       registerType: 'prompt',
-      /* CRITICAL FIX: Set manifest to false. 
-         This prevents Vite from injecting a <link rel="manifest"> 
-         into index.html, allowing our Dynamic Manifest to take over.
-      */
-      manifest: false, 
+      manifest: false,      // Allows Dynamic Blob Manifest to work
       injectManifest: {
         rollupFormat: 'iife',
         maximumFileSizeToCacheInBytes: 3000000,
-        injectionPoint: undefined,
+        injectionPoint: undefined, // Bypasses the "Unable to find place to inject" error
       },
       devOptions: {
         enabled: true,
         type: 'module',
       },
-    }),
+    })
   ],
 })
