@@ -464,12 +464,12 @@ useEffect(() => {
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
-          <button
-            onClick={() => navigate(-1)}
-            className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
-          >
-            <ChevronLeft size={20} />
-          </button>
+        <button
+          onClick={() => navigate(-1)}
+          className="back-button-nav p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform"
+        >
+          <ChevronLeft size={20} />
+        </button>
 
           <div className="text-right flex flex-col items-end">
             <h1

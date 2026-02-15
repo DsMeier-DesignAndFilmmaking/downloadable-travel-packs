@@ -27,3 +27,17 @@ html {
   .scam-ticker {
     animation: scam-ticker 25s linear infinite;
   }
+
+  /* Hide back button only when running as a PWA on the Home Screen */
+@media (display-mode: standalone) {
+  .back-button-nav {
+    display: none !important;
+  }
+}
+
+/* For older iOS versions that use the non-standard property */
+@media (display-mode: fullscreen) {
+  .back-button-nav {
+    display: none !important;
+  }
+}

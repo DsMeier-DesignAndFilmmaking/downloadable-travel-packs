@@ -79,11 +79,18 @@ ctx.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const match = (await cache.match('/')) || (await cache.match('/index.html'));
-        return match || new Response("Offline: App Shell not available", { 
-          status: 503, 
-          headers: { 'Content-Type': 'text/html' } 
-        });
+        // Try exact match first, then fallback to root
+        const match = await cache.match(request) || 
+                      await cache.match('/') || 
+                      await cache.match('/index.html');
+                      
+        if (match) return match;
+        
+        // Final fallback: A hardcoded basic HTML string to prevent the white screen
+        return new Response(
+          '<html><body><div id="root"></div><script>alert("Pack Offline: Please connect to sync intel."); window.location.href="/";</script></body></html>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
       })
     );
     return;
@@ -91,18 +98,23 @@ ctx.addEventListener('fetch', (event) => {
 
   // 2. RUNTIME SHELL CACHING (JS/CSS)
   // Since Vite hashes filenames, we cache them as they are requested.
-  if (request.destination === 'script' || request.destination === 'style') {
-    event.respondWith(
-      caches.open(SHELL_CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(request);
-        if (cached) return cached;
-        const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
-        return response;
-      })
-    );
-    return;
-  }
+// 2. RUNTIME SHELL CACHING (JS/CSS)
+if (request.destination === 'script' || request.destination === 'style') {
+  event.respondWith(
+    caches.open(SHELL_CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request);
+      if (cached) return cached; // Serve from cache if we have it
+      
+      const response = await fetch(request);
+      if (response.ok) {
+        // This "Saves" the JS/CSS for the next offline visit
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+  );
+  return;
+}
 
   // 3. IMAGE CACHING (Cache-First)
   if (request.destination === 'image') {
