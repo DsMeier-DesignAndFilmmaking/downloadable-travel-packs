@@ -136,7 +136,7 @@ function AnimatedRoutes() {
 
 /**
  * When PWA is opened in standalone, redirect from "/" to last viewed pack if stored.
- * Runs only after router is ready to avoid race conditions that cause a white screen on offline launch.
+ * Runs only after router is ready and ASSETS ARE VERIFIED.
  */
 function PWAStandaloneRedirect() {
   const navigate = useNavigate();
@@ -144,7 +144,6 @@ function PWAStandaloneRedirect() {
   const [routerReady, setRouterReady] = useState(false);
 
   useEffect(() => {
-    // Defer until Router has mounted and painted (prevents white screen race on offline launch)
     const raf = typeof requestAnimationFrame !== 'undefined'
       ? requestAnimationFrame
       : (cb: () => void) => setTimeout(cb, 0);
@@ -153,22 +152,39 @@ function PWAStandaloneRedirect() {
 
   useEffect(() => {
     if (!routerReady || typeof window === 'undefined') return;
+  
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as { standalone?: boolean }).standalone === true;
+  
+    // Only intercept if we are at the root and in standalone mode
     if (!isStandalone || location.pathname !== '/') return;
+  
     try {
       const lastPack = localStorage.getItem('pwa_last_pack');
-      if (lastPack && lastPack !== '/' && lastPack.startsWith('/guide/')) {
-        // Defer redirect until React Router is fully initialized (prevents white screen race)
+      
+      /** * NEW: VERIFICATION CHECK
+       * Only redirect if we have a record that the Shell (JS/CSS) 
+       * was successfully cached. This prevents the "White Screen" offline.
+       */
+      const isShellCached = localStorage.getItem('shell_v1_cached') === 'true';
+
+      if (lastPack && lastPack.startsWith('/guide/') && isShellCached) {
+        console.log(`🚀 Standalone Boot: Assets verified. Redirecting to ${lastPack}`);
+        
         const doRedirect = () => navigate(lastPack, { replace: true });
-        if (typeof requestAnimationFrame !== 'undefined') {
-          requestAnimationFrame(doRedirect);
-        } else {
-          setTimeout(doRedirect, 0);
-        }
+        
+        requestAnimationFrame(doRedirect);
+      } else if (lastPack && !isShellCached) {
+        /**
+         * CLEANUP: If we have a last_pack path but the shell isn't cached,
+         * it means the user never finished the "Sync" process. 
+         * Clear the path to avoid trying to boot into a broken state.
+         */
+        console.warn('⚠️ Standalone Boot: Assets not verified. Staying on Home.');
+        localStorage.removeItem('pwa_last_pack');
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Failed to perform standalone redirect', err);
     }
   }, [routerReady, location.pathname, navigate]);
 

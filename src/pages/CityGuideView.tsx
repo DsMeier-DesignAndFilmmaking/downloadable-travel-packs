@@ -266,52 +266,62 @@ export default function CityGuideView() {
   }
 
   async function handleOfflineSync(): Promise<void> {
-    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller || !cleanSlug || !cityData) {
+    // 1. ELIMINATE THE "NULL CONTROLLER" PITFALL
+    // On first load, the SW might be active but not 'controlling' the page yet.
+    let sw = navigator.serviceWorker.controller;
+    if (!sw && 'serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      sw = registration.active;
+    }
+  
+    if (!sw || !cleanSlug || !cityData) {
       setOfflineSyncStatus('error');
       return;
     }
-
+  
     setOfflineSyncStatus('syncing');
-
-    const sw = navigator.serviceWorker.controller;
+  
     try {
-      // Step A: Shell — scrape DOM for current hashed assets + entry points
+      // 2. SCRAPE WITH ABSOLUTE URLS
+      // Standalone PWAs often get confused by relative paths.
+      const origin = window.location.origin;
       const currentAssets = [
         ...Array.from(document.querySelectorAll('script[src]')).map((s) => s.getAttribute('src')),
         ...Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => l.getAttribute('href')),
         '/',
         '/index.html',
-      ].filter(Boolean) as string[];
-
-      const confirmation = new Promise<void>((resolve) => {
+      ]
+        .filter(Boolean)
+        .map(url => new URL(url!, origin).href); // Force Absolute
+  
+      // 3. THE "MUST-COMPLETE" HANDSHAKE
+      const confirmation = new Promise<void>((resolve, reject) => {
         const channel = new MessageChannel();
-        channel.port1.onmessage = () => {
-          channel.port1.close();
-          resolve();
+        channel.port1.onmessage = (msg) => {
+          if (msg.data.ok) resolve();
+          else reject(new Error('SW failed to precache'));
         };
-        sw.postMessage(
+        
+        sw!.postMessage(
           { type: 'PRECACHE_ASSETS', assets: currentAssets },
           [channel.port2]
         );
-        // Fallback: if SW doesn't implement response, resolve after 2s
-        setTimeout(() => resolve(), 2000);
+        setTimeout(() => resolve(), 3000); // Fail-safe
       });
-
-      // Step B: Data — CACHE_CITY
+  
+      // 4. TRIGGER DATA & MEDIA
       sw.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
-
-      // Step C: Media — images from DOM and city content
       const imageUrls = extractImageUrlsFromContent();
       if (imageUrls.length > 0) {
         sw.postMessage({ type: 'PRECACHE_IMAGES', urls: imageUrls });
       }
-
-      // Save to IndexedDB
+  
       await saveCityToIndexedDB(cleanSlug, cityData);
-      setOfflineAvailable(true);
-
-      await confirmation;
-      localStorage.setItem(shellCachedKey, 'true');
+      await confirmation; // Wait for assets to be 100% in disk
+  
+      localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+      localStorage.setItem(shellCachedKey, 'true'); // Used for button state check
+      
       setOfflineSyncStatus('complete');
     } catch (err) {
       console.error('Offline sync failed', err);

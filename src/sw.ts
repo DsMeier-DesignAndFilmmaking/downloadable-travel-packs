@@ -91,27 +91,47 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. NAVIGATION FALLBACK (Prevents Safari Browser Error)
+  // 1. HARDENED NAVIGATION FALLBACK
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => getNavigationFallback())
+      fetch(request).catch(async () => {
+        const cache = await caches.open(SHELL_CACHE_NAME);
+        // FORCE the root shell regardless of the URL
+        const fallback = (await cache.match('/index.html')) || (await cache.match('/'));
+        
+        if (fallback) return fallback;
+
+        // EMERGENCY OVERRIDE: If shell is missing, return a minimal bootstrapper 
+        // that tries to force a reload (sometimes fixes SW sync issues)
+        return new Response(
+          '<script>window.location.reload();</script>',
+          { headers: { 'Content-Type': 'text/html' } }
+        );
+      })
     );
     return;
   }
 
-  // 2. CRITICAL ASSETS (Vite bundles) - Stale-While-Revalidate
+  // 2. ASSETS - Ensure we return a valid Response to avoid TS/Runtime errors
   if (request.destination === 'script' || request.destination === 'style' || url.pathname.includes('/assets/')) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
         const cached = await cache.match(request);
         
-        const fetchPromise = fetch(request).then((networkRes) => {
-          if (networkRes.ok) cache.put(request, networkRes.clone());
-          return networkRes;
+        const fetchPromise = fetch(request).then((netRes) => {
+          if (netRes.ok) cache.put(request, netRes.clone());
+          return netRes;
         });
 
-        return cached || fetchPromise.catch(() => createErrorResponse('Asset offline', 404));
+        // If offline and not in cache, we return an empty valid response 
+        // to prevent the app from crashing entirely
+        return cached || fetchPromise.catch(() => 
+          new Response('/* Asset Unavailable */', { 
+            status: 404, 
+            headers: { 'Content-Type': 'text/javascript' } 
+          })
+        );
       })()
     );
     return;
@@ -155,33 +175,45 @@ ctx.addEventListener('fetch', (event) => {
 
 ctx.addEventListener('message', (event) => {
   const { type, assets, urls, citySlug, slug } = event.data;
+  // This port is critical for the 'await confirmation' in handleOfflineSync
   const port = event.ports?.[0];
 
-  // Logic for individual city packs
+  // 1. Logic for individual city packs (JSON Data)
   if (type === 'CACHE_CITY' || type === 'CACHE_GUIDE') {
     const targetSlug = citySlug || slug;
-    if (targetSlug) event.waitUntil(cacheCityIntel(targetSlug));
+    if (targetSlug) {
+      event.waitUntil(
+        cacheCityIntel(targetSlug).then(() => {
+          // Optional: reply back that data is cached
+          if (port) port.postMessage({ ok: true, type: 'DATA_CACHED' });
+        })
+      );
+    }
   }
 
-  // Logic for the App Shell (Vite Bundles)
+  // 2. Logic for the App Shell (JS/CSS Bundles)
   if (type === 'PRECACHE_ASSETS' && Array.isArray(assets)) {
     event.waitUntil(
       (async () => {
-        const cache = await caches.open(SHELL_CACHE_NAME);
-        await cache.addAll(assets);
-        if (port) port.postMessage({ ok: true });
-      })().catch(() => port?.postMessage({ ok: false }))
+        try {
+          const cache = await caches.open(SHELL_CACHE_NAME);
+          // addAll ensures that if ANY asset fails, the whole operation fails
+          // This is what we want for a "Success Gate"
+          await cache.addAll(assets);
+          
+          console.log('📡 SW: Shell Assets cached successfully');
+          if (port) port.postMessage({ ok: true });
+        } catch (error) {
+          console.error('📡 SW: Shell Precache failed', error);
+          if (port) port.postMessage({ ok: false, error: 'Cache operation failed' });
+        }
+      })()
     );
   }
 
-  // Logic for City Images
+  // 3. Logic for Images
   if (type === 'PRECACHE_IMAGES' && Array.isArray(urls)) {
-    event.waitUntil(
-      (async () => {
-        const cache = await caches.open(IMAGES_CACHE_NAME);
-        await Promise.allSettled(urls.map(u => cache.add(u)));
-      })()
-    );
+    event.waitUntil(precacheImageUrls(urls));
   }
 });
 
@@ -197,4 +229,41 @@ async function cacheCityIntel(slug: string) {
 
   const clients = await ctx.clients.matchAll();
   clients.forEach(c => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
+}
+
+/**
+ * Helper: Precaches image URLs into IMAGES_CACHE_NAME. 
+ * Uses Promise.allSettled to ensure one bad image doesn't break the whole sync.
+ */
+async function precacheImageUrls(urls: unknown): Promise<void> {
+  if (!Array.isArray(urls)) return;
+  
+  const origin = ctx.location.origin;
+  const validUrls = urls
+    .filter((u): u is string => typeof u === 'string')
+    .map((u) => {
+      try {
+        // Ensure we have absolute URLs for the cache
+        return new URL(u, origin).href;
+      } catch {
+        return '';
+      }
+    })
+    .filter((href) => href.startsWith(origin) && href.length > 0);
+
+  if (validUrls.length === 0) return;
+
+  try {
+    const cache = await caches.open(IMAGES_CACHE_NAME);
+    // We use map + cache.add instead of addAll here so that 
+    // if one image fails (404), the others still get cached.
+    await Promise.all(
+      validUrls.map((url) =>
+        cache.add(url).catch((e) => console.warn(`📡 SW: Image cache failed for ${url}`, e))
+      )
+    );
+    console.log(`📡 SW: Precached ${validUrls.length} images successfully.`);
+  } catch (e) {
+    console.error('📡 SW: PRECACHE_IMAGES critical failure', e);
+  }
 }
