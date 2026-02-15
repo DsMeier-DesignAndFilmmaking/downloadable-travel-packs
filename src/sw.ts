@@ -59,7 +59,15 @@ ctx.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
+      // Primary entry points first (prevents white screen on offline launch)
+      try {
+        await cache.add('/');
+        await cache.add('/index.html');
+      } catch (e) {
+        console.warn('📡 SW: Could not pre-cache primary entry points', e);
+      }
       for (const asset of SHELL_ASSETS) {
+        if (asset === '/' || asset === '/index.html') continue;
         try {
           await cache.add(asset);
         } catch (e) {
@@ -103,13 +111,12 @@ ctx.addEventListener('fetch', (event) => {
   if (url.origin !== ctx.location.origin) return;
   if (url.protocol === 'blob:') return;
 
-  // 1. Navigation Fallback (Home Screen / deep link) — always return shell for SPA
+  // 1. Navigation Fallback (Home Screen / deep link) — always return a valid Response to prevent white screen
   if (request.mode === 'navigate') {
-    const shellUrl = getShellDocumentUrl();
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const match = await cache.match(shellUrl) || await cache.match(new URL('/', ctx.location.origin).href);
+        const match = (await cache.match('/')) || (await cache.match('/index.html'));
         return match || new Response('Offline: Shell not cached', { status: 503, headers: { 'Content-Type': 'text/plain' } });
       })
     );
@@ -214,9 +221,36 @@ async function cacheCityIntel(slug: string) {
   });
 }
 
+/** Precache asset URLs sent from the client (Registration Handshake). Same-origin only; uses cache.addAll. */
+async function precacheAssetUrls(assetUrls: unknown): Promise<void> {
+  if (!Array.isArray(assetUrls)) return;
+  const origin = ctx.location.origin;
+  const urls = assetUrls
+    .filter((u): u is string => typeof u === 'string')
+    .map((u) => {
+      try {
+        return new URL(u, origin).href;
+      } catch {
+        return '';
+      }
+    })
+    .filter((href) => href.startsWith(origin) && href.length > 0);
+  if (urls.length === 0) return;
+  try {
+    const cache = await caches.open(SHELL_CACHE_NAME);
+    await cache.addAll(urls);
+  } catch (e) {
+    console.warn('📡 SW: PRECACHE_ASSETS addAll failed', e);
+  }
+}
+
 ctx.addEventListener('message', (event) => {
   if (event.data?.type === 'CACHE_CITY' || event.data?.type === 'CACHE_GUIDE') {
     const slug = event.data.citySlug || event.data.slug;
     if (slug) event.waitUntil(cacheCityIntel(slug));
+    return;
+  }
+  if (event.data?.type === 'PRECACHE_ASSETS' && event.data.assets) {
+    event.waitUntil(precacheAssetUrls(event.data.assets));
   }
 });
