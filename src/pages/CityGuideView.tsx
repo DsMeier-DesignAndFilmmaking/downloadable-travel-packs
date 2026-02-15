@@ -179,6 +179,7 @@ export default function CityGuideView() {
   );
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -208,13 +209,91 @@ export default function CityGuideView() {
         setLastSynced(now);
         localStorage.setItem(`sync_${cleanSlug}`, now);
         setOfflineAvailable(true);
-        // Optional: Alert or Toast can go here
+        setOfflineSyncStatus('complete');
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
   }, [cleanSlug]);
+
+  /** Extract image URLs from DOM and city content. */
+  function extractImageUrlsFromContent(): string[] {
+    const urls = new Set<string>();
+    const origin = window.location.origin;
+
+    // 1. img[src] in DOM
+    document.querySelectorAll('img[src]').forEach((img) => {
+      const src = (img as HTMLImageElement).src;
+      if (src && src.startsWith('http')) urls.add(src);
+    });
+
+    // 2. background-image from computed styles
+    document.querySelectorAll('*').forEach((el) => {
+      const bg = getComputedStyle(el).backgroundImage;
+      if (bg && bg !== 'none') {
+        const matches = bg.match(/url\(["']?([^"')]+)["']?\)/g);
+        if (matches) {
+          matches.forEach((m) => {
+            const u = m.replace(/url\(["']?|["']?\)/g, '').trim();
+            const abs = u.startsWith('http') ? u : new URL(u, origin).href;
+            if (abs.startsWith('http')) urls.add(abs);
+          });
+        }
+      }
+    });
+
+    // 3. URLs embedded in city data (e.g. JSON fields)
+    const imageExt = /\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i;
+    const cityStr = JSON.stringify(cityData ?? {});
+    const urlMatches = cityStr.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s"']*)?/gi);
+    if (urlMatches) {
+      urlMatches.forEach((u) => {
+        if (imageExt.test(u)) urls.add(u);
+      });
+    }
+
+    return Array.from(urls);
+  }
+
+  async function handleOfflineSync(): Promise<void> {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller || !cleanSlug || !cityData) {
+      setOfflineSyncStatus('error');
+      return;
+    }
+
+    setOfflineSyncStatus('syncing');
+
+    try {
+      // Step A: Shell — script and stylesheet URLs
+      const scriptAssets = Array.from(document.querySelectorAll('script[src]')).map((s) => (s as HTMLScriptElement).src);
+      const styleAssets = Array.from(document.querySelectorAll('link[rel="stylesheet"][href]')).map((l) => (l as HTMLLinkElement).href);
+      navigator.serviceWorker.controller.postMessage({
+        type: 'PRECACHE_ASSETS',
+        assets: [...scriptAssets, ...styleAssets],
+      });
+
+      // Step B: Data — CACHE_CITY
+      navigator.serviceWorker.controller.postMessage({ type: 'CACHE_CITY', citySlug: cleanSlug });
+
+      // Step C: Media — images from DOM and city content
+      const imageUrls = extractImageUrlsFromContent();
+      if (imageUrls.length > 0) {
+        navigator.serviceWorker.controller.postMessage({ type: 'PRECACHE_IMAGES', urls: imageUrls });
+      }
+
+      // Save to IndexedDB
+      await saveCityToIndexedDB(cleanSlug, cityData);
+      setOfflineAvailable(true);
+
+      // Wait briefly for SW to process
+      await new Promise((r) => setTimeout(r, 500));
+      setOfflineSyncStatus('complete');
+    } catch (err) {
+      console.error('Offline sync failed', err);
+      setOfflineSyncStatus('error');
+    }
+  }
 
   /**
    * 2. IDENTITY ROTATION & AUTO-SYNC
@@ -471,7 +550,27 @@ export default function CityGuideView() {
       {/* FIXED DOWNLOAD BAR */}
       <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
         <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-        <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+        <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto space-y-3">
+          {isOnline && (
+            <button
+              onClick={handleOfflineSync}
+              disabled={offlineSyncStatus === 'syncing'}
+              className={`w-full h-14 rounded-[2rem] shadow-lg flex items-center justify-center gap-2 px-6 font-bold text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
+                offlineSyncStatus === 'complete'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : offlineSyncStatus === 'syncing'
+                  ? 'bg-slate-100 text-slate-500 cursor-wait'
+                  : offlineSyncStatus === 'error'
+                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                  : 'bg-emerald-600 text-white border border-emerald-700'
+              }`}
+            >
+              {offlineSyncStatus === 'idle' && 'Prepare for Offline Use'}
+              {offlineSyncStatus === 'syncing' && 'Securing Assets...'}
+              {offlineSyncStatus === 'complete' && '✅ Ready for Airplane Mode'}
+              {offlineSyncStatus === 'error' && 'Retry'}
+            </button>
+          )}
           <button onClick={installPWA} disabled={isInstalled} className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'}`}>
             <div className="flex items-center gap-4">
               <div className={`p-2 rounded-xl ${isInstalled ? 'bg-slate-200 text-slate-400' : 'bg-[#FFDD00] text-black'}`}><Download size={20} strokeWidth={3} /></div>

@@ -108,18 +108,16 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // CRITICAL: Navigation Fallback for Standalone
+  // CRITICAL: Navigation Fallback for Standalone (prevents Safari "No Internet" error)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        // We MUST match the root or index.html to boot the React app
-        const match = await cache.match('/') || await cache.match('/index.html');
-        
+        const base = ctx.location.origin;
+        const fallbackUrl = new URL('/', base).href;
+        const indexUrl = new URL('/index.html', base).href;
+        const match = await cache.match(fallbackUrl) || await cache.match(indexUrl);
         if (match) return match;
-        
-        // Final safety net: if nothing is found, return a fallback response
-        // instead of letting the browser throw the "No Internet" error.
         return new Response("Offline entry point not found. Please open once while online.", {
           status: 200,
           headers: { 'Content-Type': 'text/html' }
@@ -258,18 +256,44 @@ ctx.addEventListener('message', (event) => {
     if (slug) event.waitUntil(cacheCityIntel(slug));
   }
 
-  // NEW: Proactive Asset Caching Logic
+  // Proactive Asset Caching (shell: scripts + stylesheets)
   if (event.data?.type === 'PRECACHE_ASSETS') {
     const { assets } = event.data;
     event.waitUntil(
-      caches.open(SHELL_CACHE_NAME).then((cache) => {
-        // Use addAll to ensure these critical files are stored for offline boot
-        return Promise.all(
-          assets.map((url: string) => 
-            cache.add(url).catch(err => console.warn(`SW: Precache failed for ${url}`, err))
-          )
-        );
-      })
+      precacheAssetUrls(assets)
     );
   }
+
+  // Proactive Image Caching (media from city content)
+  if (event.data?.type === 'PRECACHE_IMAGES') {
+    const { urls } = event.data;
+    event.waitUntil(precacheImageUrls(urls));
+  }
 });
+
+/** Precache image URLs into IMAGES_CACHE_NAME. Same-origin only. */
+async function precacheImageUrls(urls: unknown): Promise<void> {
+  if (!Array.isArray(urls)) return;
+  const origin = ctx.location.origin;
+  const validUrls = urls
+    .filter((u): u is string => typeof u === 'string')
+    .map((u) => {
+      try {
+        return new URL(u, origin).href;
+      } catch {
+        return '';
+      }
+    })
+    .filter((href) => href.startsWith(origin) && href.length > 0);
+  if (validUrls.length === 0) return;
+  try {
+    const cache = await caches.open(IMAGES_CACHE_NAME);
+    await Promise.all(
+      validUrls.map((url) =>
+        cache.add(url).catch((e) => console.warn(`SW: PRECACHE_IMAGES failed for ${url}`, e))
+      )
+    );
+  } catch (e) {
+    console.warn('SW: PRECACHE_IMAGES addAll failed', e);
+  }
+}
