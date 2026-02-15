@@ -41,19 +41,19 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
     theme_color: '#0f172a',
     icons: [
       { 
-        src: `/pwa-192x192.png`, 
+        src: `${origin}/pwa-192x192.png`, 
         sizes: '192x192', 
         type: 'image/png', 
         purpose: 'any' 
       },
       { 
-        src: `/pwa-512x512.png`, 
+        src: `${origin}/pwa-512x512.png`, 
         sizes: '512x512', 
         type: 'image/png', 
         purpose: 'any' 
       },
       { 
-        src: `/pwa-pwa-maskable-512x512.png`, 
+        src: `${origin}/pwa-pwa-maskable-512x512.png`, 
         sizes: '512x512', 
         type: 'image/png', 
         purpose: 'maskable' 
@@ -85,12 +85,17 @@ export function injectManifest(manifest: WebAppManifest): void {
   appleTitle.setAttribute('content', cityName);
 
   // 2. FORCE UPDATE THE ICON FOR THE SHARE PANEL
-  let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
   if (!appleIcon) {
     appleIcon = document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
     document.head.appendChild(appleIcon);
   }
+  // Add a tiny version query (?v=...) to force the browser to re-fetch the icon 
+// from the public folder instead of using a cached generic one.
+const iconPath = `${origin}/pwa-192x192.png?v=${Date.now()}`;
+appleIcon.href = iconPath;
+
   // Ensuring the href is absolute helps iOS identify the resource immediately
   appleIcon.setAttribute('href', `${origin}/pwa-192x192.png`);
 
