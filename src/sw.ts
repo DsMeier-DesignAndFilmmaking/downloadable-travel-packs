@@ -1,6 +1,5 @@
 /// <reference lib="webworker" />
 
-
 const ctx = self as unknown as ServiceWorkerGlobalScope;
 const CACHE_VERSION = 'v2';
 const CACHE_PREFIX = 'travel-guide';
@@ -74,27 +73,7 @@ ctx.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. IDENTITY BYPASS (Manifests)
-  // Network-First strategy to ensure city icons/names swap correctly
-  if (url.pathname.includes('/api/manifest')) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          if (response.ok && response.headers.get('content-type')?.includes('application/json')) {
-            const copy = response.clone();
-            caches.open('manifest-cache').then(cache => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          return cached || new Response(JSON.stringify({ name: "Offline" }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        })
-    );
-    return;
-  }
+  
 
   // 3. IMAGE CACHING
   if (request.destination === 'image') {

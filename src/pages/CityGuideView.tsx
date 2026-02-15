@@ -244,52 +244,49 @@ export default function CityGuideView() {
  * This ensures the PWA manifest matches the current city without 
  * introducing infinite reload loops or stale UI state.
  */
-useEffect(() => {
+ useEffect(() => {
+
   if (!cleanSlug || !cityData) return;
 
-  const manifestId = `tp-v2-${cleanSlug}`;
-  const existingLink = document.querySelector('link[rel="manifest"]');
-  const currentManifestId = existingLink?.getAttribute('data-identity');
+  // 1. Immediately inject the identity (Tags + Blob)
 
-  // 1. Check if the manifest is missing or belongs to a different city
-  if (!currentManifestId || currentManifestId !== manifestId) {
-    
-    // 2. Anti-Loop Guard: Check if we already tried to rotate this specific city
-    const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
+  // This updates document.title and apple-mobile-web-app-title instantly
 
-    if (!hasRotated) {
-      console.log(`🔄 Identity Mismatch: ${currentManifestId} -> ${manifestId}. Rotating...`);
-      
-      // Inject the new manifest immediately
-      const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
-      injectManifest(manifest);
-      
-      // Set the lock and trigger a single "Soft Refresh" to bind the new manifest
-      sessionStorage.setItem('pwa_rotator_lock', manifestId);
-      
-      // Use replace so we don't mess up the back-button history
-      window.location.replace(window.location.href);
-      return;
-    }
-  }
+  const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
 
-  // 3. If we reach here, identity is synced. Perform secondary UI updates.
+  injectManifest(manifest);
+
+
+
+  // 2. Secondary UI updates
+
   updateThemeColor('#0f172a');
+
   localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
 
-  // Visual Title Bump (Confirms to user the identity is live)
-  const originalTitle = document.title;
+
+
+  // 3. Keep the visual title bump
+
   document.title = `✨ ${cityData.name} Pack`;
-  const t = setTimeout(() => { document.title = originalTitle; }, 1000);
+
+  const t = setTimeout(() => { 
+
+    document.title = `${cityData.name} Pack`; 
+
+  }, 1500);
+
+
 
   return () => {
+
     clearTimeout(t);
-    // CLEANUP: We remove the lock for THIS specific city when leaving the page.
-    // This ensures that if the user navigates back later, the sync guard 
-    // can verify the manifest identity fresh.
-    sessionStorage.removeItem('pwa_rotator_lock');
+
   };
+
 }, [cleanSlug, cityData]);
+
+
   /**
    * 2. PERSISTENCE & OFFLINE BADGING
    * Handles IndexedDB storage and status check.
