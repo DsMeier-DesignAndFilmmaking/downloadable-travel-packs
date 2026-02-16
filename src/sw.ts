@@ -172,46 +172,70 @@ ctx.addEventListener('fetch', (event) => {
 });
 
 // --- MESSAGING (Handshake Logic) ---
-
 ctx.addEventListener('message', (event) => {
-  const { type, assets, urls, citySlug, slug } = event.data;
-  // This port is critical for the 'await confirmation' in handleOfflineSync
+  const { type, assets, images, urls, citySlug, slug } = event.data;
   const port = event.ports?.[0];
 
-  // 1. Logic for individual city packs (JSON Data)
+  // --- NEW: THE GATED RELEASE HANDLER ---
+  if (type === 'PRECACHE_GATED_RELEASE') {
+    event.waitUntil(
+      (async () => {
+        try {
+          const shellCache = await caches.open(SHELL_CACHE_NAME);
+          const imageCache = await caches.open(IMAGES_CACHE_NAME);
+
+          // 1. Critical Assets - Must succeed 100%
+          if (Array.isArray(assets)) {
+            await shellCache.addAll(assets);
+          }
+
+          // 2. Images - Resilient caching
+          if (Array.isArray(images)) {
+            await Promise.allSettled(
+              images.map(url => imageCache.add(url).catch(() => null))
+            );
+          }
+
+          // 3. City Data (Optional logic if you want SW to handle JSON too)
+          if (citySlug) {
+            await cacheCityIntel(citySlug);
+          }
+
+          console.log('✅ SW: Gated Release Complete');
+          if (port) port.postMessage({ ok: true });
+        } catch (error) {
+          console.error('❌ SW: Gated Release Failed', error);
+          if (port) port.postMessage({ ok: false, error: 'Asset sync failed' });
+        }
+      })()
+    );
+    return; // Prevent falling through to other logic
+  }
+
+  // --- EXISTING LOGIC (Keep for backward compatibility) ---
   if (type === 'CACHE_CITY' || type === 'CACHE_GUIDE') {
     const targetSlug = citySlug || slug;
     if (targetSlug) {
-      event.waitUntil(
-        cacheCityIntel(targetSlug).then(() => {
-          // Optional: reply back that data is cached
-          if (port) port.postMessage({ ok: true, type: 'DATA_CACHED' });
-        })
-      );
+      event.waitUntil(cacheCityIntel(targetSlug).then(() => {
+        if (port) port.postMessage({ ok: true, type: 'DATA_CACHED' });
+      }));
     }
   }
 
-  // 2. Logic for the App Shell (JS/CSS Bundles)
   if (type === 'PRECACHE_ASSETS' && Array.isArray(assets)) {
     event.waitUntil(
       (async () => {
         try {
           const cache = await caches.open(SHELL_CACHE_NAME);
-          // addAll ensures that if ANY asset fails, the whole operation fails
-          // This is what we want for a "Success Gate"
           await cache.addAll(assets);
-          
-          console.log('📡 SW: Shell Assets cached successfully');
           if (port) port.postMessage({ ok: true });
         } catch (error) {
-          console.error('📡 SW: Shell Precache failed', error);
-          if (port) port.postMessage({ ok: false, error: 'Cache operation failed' });
+          if (port) port.postMessage({ ok: false, error: 'Shell cache failed' });
         }
       })()
     );
   }
 
-  // 3. Logic for Images
   if (type === 'PRECACHE_IMAGES' && Array.isArray(urls)) {
     event.waitUntil(precacheImageUrls(urls));
   }
