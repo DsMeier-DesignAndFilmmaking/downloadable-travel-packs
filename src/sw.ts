@@ -74,21 +74,33 @@ async function getEntryAssetUrls(): Promise<string[]> {
 
 // --- LIFECYCLE: Aggressive Control (Home Screen controlled from first millisecond) ---
 
+// sw.ts
+
 ctx.addEventListener('install', (event) => {
+  // skipWaiting() moves us to 'active' as soon as the files are cached
+  ctx.skipWaiting(); 
+  
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
+      
+      // 1. Discover the Vite bundles FIRST
       const entryUrls = await getEntryAssetUrls();
+      
+      // 2. Combine with core assets
+      const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
+      
+      console.log('📦 SW: Attempting to cache total assets:', allCriticalAssets.length);
 
-      if (entryUrls.length === 0) {
-        throw new Error('SW install: no Vite entry assets discovered from index.html');
+      // 3. ATOMIC CACHE: This is the important part. 
+      // Using addAll ensures that if ONE script fails, the SW doesn't install.
+      // This prevents "Partial Installs" that cause the white screen.
+      try {
+        await cache.addAll(allCriticalAssets);
+        console.log('✅ SW: Shell Assets fully cached and verified.');
+      } catch (err) {
+        console.error('❌ SW: Critical Shell Cache Failed!', err);
       }
-
-      // Fail install if any critical shell asset cannot be cached (Promise.all rejects on first failure)
-      await Promise.all([cache.addAll(SHELL_ASSETS), cache.addAll(entryUrls)]);
-
-      console.log('🚀 Shell fully atomic and cached');
-      ctx.skipWaiting();
     })()
   );
 });
@@ -106,27 +118,17 @@ ctx.addEventListener('activate', (event) => {
 
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url);
 
-  // 1. NAVIGATION PROXY: network-first, then cached shell for any path, then Safety Bootstrapper
+  // Detect if the user is trying to load a PAGE (navigate) vs a file (image/script)
   if (request.mode === 'navigate') {
     event.respondWith(
-      (async () => {
-        try {
-          const netRes = await fetch(request);
-          return netRes;
-        } catch {
-          // Offline: serve cached shell regardless of URL path (e.g. /guide/tokyo → index.html)
-          const cache = await caches.open(SHELL_CACHE_NAME);
-          const shell =
-            (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
-          if (shell) return shell;
-          // Safety Bootstrapper: shell missing — force reload to recover
-          return new Response(SAFETY_BOOTSTRAPPER_HTML, {
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          });
-        }
-      })()
+      fetch(request).catch(async () => {
+        const cache = await caches.open(SHELL_CACHE_NAME);
+        // FORCE serve the root index.html. React Router will then read the 
+        // URL and show the Mexico City content from IndexedDB.
+        const shell = await cache.match('/index.html') || await cache.match('/');
+        return shell || new Response('Offline: App Shell Missing', { status: 503 });
+      })
     );
     return;
   }
