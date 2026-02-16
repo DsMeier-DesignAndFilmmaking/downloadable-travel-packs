@@ -319,15 +319,15 @@ export default function CityGuideView() {
       await saveCityToIndexedDB(cleanSlug, cityData);
       await confirmation; // Wait for assets to be 100% in disk
   
-      localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-      localStorage.setItem(shellCachedKey, 'true'); // Used for button state check
-      
-      setOfflineSyncStatus('complete');
-    } catch (err) {
-      console.error('Offline sync failed', err);
-      setOfflineSyncStatus('error');
-    }
+localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+    localStorage.setItem(shellCachedKey, 'true'); // Used for button state check
+    
+    setOfflineSyncStatus('complete');
+  } catch (err) {
+    console.error('Offline sync failed', err);
+    setOfflineSyncStatus('error');
   }
+}
 
   /**
    * 2. IDENTITY ROTATION & AUTO-SYNC
@@ -501,9 +501,16 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <section className="space-y-6">
-          <div className="px-2 flex items-center justify-between">
-            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">Survival Dashboard<SourceInfo source="Travel Buddy Protocol v2" lastUpdated="Synced just now" /></h2>
-          </div>
+        <div className="flex items-center justify-between px-2">
+    <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
+      Survival Dashboard
+    </h2>
+    {/* Use SourceInfo here to clear TS6133 */}
+    <SourceInfo 
+      source="Global Intelligence Protocol" 
+      lastUpdated={lastSynced || cityData.last_updated} 
+    />
+  </div>
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
               {isApiLoading ? <HighAlertSkeleton /> : (

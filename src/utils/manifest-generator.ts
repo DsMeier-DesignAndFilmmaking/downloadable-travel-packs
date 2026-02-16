@@ -25,12 +25,14 @@ export interface WebAppManifest {
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
   
-  // Absolute URLs prevent the browser from getting lost when manifest is a Blob
-  const absoluteScope = `${origin}/guide/${cityId}`;
-  const absoluteStartUrl = `${origin}/guide/${cityId}?utm_source=pwa`;
+  // FIXED: Scope must be the root so the SW can control the boot process
+  const absoluteScope = `${origin}/`; 
+  
+  // FIXED: Start URL should be the root to ensure the SW always finds the cached index.html
+  const absoluteStartUrl = `${origin}/?utm_source=pwa&city=${cityId}`;
 
   return {
-    id: `tp-v2-${cityId}`, 
+    id: `tp-v2-${cityId}`, // Keep this! This ensures the icon/title logic works
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
@@ -59,7 +61,6 @@ export function generateCityGuideManifest(cityId: string, cityName: string): Web
         purpose: 'maskable' 
       },
     ],
-    // Add a timestamp to the object so every generation is unique
     v: Date.now() 
   };
 }
@@ -69,9 +70,9 @@ export function injectManifest(manifest: WebAppManifest): void {
   const cityName = manifest.short_name;
   const origin = window.location.origin;
 
-
   // 1. FORCE BROWSER & APPLE TITLES
   // document.title affects the "Name" field in many share sheets
+
   document.title = `${cityName} Pack`;
   
 // 2. Force the Apple Home Screen Meta Tag
