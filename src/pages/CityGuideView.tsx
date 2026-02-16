@@ -186,6 +186,9 @@ export default function CityGuideView() {
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
     typeof localStorage !== 'undefined' && localStorage.getItem(shellCachedKey) === 'true' ? 'complete' : 'idle'
   );
+  const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
+    typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
+  );
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -226,6 +229,15 @@ export default function CityGuideView() {
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
   }, [cleanSlug, cityData, shellCachedKey]);
+
+  /** Sync gate: track when the page is controlled by a SW (enables safe "Add to Home Screen"). */
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+  }, []);
+  
 
   /** Extract image URLs from DOM and city content. */
   function extractImageUrlsFromContent(): string[] {
@@ -296,42 +308,32 @@ export default function CityGuideView() {
       // 2. Identify all City Images
       const imageUrls = extractImageUrlsFromContent();
   
-      // 3. Create a Single "Master Handshake"
-      // We want the SW to tell us when EVERYTHING is done
-      const syncEverything = new Promise<void>((resolve, reject) => {
+      // 3. PRECACHE_GATED_RELEASE handshake: only set 'complete' after SW confirms
+      const gatedReleaseComplete = new Promise<void>((resolve, reject) => {
         const channel = new MessageChannel();
         channel.port1.onmessage = (msg) => {
-          if (msg.data.error) reject(new Error(msg.data.error));
-          else resolve();
+          if (msg.data?.ok === true) resolve();
+          else reject(new Error(msg.data?.error ?? 'Sync failed'));
         };
-        
-        // Send both assets and images to the SW in one flow if possible, 
-        // or ensure your SW sends an 'OK' only after both are cached.
         sw!.postMessage(
-          { 
-            type: 'PRECACHE_GATED_RELEASE', 
-            assets: currentAssets, 
+          {
+            type: 'PRECACHE_GATED_RELEASE',
+            assets: currentAssets,
             images: imageUrls,
-            citySlug: cleanSlug 
+            citySlug: cleanSlug,
           },
           [channel.port2]
         );
-  
-        // Increase timeout to 10s—images take longer than scripts!
         setTimeout(() => reject(new Error('Sync Timeout')), 10000);
       });
-  
-      // 4. Parallelize the heavy lifting
-      // Save data to IDB while the SW handles the network/cache heavy lifting
+
       await Promise.all([
         saveCityToIndexedDB(cleanSlug, cityData),
-        syncEverything
+        gatedReleaseComplete,
       ]);
-  
-      // 5. Finalize State
+
       localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
       localStorage.setItem(shellCachedKey, 'true');
-      
       setOfflineSyncStatus('complete');
       console.log('🏁 Sync sequence finalized: App is safe for Home Screen.');
       
@@ -607,7 +609,7 @@ export default function CityGuideView() {
           {isOnline && (
             <button
               onClick={handleOfflineSync}
-              disabled={offlineSyncStatus === 'syncing'}
+              disabled={offlineSyncStatus === 'syncing' || !isSwControlling}
               className={`w-full h-14 rounded-[2rem] shadow-lg flex items-center justify-center gap-2 px-6 font-bold text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
                 offlineSyncStatus === 'complete'
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -626,36 +628,50 @@ export default function CityGuideView() {
           )}
           <button
             onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
-            disabled={isInstalled || offlineSyncStatus === 'syncing'}
+            disabled={isInstalled || offlineSyncStatus === 'syncing' || !isSwControlling}
             className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
-              offlineSyncStatus === 'syncing' ? 'bg-slate-100 text-slate-500 cursor-wait' : isInstalled ? 'bg-slate-100 text-slate-400' : 'bg-[#222222] text-white'
+              !isSwControlling
+                ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                : offlineSyncStatus === 'syncing'
+                  ? 'bg-slate-100 text-slate-500 cursor-wait'
+                  : isInstalled
+                    ? 'bg-slate-100 text-slate-400'
+                    : 'bg-[#222222] text-white'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`p-2 rounded-xl ${
-                offlineSyncStatus === 'syncing' ? 'bg-slate-200 text-slate-400' : isInstalled ? 'bg-slate-200 text-slate-400' : offlineSyncStatus === 'complete' ? 'bg-[#FFDD00] text-black' : 'bg-slate-400 text-slate-200'
+                !isSwControlling || offlineSyncStatus === 'syncing'
+                  ? 'bg-slate-200 text-slate-400'
+                  : isInstalled
+                    ? 'bg-slate-200 text-slate-400'
+                    : offlineSyncStatus === 'complete'
+                      ? 'bg-[#FFDD00] text-black'
+                      : 'bg-slate-400 text-slate-200'
               }`}>
-                {offlineSyncStatus === 'syncing' && <Activity size={20} className="animate-spin" />}
-                {offlineSyncStatus === 'complete' && !isInstalled && <Download size={20} strokeWidth={3} />}
+                {(!isSwControlling || offlineSyncStatus === 'syncing') && <Activity size={20} className="animate-spin" />}
+                {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && <Download size={20} strokeWidth={3} />}
                 {isInstalled && <Check size={20} strokeWidth={3} />}
-                {offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && <Info size={20} className="opacity-80" />}
+                {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && <Info size={20} className="opacity-80" />}
               </div>
               <div className="flex flex-col items-start text-left">
                 <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-                  {offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-                  {offlineSyncStatus === 'complete' && !isInstalled && 'Download Pack'}
+                  {!isSwControlling && 'System Initializing...'}
+                  {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
+                  {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Download Pack'}
                   {isInstalled && 'Pack Installed'}
-                  {offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare for Offline'}
+                  {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare for Offline'}
                 </span>
                 <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  {offlineSyncStatus === 'syncing' && 'Caching app shell…'}
+                  {!isSwControlling && 'Waiting for service worker'}
+                  {isSwControlling && offlineSyncStatus === 'syncing' && 'Caching app shell…'}
                   {isInstalled && 'Available Offline'}
-                  {offlineSyncStatus === 'complete' && !isInstalled && (isOfflineAvailable || offlineAvailable ? 'Cached · Add to Home Screen' : `Store ${cityData.name} Offline // 2.4MB`)}
-                  {offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare offline first'}
+                  {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && (isOfflineAvailable || offlineAvailable ? 'Cached · Add to Home Screen' : `Store ${cityData.name} Offline // 2.4MB`)}
+                  {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare offline first'}
                 </span>
               </div>
             </div>
-            <div className={`h-1.5 w-1.5 rounded-full ${offlineSyncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
+            <div className={`h-1.5 w-1.5 rounded-full ${!isSwControlling || offlineSyncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
           </button>
         </div>
       </div>

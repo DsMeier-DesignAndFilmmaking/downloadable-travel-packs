@@ -6,12 +6,14 @@
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v8'; 
+const CACHE_VERSION = 'v8';
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
 
-const SHELL_ASSETS = ['/', '/index.html', '/pwa-192x192.png', '/vite.svg'];
+/** Path used as start_url in generateCityGuideManifest (origin + '/'). Must be cached for PWA launch. */
+const START_URL_PATH = '/';
+const SHELL_ASSETS = [START_URL_PATH, '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
 // --- UTILS & FALLBACKS ---
 
@@ -26,12 +28,21 @@ function createErrorResponse(message: string, status = 503): Response {
 /** Robust Navigation Fallback: Essential for Standalone Offline Launch */
 async function getNavigationFallback(): Promise<Response> {
   const cache = await caches.open(SHELL_CACHE_NAME);
-  const match = (await cache.match('/index.html')) || (await cache.match('/'));
+  const match = (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
   return match || createErrorResponse('Offline: App shell not found. Please open once while online.', 503);
 }
 
-// --- ASSET DISCOVERY ---
+/** Safety Bootstrapper: minimal HTML that forces reload when shell is missing (e.g. SW sync issues). */
+const SAFETY_BOOTSTRAPPER_HTML =
+  '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading…</title></head><body><script>window.location.reload();</script><p>Reloading…</p></body></html>';
 
+// --- ASSET DISCOVERY (Vite-hashed JS/CSS) ---
+
+/**
+ * Parses index.html for Vite-hashed entry assets and returns absolute URLs.
+ * Captures: <script src="...">, <link rel="stylesheet" href="...">, <link rel="modulepreload" href="...">.
+ * All discovered URLs are intended for SHELL_CACHE_NAME so the app shell works offline.
+ */
 async function getEntryAssetUrls(): Promise<string[]> {
   const base = ctx.location.origin;
   try {
@@ -39,48 +50,54 @@ async function getEntryAssetUrls(): Promise<string[]> {
     if (!res.ok) return [];
     const html = await res.text();
     const urls: string[] = [];
-    
+
+    // Vite entry and chunks: <script type="module" src="/assets/Index-xxx.js">
     const scriptRe = /<script[^>]+src\s*=\s*["']([^"']+)["']/gi;
-    const linkRelHref = /<link[^>]*rel\s*=\s*["']?[^"']*stylesheet[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
-    
+    // Vite CSS: <link rel="stylesheet" href="/assets/Index-xxx.css">
+    const styleRe = /<link[^>]*rel\s*=\s*["']?[^"']*stylesheet[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
+    // Vite modulepreload (chunks): <link rel="modulepreload" href="/assets/...">
+    const modulePreloadRe = /<link[^>]*rel\s*=\s*["']?[^"']*modulepreload[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
+
     let m: RegExpExecArray | null;
     while ((m = scriptRe.exec(html)) !== null) urls.push(m[1]);
-    while ((m = linkRelHref.exec(html)) !== null) urls.push(m[1]);
-    
-    return urls
-      .map(href => (href.startsWith('http') ? href : new URL(href, base).href))
-      .filter(href => href.startsWith(base));
+    while ((m = styleRe.exec(html)) !== null) urls.push(m[1]);
+    while ((m = modulePreloadRe.exec(html)) !== null) urls.push(m[1]);
+
+    const absolute = urls
+      .map((href) => (href.startsWith('http') ? href : new URL(href, base).href))
+      .filter((href) => href.startsWith(base));
+    return [...new Set(absolute)];
   } catch {
     return [];
   }
 }
 
-// --- LIFECYCLE ---
+// --- LIFECYCLE: Aggressive Control (Home Screen controlled from first millisecond) ---
 
 ctx.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
-      // Cache core assets
-      await Promise.allSettled(SHELL_ASSETS.map(url => cache.add(url)));
-      // Discover and cache Vite bundles
       const entryUrls = await getEntryAssetUrls();
-      await Promise.allSettled(entryUrls.map(url => cache.add(url)));
+
+      if (entryUrls.length === 0) {
+        throw new Error('SW install: no Vite entry assets discovered from index.html');
+      }
+
+      // Fail install if any critical shell asset cannot be cached (Promise.all rejects on first failure)
+      await Promise.all([cache.addAll(SHELL_ASSETS), cache.addAll(entryUrls)]);
+
+      console.log('🚀 Shell fully atomic and cached');
+      ctx.skipWaiting();
     })()
   );
-  ctx.skipWaiting();
 });
 
 ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names
-          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
-          .map(name => caches.delete(name))
-      );
       await ctx.clients.claim();
+      console.log('⚡ SW actively controlling all clients');
     })()
   );
 });
@@ -91,23 +108,25 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // 1. HARDENED NAVIGATION FALLBACK
+  // 1. NAVIGATION PROXY: network-first, then cached shell for any path, then Safety Bootstrapper
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(SHELL_CACHE_NAME);
-        // FORCE the root shell regardless of the URL
-        const fallback = (await cache.match('/index.html')) || (await cache.match('/'));
-        
-        if (fallback) return fallback;
-
-        // EMERGENCY OVERRIDE: If shell is missing, return a minimal bootstrapper 
-        // that tries to force a reload (sometimes fixes SW sync issues)
-        return new Response(
-          '<script>window.location.reload();</script>',
-          { headers: { 'Content-Type': 'text/html' } }
-        );
-      })
+      (async () => {
+        try {
+          const netRes = await fetch(request);
+          return netRes;
+        } catch {
+          // Offline: serve cached shell regardless of URL path (e.g. /guide/tokyo → index.html)
+          const cache = await caches.open(SHELL_CACHE_NAME);
+          const shell =
+            (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
+          if (shell) return shell;
+          // Safety Bootstrapper: shell missing — force reload to recover
+          return new Response(SAFETY_BOOTSTRAPPER_HTML, {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          });
+        }
+      })()
     );
     return;
   }

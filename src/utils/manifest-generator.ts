@@ -24,20 +24,20 @@ export interface WebAppManifest {
 
 export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
-  
-  // FIXED: Scope must be the root so the SW can control the boot process
-  const absoluteScope = `${origin}/`; 
-  
-  // FIXED: Start URL should be the root to ensure the SW always finds the cached index.html
-  const absoluteStartUrl = `${origin}/?utm_source=pwa&city=${cityId}`;
+
+  // Scope must be '/' so Safari (and all clients) stay under SW control for every route (e.g. /guide/tokyo).
+  const scope = `${origin}/`;
+
+  // start_url must match a URL explicitly cached in SW SHELL_ASSETS (sw.ts: '/' and '/index.html').
+  const start_url = `${origin}/`;
 
   return {
     id: `tp-v2-${cityId}`, // Keep this! This ensures the icon/title logic works
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    start_url: absoluteStartUrl,
-    scope: absoluteScope,
+    start_url,
+    scope,
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
