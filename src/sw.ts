@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 
 /**
- * SERVICE WORKER: TRAVEL PACK CORE - V6 (Ultra-Resilient)
- * Focus: Elimination of 'undefined' responses and First-Launch Airplane Mode support.
+ * SERVICE WORKER: TRAVEL PACK CORE - V8 (High-Resilience)
+ * Goal: Solid offline boot for Home Screen instances and robust asset caching.
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
@@ -11,13 +11,12 @@ const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
 
-/** Path used as start_url in generateCityGuideManifest (origin + '/'). Must be cached for PWA launch. */
+/** Path used as start_url in manifest. Must be cached for PWA launch. */
 const START_URL_PATH = '/';
 const SHELL_ASSETS = [START_URL_PATH, '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
 // --- UTILS & FALLBACKS ---
 
-/** Returns a standard fallback response to prevent white screens if all else fails */
 function createErrorResponse(message: string, status = 503): Response {
   return new Response(message, {
     status,
@@ -25,24 +24,12 @@ function createErrorResponse(message: string, status = 503): Response {
   });
 }
 
-/** Robust Navigation Fallback: Essential for Standalone Offline Launch */
-async function getNavigationFallback(): Promise<Response> {
-  const cache = await caches.open(SHELL_CACHE_NAME);
-  const match = (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
-  return match || createErrorResponse('Offline: App shell not found. Please open once while online.', 503);
-}
-
-/** Safety Bootstrapper: minimal HTML that forces reload when shell is missing (e.g. SW sync issues). */
+/** Safety Bootstrapper: forces reload when shell is missing. */
 const SAFETY_BOOTSTRAPPER_HTML =
   '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading…</title></head><body><script>window.location.reload();</script><p>Reloading…</p></body></html>';
 
 // --- ASSET DISCOVERY (Vite-hashed JS/CSS) ---
 
-/**
- * Parses index.html for Vite-hashed entry assets and returns absolute URLs.
- * Captures: <script src="...">, <link rel="stylesheet" href="...">, <link rel="modulepreload" href="...">.
- * All discovered URLs are intended for SHELL_CACHE_NAME so the app shell works offline.
- */
 async function getEntryAssetUrls(): Promise<string[]> {
   const base = ctx.location.origin;
   try {
@@ -51,11 +38,8 @@ async function getEntryAssetUrls(): Promise<string[]> {
     const html = await res.text();
     const urls: string[] = [];
 
-    // Vite entry and chunks: <script type="module" src="/assets/Index-xxx.js">
     const scriptRe = /<script[^>]+src\s*=\s*["']([^"']+)["']/gi;
-    // Vite CSS: <link rel="stylesheet" href="/assets/Index-xxx.css">
     const styleRe = /<link[^>]*rel\s*=\s*["']?[^"']*stylesheet[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
-    // Vite modulepreload (chunks): <link rel="modulepreload" href="/assets/...">
     const modulePreloadRe = /<link[^>]*rel\s*=\s*["']?[^"']*modulepreload[^"']*["']?[^>]*href\s*=\s*["']([^"']+)["']/gi;
 
     let m: RegExpExecArray | null;
@@ -72,32 +56,20 @@ async function getEntryAssetUrls(): Promise<string[]> {
   }
 }
 
-// --- LIFECYCLE: Aggressive Control (Home Screen controlled from first millisecond) ---
-
-// sw.ts
+// --- LIFECYCLE ---
 
 ctx.addEventListener('install', (event) => {
-  // skipWaiting() moves us to 'active' as soon as the files are cached
   ctx.skipWaiting(); 
-  
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
-      
-      // 1. Discover the Vite bundles FIRST
       const entryUrls = await getEntryAssetUrls();
-      
-      // 2. Combine with core assets
       const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
       
-      console.log('📦 SW: Attempting to cache total assets:', allCriticalAssets.length);
-
-      // 3. ATOMIC CACHE: This is the important part. 
-      // Using addAll ensures that if ONE script fails, the SW doesn't install.
-      // This prevents "Partial Installs" that cause the white screen.
+      console.log('📦 SW: Caching App Shell assets:', allCriticalAssets.length);
       try {
         await cache.addAll(allCriticalAssets);
-        console.log('✅ SW: Shell Assets fully cached and verified.');
+        console.log('✅ SW: Shell Assets fully cached.');
       } catch (err) {
         console.error('❌ SW: Critical Shell Cache Failed!', err);
       }
@@ -108,8 +80,14 @@ ctx.addEventListener('install', (event) => {
 ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
+          .map(name => caches.delete(name))
+      );
       await ctx.clients.claim();
-      console.log('⚡ SW actively controlling all clients');
+      console.log('⚡ SW: Claimed all clients.');
     })()
   );
 });
@@ -118,47 +96,42 @@ ctx.addEventListener('activate', (event) => {
 
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
+  const url = new URL(request.url); 
 
-  // Detect if the user is trying to load a PAGE (navigate) vs a file (image/script)
+  // 1. NAVIGATION FALLBACK (Critical for Offline Home Screen)
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
-        // FORCE serve the root index.html. React Router will then read the 
-        // URL and show the Mexico City content from IndexedDB.
-        const shell = await cache.match('/index.html') || await cache.match('/');
-        return shell || new Response('Offline: App Shell Missing', { status: 503 });
+        const shell = (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
+        if (shell) return shell;
+        return new Response(SAFETY_BOOTSTRAPPER_HTML, { headers: { 'Content-Type': 'text/html' } });
       })
     );
     return;
   }
 
-  // 2. ASSETS - Ensure we return a valid Response to avoid TS/Runtime errors
+  // 2. STATIC ASSETS
   if (request.destination === 'script' || request.destination === 'style' || url.pathname.includes('/assets/')) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(SHELL_CACHE_NAME);
         const cached = await cache.match(request);
-        
-        const fetchPromise = fetch(request).then((netRes) => {
+        if (cached) return cached;
+
+        try {
+          const netRes = await fetch(request);
           if (netRes.ok) cache.put(request, netRes.clone());
           return netRes;
-        });
-
-        // If offline and not in cache, we return an empty valid response 
-        // to prevent the app from crashing entirely
-        return cached || fetchPromise.catch(() => 
-          new Response('/* Asset Unavailable */', { 
-            status: 404, 
-            headers: { 'Content-Type': 'text/javascript' } 
-          })
-        );
+        } catch {
+          return new Response('/* Asset Offline */', { status: 404, headers: { 'Content-Type': 'text/javascript' } });
+        }
       })()
     );
     return;
   }
 
-  // 3. IMAGES - Cache-First
+  // 3. IMAGES
   if (request.destination === 'image') {
     event.respondWith(
       (async () => {
@@ -182,8 +155,7 @@ ctx.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       try {
-        const res = await fetch(request);
-        return res;
+        return await fetch(request);
       } catch {
         const cached = await caches.match(request);
         return cached || createErrorResponse('Offline', 503);
@@ -192,12 +164,12 @@ ctx.addEventListener('fetch', (event) => {
   );
 });
 
-// --- MESSAGING (Handshake Logic) ---
+// --- MESSAGING ---
+
 ctx.addEventListener('message', (event) => {
   const { type, assets, images, urls, citySlug, slug } = event.data;
   const port = event.ports?.[0];
 
-  // --- NEW: THE GATED RELEASE HANDLER ---
   if (type === 'PRECACHE_GATED_RELEASE') {
     event.waitUntil(
       (async () => {
@@ -205,19 +177,19 @@ ctx.addEventListener('message', (event) => {
           const shellCache = await caches.open(SHELL_CACHE_NAME);
           const imageCache = await caches.open(IMAGES_CACHE_NAME);
 
-          // 1. Critical Assets - Must succeed 100%
           if (Array.isArray(assets)) {
             await shellCache.addAll(assets);
           }
 
-          // 2. Images - Resilient caching
           if (Array.isArray(images)) {
             await Promise.allSettled(
-              images.map(url => imageCache.add(url).catch(() => null))
+              images.map((imgUrl: string) => {
+                if (!imgUrl) return Promise.resolve();
+                return imageCache.add(imgUrl).catch(() => null);
+              })
             );
           }
 
-          // 3. City Data (Optional logic if you want SW to handle JSON too)
           if (citySlug) {
             await cacheCityIntel(citySlug);
           }
@@ -230,10 +202,10 @@ ctx.addEventListener('message', (event) => {
         }
       })()
     );
-    return; // Prevent falling through to other logic
+    return;
   }
 
-  // --- EXISTING LOGIC (Keep for backward compatibility) ---
+  // Compatibility logic
   if (type === 'CACHE_CITY' || type === 'CACHE_GUIDE') {
     const targetSlug = citySlug || slug;
     if (targetSlug) {
@@ -241,20 +213,6 @@ ctx.addEventListener('message', (event) => {
         if (port) port.postMessage({ ok: true, type: 'DATA_CACHED' });
       }));
     }
-  }
-
-  if (type === 'PRECACHE_ASSETS' && Array.isArray(assets)) {
-    event.waitUntil(
-      (async () => {
-        try {
-          const cache = await caches.open(SHELL_CACHE_NAME);
-          await cache.addAll(assets);
-          if (port) port.postMessage({ ok: true });
-        } catch (error) {
-          if (port) port.postMessage({ ok: false, error: 'Shell cache failed' });
-        }
-      })()
-    );
   }
 
   if (type === 'PRECACHE_IMAGES' && Array.isArray(urls)) {
@@ -268,47 +226,27 @@ async function cacheCityIntel(slug: string) {
   const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
   
   await Promise.allSettled(urlsToCache.map(async (url) => {
-    const res = await fetch(url);
-    if (res.ok) await cache.put(url, res);
+    try {
+      const res = await fetch(url);
+      if (res.ok) await cache.put(url, res);
+    } catch (e) {
+      console.warn(`Failed to cache intel for ${url}`);
+    }
   }));
 
   const clients = await ctx.clients.matchAll();
   clients.forEach(c => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
 }
 
-/**
- * Helper: Precaches image URLs into IMAGES_CACHE_NAME. 
- * Uses Promise.allSettled to ensure one bad image doesn't break the whole sync.
- */
 async function precacheImageUrls(urls: unknown): Promise<void> {
   if (!Array.isArray(urls)) return;
-  
   const origin = ctx.location.origin;
-  const validUrls = urls
-    .filter((u): u is string => typeof u === 'string')
-    .map((u) => {
-      try {
-        // Ensure we have absolute URLs for the cache
-        return new URL(u, origin).href;
-      } catch {
-        return '';
-      }
+  const cache = await caches.open(IMAGES_CACHE_NAME);
+
+  await Promise.allSettled(
+    urls.filter(u => typeof u === 'string').map(u => {
+      const href = new URL(u, origin).href;
+      return cache.add(href);
     })
-    .filter((href) => href.startsWith(origin) && href.length > 0);
-
-  if (validUrls.length === 0) return;
-
-  try {
-    const cache = await caches.open(IMAGES_CACHE_NAME);
-    // We use map + cache.add instead of addAll here so that 
-    // if one image fails (404), the others still get cached.
-    await Promise.all(
-      validUrls.map((url) =>
-        cache.add(url).catch((e) => console.warn(`📡 SW: Image cache failed for ${url}`, e))
-      )
-    );
-    console.log(`📡 SW: Precached ${validUrls.length} images successfully.`);
-  } catch (e) {
-    console.error('📡 SW: PRECACHE_IMAGES critical failure', e);
-  }
+  );
 }
