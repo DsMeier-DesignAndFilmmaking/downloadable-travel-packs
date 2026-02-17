@@ -6,6 +6,7 @@ import {
   Download,
   Zap,
   ChevronLeft,
+  ArrowUpFromLine,
   Plane,
   Wifi,
   Info,
@@ -602,79 +603,74 @@ export default function CityGuideView() {
         </section>
       </main>
 
-      {/* FIXED DOWNLOAD BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-        <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-        <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto space-y-3">
-          {isOnline && (
-            <button
-              onClick={handleOfflineSync}
-              disabled={offlineSyncStatus === 'syncing' || !isSwControlling}
-              className={`w-full h-14 rounded-[2rem] shadow-lg flex items-center justify-center gap-2 px-6 font-bold text-sm uppercase tracking-widest transition-all active:scale-[0.98] ${
-                offlineSyncStatus === 'complete'
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : offlineSyncStatus === 'syncing'
-                  ? 'bg-slate-100 text-slate-500 cursor-wait'
-                  : offlineSyncStatus === 'error'
-                  ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                  : 'bg-emerald-600 text-white border border-emerald-700'
-              }`}
-            >
-              {offlineSyncStatus === 'idle' && 'Prepare for Offline Use'}
-              {offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-              {offlineSyncStatus === 'complete' && '✅ Ready for Airplane Mode'}
-              {offlineSyncStatus === 'error' && 'Retry'}
-            </button>
+      {/* FIXED DYNAMIC ACTION BAR */}
+<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
+       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
+  
+  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+    <button
+      onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
+      disabled={isInstalled || !isSwControlling || offlineSyncStatus === 'syncing'}
+      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
+        !isSwControlling || offlineSyncStatus === 'syncing'
+          ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
+          : isInstalled
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+            : offlineSyncStatus === 'complete'
+              ? 'bg-[#FFDD00] text-black border-[#E6C600]' // High contrast for "Action Required"
+              : 'bg-[#222222] text-white border-black'
+      }`}
+    >
+      <div className="flex items-center gap-4">
+        {/* ICON CONTAINER */}
+        <div className={`p-2 rounded-xl transition-colors ${
+          isInstalled 
+            ? 'bg-emerald-200 text-emerald-800' 
+            : offlineSyncStatus === 'complete' 
+              ? 'bg-black text-[#FFDD00]' 
+              : 'bg-white/10 text-white'
+        }`}>
+          {!isSwControlling || offlineSyncStatus === 'syncing' ? (
+            <Activity size={20} className="animate-spin" />
+          ) : isInstalled ? (
+            <Check size={20} strokeWidth={3} />
+          ) : offlineSyncStatus === 'complete' ? (
+            <ArrowUpFromLine size={20} strokeWidth={3} /> // Suggests "Add to Home"
+          ) : (
+            <Download size={20} strokeWidth={3} />
           )}
-          <button
-            onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
-            disabled={isInstalled || offlineSyncStatus === 'syncing' || !isSwControlling}
-            className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all ${
-              !isSwControlling
-                ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
-                : offlineSyncStatus === 'syncing'
-                  ? 'bg-slate-100 text-slate-500 cursor-wait'
-                  : isInstalled
-                    ? 'bg-slate-100 text-slate-400'
-                    : 'bg-[#222222] text-white'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-xl ${
-                !isSwControlling || offlineSyncStatus === 'syncing'
-                  ? 'bg-slate-200 text-slate-400'
-                  : isInstalled
-                    ? 'bg-slate-200 text-slate-400'
-                    : offlineSyncStatus === 'complete'
-                      ? 'bg-[#FFDD00] text-black'
-                      : 'bg-slate-400 text-slate-200'
-              }`}>
-                {(!isSwControlling || offlineSyncStatus === 'syncing') && <Activity size={20} className="animate-spin" />}
-                {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && <Download size={20} strokeWidth={3} />}
-                {isInstalled && <Check size={20} strokeWidth={3} />}
-                {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && <Info size={20} className="opacity-80" />}
-              </div>
-              <div className="flex flex-col items-start text-left">
-                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-                  {!isSwControlling && 'System Initializing...'}
-                  {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-                  {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Download Pack'}
-                  {isInstalled && 'Pack Installed'}
-                  {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare for Offline'}
-                </span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">
-                  {!isSwControlling && 'Waiting for service worker'}
-                  {isSwControlling && offlineSyncStatus === 'syncing' && 'Caching app shell…'}
-                  {isInstalled && 'Available Offline'}
-                  {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && (isOfflineAvailable || offlineAvailable ? 'Cached · Add to Home Screen' : `Store ${cityData.name} Offline // 2.4MB`)}
-                  {isSwControlling && offlineSyncStatus !== 'complete' && offlineSyncStatus !== 'syncing' && !isInstalled && 'Prepare offline first'}
-                </span>
-              </div>
-            </div>
-            <div className={`h-1.5 w-1.5 rounded-full ${!isSwControlling || offlineSyncStatus === 'syncing' ? 'bg-amber-400 animate-pulse' : isInstalled ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
-          </button>
+        </div>
+
+        {/* TEXT LABELS */}
+        <div className="flex flex-col items-start text-left">
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+            {!isSwControlling && 'System Initializing...'}
+            {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
+            {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Add to Home Screen'}
+            {isInstalled && 'Pack Fully Installed'}
+            {isSwControlling && offlineSyncStatus === 'idle' && 'Download Offline Pack'}
+            {isSwControlling && offlineSyncStatus === 'error' && 'Retry Download'}
+          </span>
+          <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
+            {!isSwControlling && 'Establishing secure connection...'}
+            {offlineSyncStatus === 'syncing' && 'Writing app shell to local disk...'}
+            {isInstalled && 'Available via Home Screen'}
+            {offlineSyncStatus === 'complete' && !isInstalled && 'Sync complete · Finalize setup'}
+            {offlineSyncStatus === 'idle' && `Prepare ${cityData?.name || 'Guide'} // 2.4MB`}
+          </span>
         </div>
       </div>
+
+      {/* STATUS DOT */}
+      <div className={`h-1.5 w-1.5 rounded-full ${
+        offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
+        isInstalled ? 'bg-emerald-500' : 
+        offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
+      }`} />
+    </button>
+  </div>
+</div>
 
       {/* Safety: only show install instructions when sync has completed (prevents overlay if sync failed in background) */}
       <AnimatePresence>
