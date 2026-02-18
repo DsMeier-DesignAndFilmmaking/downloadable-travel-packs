@@ -477,20 +477,26 @@ useEffect(() => {
     </div>
   );
 
-    // Detect if the app is launched from the Home Screen (Standalone Mode)  
-  // Detects if we are in the Home Screen App
-  const isStandalone = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return (
-      (window.navigator as any).standalone || 
-      window.matchMedia('(display-mode: standalone)').matches
-    );
-  }, []);
+// 1. Detect Standalone
+const isStandalone = useMemo(() => {
+  if (typeof window === 'undefined') return false;
+  return (window.navigator as any).standalone || window.matchMedia('(display-mode: standalone)').matches;
+}, []);
 
-  // Checks if this specific city is synced
-  const isThisCitySynced = useMemo(() => {
-    return lastSynced === cleanSlug || localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-  }, [lastSynced, cleanSlug]);
+// 2. Detect Sync Status (Simplified to avoid object-return errors)
+const [isThisCitySynced, setIsThisCitySynced] = useState(false);
+
+useEffect(() => {
+  const checkSync = () => {
+    // Check if this specific city has a sync record
+    const status = localStorage.getItem(`sync_${cleanSlug}`) === 'true' || !!lastSynced;
+    setIsThisCitySynced(status);
+  };
+  
+  checkSync();
+  window.addEventListener('storage', checkSync);
+  return () => window.removeEventListener('storage', checkSync);
+}, [cleanSlug, lastSynced]);
 
   return (
     <motion.div 
@@ -632,15 +638,20 @@ useEffect(() => {
         </section>
       </main>
 
-      {/* REFINED CONDITIONAL UX LOGIC */}
+      {/* REFINED CONDITIONAL UX LOGIC 
+          This block executes at the end of the main render to ensure all hooks have run.
+      */}
       {isStandalone ? (
         /* UI STATE: USER IS INSIDE THE HOME SCREEN APP */
-        <div className="fixed bottom-8 left-0 right-0 flex justify-center pointer-events-none z-[100]">
-          <div className="bg-emerald-500/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl border border-white/20 animate-in slide-in-from-bottom-4 duration-700">
-            <Check size={14} strokeWidth={4} />
-            <span className="text-[10px] font-black uppercase tracking-[0.15em]">Ready for Offline Use</span>
+        /* Note: We only show the badge if the specific city is synced */
+        isThisCitySynced && (
+          <div className="fixed bottom-8 left-0 right-0 flex justify-center pointer-events-none z-[100]">
+            <div className="bg-emerald-500/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl border border-white/20 animate-in slide-in-from-bottom-4 duration-700 pointer-events-auto">
+              <Check size={14} strokeWidth={4} />
+              <span className="text-[10px] font-black uppercase tracking-[0.15em]">Ready for Offline Use</span>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         /* UI STATE: USER IS IN SAFARI BROWSER */
         <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
@@ -659,9 +670,10 @@ useEffect(() => {
                   : offlineSyncStatus === 'complete'
                     ? 'bg-[#FFDD00] text-black border-[#E6C600] animate-in fade-in zoom-in duration-300' 
                     : 'bg-[#222222] text-white border-black'
-              } ${isThisCitySynced && offlineSyncStatus !== 'complete' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+              } ${isThisCitySynced && offlineSyncStatus === 'idle' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
             >
               <div className="flex items-center gap-4">
+                {/* ICON CONTAINER */}
                 <div className={`p-2 rounded-xl transition-colors ${
                   offlineSyncStatus === 'complete' 
                     ? 'bg-black text-[#FFDD00]' 
@@ -676,44 +688,66 @@ useEffect(() => {
                   )}
                 </div>
 
+                {/* DYNAMIC TEXT LABELS */}
                 <div className="flex flex-col items-start text-left">
                   <span className="text-[11px] font-black uppercase tracking-[0.2em]">
                     {!isSwControlling && 'System Initializing...'}
                     {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
                     {isSwControlling && offlineSyncStatus === 'complete' && `Finalize ${cityData?.name || 'Pack'}`}
-                    {isSwControlling && offlineSyncStatus === 'idle' && `Download ${cityData?.name || 'Pack'}`}
+                    {isSwControlling && offlineSyncStatus === 'idle' && (isThisCitySynced ? 'Pack Cached' : `Download ${cityData?.name || 'Pack'}`)}
                     {isSwControlling && offlineSyncStatus === 'error' && 'Retry Sync'}
                   </span>
                   <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-                    {!isSwControlling && 'Waiting for service worker...'}
-                    {offlineSyncStatus === 'syncing' && 'Caching city data & images...'}
+                    {!isSwControlling && 'Establishing worker connection...'}
+                    {offlineSyncStatus === 'syncing' && 'Caching city data & assets...'}
                     {offlineSyncStatus === 'complete' && 'Sync Complete — Add to Home Screen'}
-                    {offlineSyncStatus === 'idle' && 'Initialize 100% Offline Access'}
+                    {offlineSyncStatus === 'idle' && (isThisCitySynced ? 'Verification successful' : 'Initialize 100% Offline Access')}
                   </span>
                 </div>
               </div>
 
+              {/* STATUS DOT INDICATOR */}
               <div className={`h-1.5 w-1.5 rounded-full ${
                 offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
-                offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
+                offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 
+                isThisCitySynced ? 'bg-emerald-500' : 'bg-slate-400'
               }`} />
             </button>
           </div>
         </div>
       )}
 
-      {/* MOBILE OVERLAY FOR INSTALL INSTRUCTIONS */}
+      {/* MOBILE OVERLAY FOR INSTALL INSTRUCTIONS 
+          Only shows when in browser and sync is confirmed 
+      */}
       <AnimatePresence>
-        {showMobileOverlay && offlineSyncStatus === 'complete' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24" onClick={dismissMobileOverlay}>
-            <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-              <p className="text-[#222222] font-bold text-center mb-4">Finalize Home Screen Setup</p>
-              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside leading-relaxed">
-                <li>Tap the <strong>Share</strong> icon (box with arrow)</li>
+        {showMobileOverlay && offlineSyncStatus === 'complete' && !isStandalone && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24" 
+            onClick={dismissMobileOverlay}
+          >
+            <motion.div 
+              initial={{ y: 80, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }} 
+              exit={{ y: 40, opacity: 0 }} 
+              onClick={(e) => e.stopPropagation()} 
+              className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200"
+            >
+              <p className="text-[#222222] font-bold text-center mb-4 text-lg">Finalize Offline Setup</p>
+              <ol className="text-slate-600 text-sm space-y-4 mb-8 list-decimal list-inside leading-relaxed px-2">
+                <li>Tap the <strong>Share</strong> icon (square with arrow)</li>
                 <li>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></li>
-                <li>Launch from your Home Screen to test offline.</li>
+                <li>Open the app from your home screen while offline.</li>
               </ol>
-              <button onClick={dismissMobileOverlay} className="w-full py-3 rounded-full bg-[#222222] text-white font-bold transition-transform active:scale-95">Got it</button>
+              <button 
+                onClick={dismissMobileOverlay} 
+                className="w-full py-4 rounded-2xl bg-[#222222] text-white font-black uppercase tracking-widest text-xs transition-transform active:scale-95"
+              >
+                Got it
+              </button>
             </motion.div>
           </motion.div>
         )}
