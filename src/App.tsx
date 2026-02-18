@@ -152,39 +152,14 @@ function PWAStandaloneRedirect() {
 
   useEffect(() => {
     if (!routerReady || typeof window === 'undefined') return;
-  
+
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
       || (window.navigator as { standalone?: boolean }).standalone === true;
-  
-    // Only intercept if we are at the root and in standalone mode
-    if (!isStandalone || location.pathname !== '/') return;
-  
-    try {
-      const lastPack = localStorage.getItem('pwa_last_pack');
-      
-      /** * NEW: VERIFICATION CHECK
-       * Only redirect if we have a record that the Shell (JS/CSS) 
-       * was successfully cached. This prevents the "White Screen" offline.
-       */
-      const isShellCached = localStorage.getItem('shell_v1_cached') === 'true';
 
-      if (lastPack && lastPack.startsWith('/guide/') && isShellCached) {
-        console.log(`🚀 Standalone Boot: Assets verified. Redirecting to ${lastPack}`);
-        
-        const doRedirect = () => navigate(lastPack, { replace: true });
-        
-        requestAnimationFrame(doRedirect);
-      } else if (lastPack && !isShellCached) {
-        /**
-         * CLEANUP: If we have a last_pack path but the shell isn't cached,
-         * it means the user never finished the "Sync" process. 
-         * Clear the path to avoid trying to boot into a broken state.
-         */
-        console.warn('⚠️ Standalone Boot: Assets not verified. Staying on Home.');
-        localStorage.removeItem('pwa_last_pack');
-      }
-    } catch (err) {
-      console.error('Failed to perform standalone redirect', err);
+    if (isStandalone && location.pathname === '/') {
+      const lastPath = localStorage.getItem('pwa_last_pack');
+      const isVerified = localStorage.getItem('shell_v1_cached') === 'true';
+      if (lastPath && isVerified) navigate(lastPath, { replace: true });
     }
   }, [routerReady, location.pathname, navigate]);
 

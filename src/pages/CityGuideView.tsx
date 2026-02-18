@@ -181,9 +181,7 @@ export default function CityGuideView() {
   );
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
-    typeof localStorage !== 'undefined' && localStorage.getItem('shell_v1_cached') === 'true' ? 'complete' : 'idle'
-  );
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
   const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
   );
@@ -196,6 +194,13 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
+  /** Derive offlineSyncStatus from localStorage when slug changes. */
+  useEffect(() => {
+    if (!cleanSlug) return;
+    const isCached = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    setOfflineSyncStatus(isCached ? 'complete' : 'idle');
+  }, [cleanSlug]);
+
   const isOnline = !isOffline;
   const isOfflineAvailable = useMemo(
     () => Boolean(cityData && (isOffline || isLocalData)),
@@ -204,15 +209,16 @@ export default function CityGuideView() {
 
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
-   * Listens for the 'CACHE_COMPLETE' event from sw.ts (START_CITY_SYNC) to update UI feedback.
+   * Listens for the 'SYNC_COMPLETE' event from sw.ts (ATOMIC_CITY_SYNC) to update UI feedback.
    */
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !cleanSlug) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
+      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
         localStorage.setItem('shell_v1_cached', 'true');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
+        localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
         const now = new Date().toISOString();
         setLastSynced(now);
         setOfflineAvailable(true);
@@ -247,7 +253,7 @@ export default function CityGuideView() {
     }
 
     setOfflineSyncStatus('syncing');
-    sw.postMessage({ type: 'START_CITY_SYNC', slug: cleanSlug });
+    sw.postMessage({ type: 'ATOMIC_CITY_SYNC', slug: cleanSlug });
   }
 
   /**
