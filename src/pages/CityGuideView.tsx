@@ -8,13 +8,11 @@ import {
   ChevronLeft,
   ArrowUpFromLine,
   Plane,
-  Wifi,
   Info,
   Activity,
   Check,
   Droplets,
   Globe,
-  Navigation,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
@@ -30,10 +28,7 @@ import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import { generateCityGuideManifest, injectManifest, updateThemeColor } from '@/utils/manifest-generator';
 
-// ---------------------------------------------------------------------------
-// IndexedDB: persist city pack after load
-// ---------------------------------------------------------------------------
-
+// --- IndexedDB Utils ---
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('travel-packs-db', 1);
@@ -52,23 +47,29 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
   const db = await openDB();
   const tx = db.transaction('city-packs', 'readwrite');
   const store = tx.objectStore('city-packs');
-  store.put({
-    slug,
-    pack: cityData,
-    data: cityData,
-    lastUpdated: Date.now(),
-  });
+  store.put({ slug, pack: cityData, data: cityData, lastUpdated: Date.now() });
   await new Promise<void>((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });
-  console.log('💾 Saved to IndexedDB:', slug);
 }
 
-// ---------------------------------------------------------------------------
-// Components & Helpers
-// ---------------------------------------------------------------------------
+// --- Helpers ---
+function getEmergencyGridItems(emergency: Record<string, string | undefined>) {
+  const order = ['police', 'medical', 'ambulance', 'tourist_police', 'emergency_all', 'general_eu', 'non_emergency'] as const;
+  const labels: Record<string, string> = { police: 'Police', medical: 'Medical', ambulance: 'Ambulance', tourist_police: 'Tourist Police', emergency_all: 'Emergency', general_eu: 'EU 112', non_emergency: 'Non-Emergency' };
+  const out: { key: string; label: string; number: string }[] = [];
+  for (const key of order) {
+    const val = emergency[key];
+    if (val && /[\d]/.test(val)) {
+      out.push({ key, label: labels[key] ?? key, number: val });
+      if (out.length >= 4) break;
+    }
+  }
+  return out;
+}
 
+// --- Components ---
 function HighAlertSkeleton() {
   return <div className="w-full h-[140px] rounded-2xl bg-slate-200/50 animate-pulse border border-slate-200/60" />;
 }
@@ -93,22 +94,12 @@ function HighAlertBanner({ digitalEntry, touristTax, visaStatus, isLive }: { dig
             </div>
           </div>
         )}
-        {hasEntry && (
-          <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" aria-hidden />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Entry / visa</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">{digitalEntry}</p>
-            </div>
-          </div>
-        )}
-        {hasTax && (
-          <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" aria-hidden />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Tourist tax / budget</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">{touristTax}</p>
-            </div>
+        {(hasEntry || hasTax) && (
+          <div className="flex gap-3 border-t border-amber-200/50 pt-3 mt-1">
+             <div className="space-y-3">
+                {hasEntry && <p className="text-[#222222] text-sm font-medium leading-relaxed">{digitalEntry}</p>}
+                {hasTax && <p className="text-[#222222] text-sm font-medium leading-relaxed">{touristTax}</p>}
+             </div>
           </div>
         )}
       </div>
@@ -116,70 +107,26 @@ function HighAlertBanner({ digitalEntry, touristTax, visaStatus, isLive }: { dig
   );
 }
 
-function getEmergencyGridItems(emergency: Record<string, string | undefined>) {
-  const order = ['police', 'medical', 'ambulance', 'tourist_police', 'emergency_all', 'general_eu', 'non_emergency'] as const;
-  const labels: Record<string, string> = { police: 'Police', medical: 'Medical', ambulance: 'Ambulance', tourist_police: 'Tourist Police', emergency_all: 'Emergency', general_eu: 'EU 112', non_emergency: 'Non-Emergency' };
-  const out: { key: string; label: string; number: string }[] = [];
-  for (const key of order) {
-    const val = emergency[key];
-    if (val && /[\d]/.test(val)) {
-      out.push({ key, label: labels[key] ?? key, number: val });
-      if (out.length >= 4) break;
-    }
-  }
-  return out;
-}
-
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
-  exit: { opacity: 0, filter: "blur(10px)", position: "fixed", top: 0, left: 0, right: 0, transition: { duration: 0.3, ease: "easeInOut" } }
+  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  exit: { opacity: 0, transition: { duration: 0.2 } }
 };
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-};
-
-function AgenticSystemTrigger({ onClick }: { onClick: () => void; }) {
-  return (
-    <motion.button variants={itemVariants} onClick={onClick} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-all active:scale-95 focus:outline-none">
-      <Zap size={14} />
-      <span>Live Intelligence</span>
-      <Activity size={14} className="opacity-60" />
-    </motion.button>
-  );
-}
 
 const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   TH: { code: 'THB', rate: '31.13' }, JP: { code: 'JPY', rate: '150.40' }, AE: { code: 'AED', rate: '3.67' }, GB: { code: 'GBP', rate: '0.87' }, FR: { code: 'EUR', rate: '0.94' }, IT: { code: 'EUR', rate: '0.94' }, ES: { code: 'EUR', rate: '0.94' }, DE: { code: 'EUR', rate: '0.94' }, MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
-
-const DEFAULT_PASSPORT = 'US';
-
-// ---------------------------------------------------------------------------
-// Main Component
-// ---------------------------------------------------------------------------
 
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
 
-  const {
-    cityData,
-    isLoading: packLoading,
-    isOffline,
-    isLocalData,
-    syncStatus,
-    error,
-    refetch,
-  } = useCityPack(cleanSlug ?? undefined);
+  const { cityData, isLoading: packLoading, isOffline, isLocalData, syncStatus, error, refetch } = useCityPack(cleanSlug ?? undefined);
+  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(cleanSlug ?? '');
 
-  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(
-    cleanSlug ?? ''
-  );
-
+  // --- Logic State ---
+  const isOnline = !isOffline;
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
   const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
@@ -190,145 +137,80 @@ export default function CityGuideView() {
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
-  );
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
 
-  useEffect(() => {
-    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
-  }, [cleanSlug]);
-
-  const isOnline = !isOffline;
-  const isOfflineAvailable = useMemo(
-    () => Boolean(cityData && (isOffline || isLocalData)),
-    [cityData, isOffline, isLocalData]
-  );
-
-  /**
-   * 1. SERVICE WORKER MESSAGE LISTENER
-   * Only move to 'complete' when SYNC_COMPLETE and slug matches.
-   */
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
-        setOfflineSyncStatus('complete');
-        localStorage.setItem(`sync_${cleanSlug}`, 'true');
-        localStorage.setItem('shell_v1_cached', 'true');
-        localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
-        const now = new Date().toISOString();
-        setLastSynced(now);
-        setOfflineAvailable(true);
-        console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
-      }
-    };
-
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData]);
-
-  /** Sync gate: track when the page is controlled by a SW (enables safe "Add to Home Screen"). */
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-  }, []);
-  
+  // --- Handlers ---
+  const handleSync = async () => {
+    try {
+      await refetch();
+      const now = new Date().toISOString();
+      setLastSynced(now);
+      localStorage.setItem(`sync_${cleanSlug}_time`, now);
+    } catch (err) {
+      console.error("Sync failed", err);
+    }
+  };
 
   async function handleOfflineSync(): Promise<void> {
-    let sw = navigator.serviceWorker.controller;
-    if (!sw && 'serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      sw = registration.active;
-    }
-
-    if (!sw || !cleanSlug || !cityData) {
+    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) {
       setOfflineSyncStatus('error');
       return;
     }
-
+    const registration = await navigator.serviceWorker.ready;
+    const sw = registration.active;
+    if (!sw) {
+      setOfflineSyncStatus('error');
+      return;
+    }
     setOfflineSyncStatus('syncing');
     sw.postMessage({ type: 'START_CITY_SYNC', slug: cleanSlug });
   }
 
-
-  /**
-   * 2. IDENTITY ROTATION & AUTO-SYNC
-   * Only call injectManifest when offlineSyncStatus is 'complete' so the Share panel
-   * sees the city identity only after the SW has confirmed offline files are ready.
-   */
-  useEffect(() => {
-    if (!cleanSlug || !cityData) return;
-
-    const manifestId = `tp-v2-${cleanSlug}`;
-    const existingLink = document.querySelector('link[rel="manifest"]');
-    const currentManifestId = existingLink?.getAttribute('data-identity');
-
-    if (!currentManifestId || currentManifestId !== manifestId) {
-      const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
-      if (!hasRotated && offlineSyncStatus === 'complete') {
-        console.log(`🔄 Identity Mismatch: Rotating to ${cityData.name}`);
-        const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
-        injectManifest(manifest);
-        sessionStorage.setItem('pwa_rotator_lock', manifestId);
-        updateThemeColor('#0f172a');
-        window.location.replace(window.location.href);
-        return;
-      }
-    }
-
-    // --- 2. PROACTIVE ASSET CACHING & CITY SYNC ---
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // A. Signal the Service Worker to cache the city-specific data
-      navigator.serviceWorker.controller.postMessage({ 
-        type: 'CACHE_CITY', 
-        citySlug: cleanSlug 
-      });
-
-      /**
-       * B. PROACTIVE SHELL CACHING
-       * This extracts the actual hashed .js and .css files from the current DOM.
-       * Sending these to the SW ensures the Home Screen app has the code 
-       * it needs to boot, even if it's never been opened online before.
-       */
-      const scriptAssets = Array.from(document.querySelectorAll('script[src]'))
-        .map(s => (s as HTMLScriptElement).src);
-      const styleAssets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-        .map(l => (l as HTMLLinkElement).href);
-
-      navigator.serviceWorker.controller.postMessage({
-        type: 'PRECACHE_ASSETS',
-        assets: [...scriptAssets, ...styleAssets]
-      });
-      
-      console.log('📡 Proactive Shell Sync: Handshake sent to SW');
-    }
-
-    // Secondary UI Updates
-    const cityName = cityData.name;
-    document.title = `${cityName} Pack`;
-    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (appleTitle) appleTitle.setAttribute('content', cityName);
-    
-    updateThemeColor('#0f172a');
-    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-
-    return () => {
-      sessionStorage.removeItem('pwa_rotator_lock');
-    };
-  }, [cleanSlug, cityData, offlineSyncStatus]);
-
-  /**
-   * 3. PERSISTENCE & OFFLINE SIGNALING
-   */
+  // --- Effects ---
   useEffect(() => {
     if (!cleanSlug) return;
     isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
+    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
+    setLastSynced(localStorage.getItem(`sync_${cleanSlug}_time`));
   }, [cleanSlug]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
+        setOfflineSyncStatus('complete');
+        localStorage.setItem(`sync_${cleanSlug}`, 'true');
+        localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+        setOfflineAvailable(true);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [cleanSlug, cityData]);
+
+  useEffect(() => {
+    if (!cleanSlug || !cityData) return;
+    const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    if (offlineSyncStatus === 'complete') {
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+      updateThemeColor('#0f172a');
+    }
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+  }, [cleanSlug, cityData, offlineSyncStatus]);
+
+  useEffect(() => {
+    if (!cityData?.countryCode || isOffline) {
+        setIsApiLoading(false);
+        return;
+    }
+    setIsApiLoading(true);
+    fetchVisaCheck('US', cityData.countryCode)
+      .then(setVisaData)
+      .finally(() => setIsApiLoading(false));
+  }, [cityData?.countryCode, isOffline]);
 
   useEffect(() => {
     if (!cleanSlug || !cityData || isOffline) return;
@@ -337,87 +219,53 @@ export default function CityGuideView() {
       .catch((err) => console.warn('💾 IDB Write Failed:', err));
   }, [cleanSlug, cityData, isOffline]);
 
-  /**
-   * 4. VISA & EXCHANGE PROTOCOLS
-   */
-  useEffect(() => {
-    if (!cityData?.countryCode) return;
-    if (isOffline) {
-      setIsApiLoading(false);
-      return;
-    }
-    setIsApiLoading(true);
-    fetchVisaCheck(DEFAULT_PASSPORT, cityData.countryCode)
-      .then((data) => { if (data) setVisaData(data); })
-      .catch(err => console.error("Visa Protocol Failed:", err))
-      .finally(() => setIsApiLoading(false));
-  }, [cityData?.countryCode, isOffline]);
-
-  const handleSync = async () => {
-    try {
-      await refetch();
-      const now = new Date().toISOString();
-      setLastSynced(now);
-      localStorage.setItem(`sync_${cleanSlug}`, now);
-    } catch (err) {
-      console.error("Sync failed", err);
-    }
-  };
-
-  if (packLoading || !cityData) return (
-    <div className="min-h-screen bg-[#F7F7F7] flex flex-col justify-center items-center">
-       <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
-       <p className="mt-4 text-slate-400 font-black tracking-widest uppercase text-xs animate-pulse">[ Accessing Field Intel... ]</p>
-    </div>
-  );
-
+  // --- Render Logic ---
   if (error) return (
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center p-8">
       <AlertTriangle className="text-rose-500 w-12 h-12 mb-4" />
       <p className="text-[#222222] font-bold mb-6 text-center">{error.message}</p>
-      <button onClick={() => navigate(-1)} className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold shadow-lg active:scale-95 transition-transform">Back to Catalog</button>
+      <button onClick={() => navigate(-1)} className="bg-[#222222] text-white px-8 py-3 rounded-full font-bold">Back</button>
+    </div>
+  );
+
+  if (packLoading || !cityData) return (
+    <div className="min-h-screen bg-[#F7F7F7] flex flex-col justify-center items-center">
+       <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden">
+    <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-48 w-full overflow-x-hidden">
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
+      
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
       <div 
         onClick={() => setIsDiagnosticsOpen(true)}
-        className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
-          !isOnline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
+        className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 transition-colors cursor-pointer ${
+          !isOnline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white'
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className={`w-1.5 h-1.5 rounded-full ${!isOnline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
-          {!isOnline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
-          {(offlineAvailable || isOfflineAvailable) && <span className="opacity-80"> · Available offline</span>}
+          <div className={`w-1.5 h-1.5 rounded-full ${!isOnline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500'}`} />
+          {!isOnline ? 'Offline Mode Active' : 'Live System Healthy'}
+          {(offlineAvailable || isLocalData) && <span className="opacity-80"> · Offline Ready</span>}
         </div>
-        <div className="flex items-center gap-2 opacity-60"><Activity size={10} /><span>Under the hood</span></div>
+        <div className="flex items-center gap-2 opacity-60"><Activity size={10} /><span>Diagnostics</span></div>
       </div>
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
-        <div className="flex justify-between items-start mb-10">
-          <button onClick={() => navigate(-1)} className="back-button-nav p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
+        <div className="flex justify-between items-start">
+          <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-95">
             <ChevronLeft size={20} />
           </button>
-          <div className="text-right flex flex-col items-end">
-            <h1 className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic" onClick={() => { setDebugTapCount(p => p + 1); if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); } }}>
+          <div className="text-right">
+            <h1 className="text-4xl font-black italic uppercase leading-none" onClick={() => { setDebugTapCount(c => c + 1); if(debugTapCount > 4) setShowDebug(true); }}>
               {cityData.name}
             </h1>
-            <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">{cityData.theme}</p>
-            <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
-              <div className="flex flex-col items-end">
-                <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
-                </span>
-              </div>
-              <div className="h-8 w-[1px] bg-slate-200" />
-              <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
-              <AgenticSystemTrigger onClick={() => setIsDiagnosticsOpen(true)} />
+            <p className="text-sm text-slate-600 mt-2 font-medium">{cityData.theme}</p>
+            <div className="mt-4 flex items-center justify-end gap-3">
+               <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
             </div>
           </div>
         </div>
@@ -425,33 +273,27 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <section className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-    <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
-      Survival Dashboard
-    </h2>
-    {/* Use SourceInfo here to clear TS6133 */}
-    <SourceInfo 
-      source="Global Intelligence Protocol" 
-      lastUpdated={lastSynced || cityData.last_updated} 
-    />
-  </div>
-          <div className="min-h-[140px]">
-            <AnimatePresence mode="wait">
-              {isApiLoading ? <HighAlertSkeleton /> : (
-                <HighAlertBanner
-                  digitalEntry={cityData.survival?.digitalEntry}
-                  touristTax={cityData.survival?.touristTax}
-                  isLive={!!visaData}
-                  visaStatus={visaData?.visa_rules?.primary_rule 
-                    ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                    : "Standard Entry Protocol applies."}
-                />
-              )}
-            </AnimatePresence>
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Survival Dashboard</h2>
+            <SourceInfo source="Intelligence Protocol" lastUpdated={lastSynced || cityData.last_updated} />
           </div>
+          
+          <AnimatePresence mode="wait">
+            {isApiLoading ? <HighAlertSkeleton /> : (
+              <HighAlertBanner
+                digitalEntry={cityData.survival?.digitalEntry}
+                touristTax={cityData.survival?.touristTax}
+                isLive={!!visaData}
+                visaStatus={visaData?.visa_rules?.primary_rule 
+                  ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
+                  : "Standard Protocol applies."}
+              />
+            )}
+          </AnimatePresence>
+
           <div className="grid grid-cols-2 gap-4">
-            {getEmergencyGridItems(cityData.emergency).map(({ key, label, number }) => (
-              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg active:scale-95 transition-transform">
+             {getEmergencyGridItems(cityData.emergency).map(({ key, label, number }) => (
+              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
                 <Phone size={22} className="mb-2 text-[#FFDD00]" />
                 <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
                 <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
@@ -466,29 +308,9 @@ export default function CityGuideView() {
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
                 <Plane size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Arrival Hack</span>
               </div>
               <div className="p-8 text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</div>
-              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
-                <Wifi size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
-              </div>
-              <div className="p-8 text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
-            </div>
-          </section>
-        )}
-
-        {cityData.transit_logic && (
-          <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Transit & Transportation</h2>
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center gap-3 mb-6"><div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Fare Strategy</p></div>
-              <p className="text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.transit_logic.payment_method}</p>
-              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2"><Phone size={14} className="text-slate-400" /><span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span></div>
-                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">{cityData.transit_logic.primary_app}</span>
-              </div>
-              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p><p className="text-[13px] font-bold text-slate-600 italic">"{cityData.transit_logic.etiquette}"</p></div>
             </div>
           </section>
         )}
@@ -496,99 +318,89 @@ export default function CityGuideView() {
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]"><Droplets className="text-blue-600 mb-4" size={32} /><h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3><p className="text-2xl font-bold text-[#1a1a1a] leading-tight">{cityData.survival?.tapWater || "Check Local Intel"}</p></div>
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]"><Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" /><h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3><p className="text-2xl font-bold text-[#1a1a1a] leading-tight">{typeof cityData.survival?.power === 'object' ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})` : cityData.survival?.power}</p></div>
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
+              <Droplets className="text-blue-600 mb-4" size={32} />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
+              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">{cityData.survival?.tapWater || "Check Intel"}</p>
+            </div>
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[160px]">
+              <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power</h3>
+              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+                {typeof cityData.survival?.power === 'object' ? `${cityData.survival.power.type}` : cityData.survival?.power}
+              </p>
+            </div>
           </div>
           {cityData.facility_intel && <FacilityKit data={cityData.facility_intel} />}
         </section>
 
         <section className="space-y-4">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending Shield</h2>
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-            <div className="flex items-center gap-2 mb-2"><Globe size={14} className="text-slate-400" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exchange Rate</p></div>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending</h2>
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-2"><Globe size={14} className="text-slate-400" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live Exchange</p></div>
             <div className="text-3xl font-black text-[#222222] tabular-nums">1 USD = {visaData?.destination?.exchange || CURRENCY_PROTOCOL[cityData.countryCode]?.rate || '---'}</div>
-            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[14px] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping || "Standard 10% is expected."}</div>
+            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[14px] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping}</div>
           </div>
         </section>
       </main>
 
-{/* FIXED DYNAMIC ACTION BAR */}
-<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
-       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-  
-  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
-    <button
-      onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
-      disabled={isInstalled || !isSwControlling || offlineSyncStatus === 'syncing'}
-      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
-        !isSwControlling || offlineSyncStatus === 'syncing'
-          ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
-          : isInstalled
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-            : offlineSyncStatus === 'complete'
-              ? 'bg-[#FFDD00] text-black border-[#E6C600]' // High contrast for "Action Required"
-              : 'bg-[#222222] text-white border-black'
-      }`}
-    >
-      <div className="flex items-center gap-4">
-        {/* ICON CONTAINER */}
-        <div className={`p-2 rounded-xl transition-colors ${
-          isInstalled 
-            ? 'bg-emerald-200 text-emerald-800' 
-            : offlineSyncStatus === 'complete' 
-              ? 'bg-black text-[#FFDD00]' 
-              : 'bg-white/10 text-white'
-        }`}>
-          {!isSwControlling || offlineSyncStatus === 'syncing' ? (
-            <Activity size={20} className="animate-spin" />
-          ) : isInstalled ? (
-            <Check size={20} strokeWidth={3} />
-          ) : offlineSyncStatus === 'complete' ? (
-            <ArrowUpFromLine size={20} strokeWidth={3} /> // Suggests "Add to Home"
-          ) : (
-            <Download size={20} strokeWidth={3} />
-          )}
-        </div>
-
-        {/* TEXT LABELS */}
-        <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-            {!isSwControlling && 'System Initializing...'}
-            {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-            {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Add to Home Screen'}
-            {isInstalled && 'Pack Fully Installed'}
-            {isSwControlling && offlineSyncStatus === 'idle' && 'Download Offline Pack'}
-            {isSwControlling && offlineSyncStatus === 'error' && 'Retry Download'}
-          </span>
-          <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-            {!isSwControlling && 'Establishing secure connection...'}
-            {offlineSyncStatus === 'syncing' && 'Writing app shell to local disk...'}
-            {isInstalled && 'Available via Home Screen'}
-            {offlineSyncStatus === 'complete' && !isInstalled && 'Sync complete · Finalize setup'}
-            {offlineSyncStatus === 'idle' && `Prepare ${cityData?.name || 'Guide'} // 2.4MB`}
-          </span>
+      {/* DYNAMIC ATOMIC ACTION BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+        <div className="absolute inset-0 bg-[#F7F7F7]/80 backdrop-blur-xl border-t border-slate-200/50" />
+        <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+          <button
+            onClick={() => (offlineSyncStatus === 'complete' ? installPWA() : handleOfflineSync())}
+            disabled={isInstalled || offlineSyncStatus === 'syncing' || !isSwControlling}
+            className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 transition-all border ${
+              !isSwControlling || offlineSyncStatus === 'syncing'
+                ? 'bg-slate-50 text-slate-400 border-slate-200'
+                : isInstalled
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                  : offlineSyncStatus === 'complete'
+                    ? 'bg-[#FFDD00] text-black border-[#E6C600] scale-[1.02]'
+                    : 'bg-[#222222] text-white border-black'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`p-2 rounded-xl ${
+                isInstalled ? 'bg-emerald-200 text-emerald-800' : 
+                offlineSyncStatus === 'complete' ? 'bg-black text-[#FFDD00]' : 'bg-white/10'
+              }`}>
+                {offlineSyncStatus === 'syncing' ? <Activity size={20} className="animate-spin" /> :
+                 isInstalled ? <Check size={20} strokeWidth={3} /> :
+                 offlineSyncStatus === 'complete' ? <ArrowUpFromLine size={20} strokeWidth={3} /> :
+                 <Download size={20} strokeWidth={3} />}
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+                  {offlineSyncStatus === 'syncing' ? 'Securing Assets...' :
+                   isInstalled ? 'Pack Installed' :
+                   offlineSyncStatus === 'complete' ? 'Add to Home Screen' : 'Download Pack'}
+                </span>
+                <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
+                  {offlineSyncStatus === 'syncing' ? 'Writing to local disk...' :
+                   isInstalled ? 'Offline access enabled' :
+                   offlineSyncStatus === 'complete' ? 'Setup Complete · Launch Offline' : `Sync ${cityData.name} Intel`}
+                </span>
+              </div>
+            </div>
+            <div className={`h-1.5 w-1.5 rounded-full ${
+              offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' :
+              isInstalled ? 'bg-emerald-500' : 'bg-slate-400'
+            }`} />
+          </button>
         </div>
       </div>
 
-      {/* STATUS DOT */}
-      <div className={`h-1.5 w-1.5 rounded-full ${
-        offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
-        isInstalled ? 'bg-emerald-500' : 
-        offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
-      }`} />
-    </button>
-  </div>
-</div>
-
-      {/* Safety: only show install instructions when sync has completed (prevents overlay if sync failed in background) */}
       <AnimatePresence>
-        {showMobileOverlay && offlineSyncStatus === 'complete' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24" onClick={dismissMobileOverlay}>
-            <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-              <p className="text-[#222222] font-bold text-center mb-4">Add to Home Screen</p>
-              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside"><li>Tap the Share icon (box with arrow)</li><li>Scroll down and tap &quot;Add to Home Screen&quot;</li></ol>
-              <button onClick={dismissMobileOverlay} className="w-full py-3 rounded-full bg-[#222222] text-white font-bold">Got it</button>
+        {showMobileOverlay && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 flex items-end p-6" onClick={dismissMobileOverlay}>
+            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} className="bg-white rounded-3xl p-8 w-full max-w-sm mx-auto shadow-2xl">
+               <h3 className="font-black uppercase tracking-widest text-sm mb-4">Final Step</h3>
+               <p className="text-slate-600 text-sm leading-relaxed mb-6">
+                 Tap the <strong>Share</strong> button and select <strong>"Add to Home Screen"</strong> to enable the offline survival guide.
+               </p>
+               <button onClick={dismissMobileOverlay} className="w-full py-4 bg-[#222222] text-white font-black rounded-2xl uppercase tracking-widest text-xs">Got it</button>
             </motion.div>
           </motion.div>
         )}
