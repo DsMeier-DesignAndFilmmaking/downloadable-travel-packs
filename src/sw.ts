@@ -173,42 +173,58 @@ ctx.addEventListener('fetch', (event) => {
 // --- ATOMIC SYNC ENGINE (PRE-INSTALLER) ---
 
 async function cacheCityIntel(slug: string) {
-  // Use a specific sync cache for the city to keep it isolated from the generic shell
   const cityCacheName = `${CACHE_PREFIX}-sync-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cityCacheName);
 
-  // We cache the exact paths expected by the manifest and navigation
-  const urlsToCache = [
+  // CRITICAL: These must exist for the Home Screen icon to work.
+  const criticalUrls = [
     `/guide/${slug}`,
-    `/guide/${slug}?source=pwa`, // Crucial for PWA launches
-    `/api/guide/${slug}`,
+    `/guide/${slug}?source=pwa`,
     '/index.html'
   ];
 
-  console.log(`📡 SW: Starting atomic sync for ${slug}...`);
+  // SUPPLEMENTAL: These are nice-to-have, but shouldn't break the install.
+  // Note: I am removing the /api/ route from here per your request to 
+  // avoid the 429 Rate Limit during the initial sync.
+  const supplementalUrls: string[] = []; 
 
-  const results = await Promise.allSettled(
-    urlsToCache.map(async (url) => {
+  console.log(`📡 SW: Starting Resilient Sync for ${slug}...`);
+
+  // 1. Critical Sync: If these fail, we actually have a problem.
+  const criticalResults = await Promise.allSettled(
+    criticalUrls.map(async (url) => {
       const res = await fetch(url, { cache: 'reload' });
-      if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+      if (!res.ok) throw new Error(`Critical fetch failed: ${url}`);
       return cache.put(url, res);
     })
   );
 
-  const failed = results.filter(r => r.status === 'rejected');
-  if (failed.length > 0) {
-    console.error(`❌ SW: Sync partial failure for ${slug}. Errors:`, failed.length);
+  // 2. Supplemental Sync: Log but don't stop the train.
+  if (supplementalUrls.length > 0) {
+    await Promise.allSettled(
+      supplementalUrls.map(async (url) => {
+        const res = await fetch(url, { cache: 'reload' });
+        if (res.ok) await cache.put(url, res);
+      })
+    );
+  }
+
+  const isCriticalSuccess = criticalResults.every(r => r.status === 'fulfilled');
+
+  if (isCriticalSuccess) {
+    console.log(`🔒 SW: City ${slug} infrastructure is locked & offline ready.`);
   } else {
-    console.log(`🔒 SW: City ${slug} is 100% locked for offline use.`);
+    console.error(`❌ SW: Critical failure during sync for ${slug}.`);
   }
   
-  // Notify the UI to flip the button to "ADD TO HOME SCREEN"
+  // 3. BROADCAST: Always send SYNC_COMPLETE if the HTML is safe.
+  // This ensures the button in the UI actually progresses.
   const clients = await ctx.clients.matchAll();
   clients.forEach((c) => {
     c.postMessage({ 
-      type: failed.length === 0 ? 'SYNC_COMPLETE' : 'SYNC_ERROR', 
+      type: isCriticalSuccess ? 'SYNC_COMPLETE' : 'SYNC_ERROR', 
       slug,
-      errorCount: failed.length
+      isInfrastructureReady: isCriticalSuccess
     });
   });
 }
