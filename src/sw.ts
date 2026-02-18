@@ -15,6 +15,14 @@ const IMAGES_CACHE_NAME = 'guide-images-v6';
 const START_URL_PATH = '/';
 const SHELL_ASSETS = [START_URL_PATH, '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
+/** Ensures shell cache has all critical assets. Shared by PRECACHE_GATED_RELEASE and START_CITY_SYNC. */
+async function ensureShellCached(): Promise<void> {
+  const entryUrls = await getEntryAssetUrls();
+  const cache = await caches.open(SHELL_CACHE_NAME);
+  const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
+  await cache.addAll(allCriticalAssets);
+}
+
 // --- UTILS & FALLBACKS ---
 
 function createErrorResponse(message: string, status = 503): Response {
@@ -174,6 +182,8 @@ ctx.addEventListener('message', (event) => {
     event.waitUntil(
       (async () => {
         try {
+          await ensureShellCached();
+
           const shellCache = await caches.open(SHELL_CACHE_NAME);
           const imageCache = await caches.open(IMAGES_CACHE_NAME);
 
@@ -205,6 +215,27 @@ ctx.addEventListener('message', (event) => {
     return;
   }
 
+  if (type === 'START_CITY_SYNC') {
+    const targetSlug = slug ?? citySlug;
+    if (!targetSlug) return;
+
+    event.waitUntil(
+      (async () => {
+        try {
+          await ensureShellCached();
+          await cacheCityIntel(targetSlug, { isAtomicSuccess: true });
+        } catch (error) {
+          console.error('❌ SW: City Sync Failed', error);
+          const clients = await ctx.clients.matchAll();
+          clients.forEach((c) =>
+            c.postMessage({ type: 'CACHE_COMPLETE', slug: targetSlug, isAtomicSuccess: false })
+          );
+        }
+      })()
+    );
+    return;
+  }
+
   // Compatibility logic
   if (type === 'CACHE_CITY' || type === 'CACHE_GUIDE') {
     const targetSlug = citySlug || slug;
@@ -220,22 +251,34 @@ ctx.addEventListener('message', (event) => {
   }
 });
 
-async function cacheCityIntel(slug: string) {
+type CacheCompletePayload = { type: 'CACHE_COMPLETE'; slug: string; isAtomicSuccess?: boolean };
+
+async function cacheCityIntel(
+  slug: string,
+  broadcastOptions?: { isAtomicSuccess?: boolean }
+): Promise<void> {
   const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cacheName);
   const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
-  
-  await Promise.allSettled(urlsToCache.map(async (url) => {
-    try {
-      const res = await fetch(url);
-      if (res.ok) await cache.put(url, res);
-    } catch (e) {
-      console.warn(`Failed to cache intel for ${url}`);
-    }
-  }));
 
+  await Promise.allSettled(
+    urlsToCache.map(async (url) => {
+      try {
+        const res = await fetch(url);
+        if (res.ok) await cache.put(url, res);
+      } catch (e) {
+        console.warn(`Failed to cache intel for ${url}`);
+      }
+    })
+  );
+
+  const payload: CacheCompletePayload = {
+    type: 'CACHE_COMPLETE',
+    slug,
+    ...broadcastOptions,
+  };
   const clients = await ctx.clients.matchAll();
-  clients.forEach(c => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
+  clients.forEach((c) => c.postMessage(payload));
 }
 
 async function precacheImageUrls(urls: unknown): Promise<void> {

@@ -180,12 +180,9 @@ export default function CityGuideView() {
     cleanSlug ?? ''
   );
 
-  const SHELL_CACHE_VERSION = 'v8';
-  const shellCachedKey = `shell_cached_${SHELL_CACHE_VERSION}`;
-
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
-    typeof localStorage !== 'undefined' && localStorage.getItem(shellCachedKey) === 'true' ? 'complete' : 'idle'
+    typeof localStorage !== 'undefined' && localStorage.getItem('shell_v1_cached') === 'true' ? 'complete' : 'idle'
   );
   const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
@@ -207,29 +204,26 @@ export default function CityGuideView() {
 
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
-   * Listens for the 'CACHE_COMPLETE' event from sw.ts to update UI feedback.
-   * Only set offlineSyncStatus to 'complete' if city data exists AND shell engine is cached.
+   * Listens for the 'CACHE_COMPLETE' event from sw.ts (START_CITY_SYNC) to update UI feedback.
    */
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!('serviceWorker' in navigator) || !cleanSlug) return;
 
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
-        const shellCached = localStorage.getItem(shellCachedKey) === 'true';
-        if (shellCached && cityData) {
-          console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
-          const now = new Date().toISOString();
-          setLastSynced(now);
-          localStorage.setItem(`sync_${cleanSlug}`, now);
-          setOfflineAvailable(true);
-          setOfflineSyncStatus('complete');
-        }
+        localStorage.setItem('shell_v1_cached', 'true');
+        localStorage.setItem(`sync_${cleanSlug}`, 'true');
+        const now = new Date().toISOString();
+        setLastSynced(now);
+        setOfflineAvailable(true);
+        setOfflineSyncStatus('complete');
+        console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData, shellCachedKey]);
+  }, [cleanSlug]);
 
   /** Sync gate: track when the page is controlled by a SW (enables safe "Add to Home Screen"). */
   useEffect(() => {
@@ -240,108 +234,20 @@ export default function CityGuideView() {
   }, []);
   
 
-  /** Extract image URLs from DOM and city content. */
-  function extractImageUrlsFromContent(): string[] {
-    const urls = new Set<string>();
-    const origin = window.location.origin;
-
-    // 1. img[src] in DOM
-    document.querySelectorAll('img[src]').forEach((img) => {
-      const src = (img as HTMLImageElement).src;
-      if (src && src.startsWith('http')) urls.add(src);
-    });
-
-    // 2. background-image from computed styles
-    document.querySelectorAll('*').forEach((el) => {
-      const bg = getComputedStyle(el).backgroundImage;
-      if (bg && bg !== 'none') {
-        const matches = bg.match(/url\(["']?([^"')]+)["']?\)/g);
-        if (matches) {
-          matches.forEach((m) => {
-            const u = m.replace(/url\(["']?|["']?\)/g, '').trim();
-            const abs = u.startsWith('http') ? u : new URL(u, origin).href;
-            if (abs.startsWith('http')) urls.add(abs);
-          });
-        }
-      }
-    });
-
-    // 3. URLs embedded in city data (e.g. JSON fields)
-    const imageExt = /\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/i;
-    const cityStr = JSON.stringify(cityData ?? {});
-    const urlMatches = cityStr.match(/https?:\/\/[^\s"']+\.(png|jpg|jpeg|gif|webp|svg)(\?[^\s"']*)?/gi);
-    if (urlMatches) {
-      urlMatches.forEach((u) => {
-        if (imageExt.test(u)) urls.add(u);
-      });
-    }
-
-    return Array.from(urls);
-  }
-
   async function handleOfflineSync(): Promise<void> {
     let sw = navigator.serviceWorker.controller;
     if (!sw && 'serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.ready;
       sw = registration.active;
     }
-  
+
     if (!sw || !cleanSlug || !cityData) {
       setOfflineSyncStatus('error');
       return;
     }
-  
+
     setOfflineSyncStatus('syncing');
-  
-    try {
-      const origin = window.location.origin;
-      
-      // 1. Identify critical JS/CSS assets
-      const currentAssets = [
-        ...Array.from(document.querySelectorAll('script[src]')).map((s) => s.getAttribute('src')),
-        ...Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map((l) => l.getAttribute('href')),
-        '/',
-        '/index.html',
-      ]
-      .filter(Boolean)
-      .map(url => new URL(url!, origin).href);
-  
-      // 2. Identify all City Images
-      const imageUrls = extractImageUrlsFromContent();
-  
-      // 3. PRECACHE_GATED_RELEASE handshake: only set 'complete' after SW confirms
-      const gatedReleaseComplete = new Promise<void>((resolve, reject) => {
-        const channel = new MessageChannel();
-        channel.port1.onmessage = (msg) => {
-          if (msg.data?.ok === true) resolve();
-          else reject(new Error(msg.data?.error ?? 'Sync failed'));
-        };
-        sw!.postMessage(
-          {
-            type: 'PRECACHE_GATED_RELEASE',
-            assets: currentAssets,
-            images: imageUrls,
-            citySlug: cleanSlug,
-          },
-          [channel.port2]
-        );
-        setTimeout(() => reject(new Error('Sync Timeout')), 10000);
-      });
-
-      await Promise.all([
-        saveCityToIndexedDB(cleanSlug, cityData),
-        gatedReleaseComplete,
-      ]);
-
-      localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-      localStorage.setItem(shellCachedKey, 'true');
-      setOfflineSyncStatus('complete');
-      console.log('🏁 Sync sequence finalized: App is safe for Home Screen.');
-      
-    } catch (err) {
-      console.error('❌ Offline sync failed:', err);
-      setOfflineSyncStatus('error');
-    }
+    sw.postMessage({ type: 'START_CITY_SYNC', slug: cleanSlug });
   }
 
   /**
