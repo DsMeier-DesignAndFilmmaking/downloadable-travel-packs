@@ -177,27 +177,37 @@ export default function CityGuideView() {
 
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
+    
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
         setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
         localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
-        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+        
+        // FIX: Added cleanSlug as the 3rd argument (the slug)
+        // Using cleanSlug as both ID and Slug for consistency
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
+        
         setOfflineAvailable(true);
       }
     };
+
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
   }, [cleanSlug, cityData]);
 
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
+    
     const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    
     if (offlineSyncStatus === 'complete') {
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+      // FIX: Added cleanSlug as the 3rd argument here as well
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
       updateThemeColor('#0f172a');
     }
+    
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
   }, [cleanSlug, cityData, offlineSyncStatus]);
 

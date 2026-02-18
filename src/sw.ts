@@ -1,22 +1,54 @@
 /// <reference lib="webworker" />
 
 /**
- * SERVICE WORKER: TRAVEL PACK CORE - V9 (Atomic Sync Edition)
- * Goal: Solid offline boot for Home Screen instances via navigation pre-heating.
+ * SERVICE WORKER: TRAVEL PACK CORE - V10 (Single-City Lock Edition)
+ * Goal: Solid offline boot for Home Screen instances with specific city isolation.
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const CACHE_PREFIX = 'travel-guide';
+
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
 
-/** Path used as start_url in manifest. Must be cached for PWA launch. */
 const START_URL_PATH = '/';
 const SHELL_ASSETS = [START_URL_PATH, '/index.html', '/pwa-192x192.png', '/vite.svg'];
 
+/**
+ * Last-resort HTML if the user opens a non-synced city while offline.
+ */
+const SAFETY_BOOTSTRAPPER_HTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Offline | Travel Pack</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #0f172a; color: #fff; text-align: center; }
+    .container { padding: 24px; max-width: 400px; }
+    h2 { font-size: 1.5rem; margin-bottom: 1rem; }
+    p { color: #94a3b8; line-height: 1.5; margin-bottom: 2rem; }
+    button { background: #3b82f6; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    button:active { opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Intel Unavailable Offline</h2>
+    <p>This city pack hasn't been synced to this device yet. Please connect to the internet to download this guide.</p>
+    <button onclick="window.location.href='/'">Return to Search</button>
+  </div>
+</body>
+</html>
+`.trim();
+
 // --- UTILS ---
 
+/**
+ * Type-safe error response helper
+ */
 function createErrorResponse(message: string, status = 503): Response {
   return new Response(message, {
     status,
@@ -24,9 +56,8 @@ function createErrorResponse(message: string, status = 503): Response {
   });
 }
 
-const SAFETY_BOOTSTRAPPER_HTML =
-  '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Loading…</title></head><body><script>window.location.reload();</script><p>Reloading…</p></body></html>';
-
+/** * Scans index.html for Vite-hashed assets to prevent white-screens on version updates.
+ */
 async function getEntryAssetUrls(): Promise<string[]> {
   const base = ctx.location.origin;
   try {
@@ -44,13 +75,10 @@ async function getEntryAssetUrls(): Promise<string[]> {
     while ((m = styleRe.exec(html)) !== null) urls.push(m[1]);
     while ((m = modulePreloadRe.exec(html)) !== null) urls.push(m[1]);
 
-    const absolute = urls
+    return [...new Set(urls)]
       .map((href) => (href.startsWith('http') ? href : new URL(href, base).href))
       .filter((href) => href.startsWith(base));
-    return [...new Set(absolute)];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
 // --- LIFECYCLE ---
@@ -61,8 +89,7 @@ ctx.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(SHELL_CACHE_NAME);
       const entryUrls = await getEntryAssetUrls();
-      const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
-      await cache.addAll(allCriticalAssets);
+      await cache.addAll([...new Set([...SHELL_ASSETS, ...entryUrls])]);
       console.log('✅ SW: Shell Assets fully cached.');
     })()
   );
@@ -74,91 +101,115 @@ ctx.addEventListener('activate', (event) => {
       const names = await caches.keys();
       await Promise.all(
         names
-          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
+          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION) && !name.includes('sync'))
           .map(name => caches.delete(name))
       );
       await ctx.clients.claim();
-      console.log('⚡ SW: Claimed all clients.');
+      console.log('⚡ SW: Claimed all clients and purged old caches.');
     })()
   );
 });
 
-// --- FETCH HANDLERS ---
+// --- FETCH HANDLERS (THE LOCK) ---
 
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url); 
+  const url = new URL(request.url);
 
+  // 1. NAVIGATION LOCK: Ensure direct-to-city booting
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(async () => {
-        // Try exact match first (pre-heated city route)
-        const exactMatch = await caches.match(request);
-        if (exactMatch) return exactMatch;
+      (async (): Promise<Response> => {
+        try {
+          // Always try network first to ensure fresh intelligence if online
+          return await fetch(request);
+        } catch (error) {
+          // OFFLINE: Search ALL available caches for the specific city route
+          // This matches /guide/seoul or /guide/seoul?source=pwa
+          const match = await caches.match(request);
+          if (match) return match;
 
-        // Fallback to Shell
-        const cache = await caches.open(SHELL_CACHE_NAME);
-        const shellFallback = (await cache.match('/index.html')) || (await cache.match('/'));
-        if (shellFallback) return shellFallback;
+          // Fallback: Try to serve the root Shell index.html
+          const shellCache = await caches.open(SHELL_CACHE_NAME);
+          const shellMatch = await shellCache.match('/index.html');
+          
+          if (shellMatch) return shellMatch;
 
-        return new Response(SAFETY_BOOTSTRAPPER_HTML, { headers: { 'Content-Type': 'text/html' } });
-      })
+          // Ultimate Fallback: Custom HTML error page
+          return new Response(SAFETY_BOOTSTRAPPER_HTML, {
+            headers: { 'Content-Type': 'text/html' },
+          });
+        }
+      })()
     );
     return;
   }
 
-  // Assets & Images
+  // 2. ASSETS & DATA: Cache-First Strategy
   event.respondWith(
-    (async () => {
+    (async (): Promise<Response> => {
       const cached = await caches.match(request);
       if (cached) return cached;
 
       try {
         const networkRes = await fetch(request);
-        if (networkRes.ok && (request.destination === 'image' || url.pathname.includes('/assets/'))) {
-          const cache = await caches.open(request.destination === 'image' ? IMAGES_CACHE_NAME : SHELL_CACHE_NAME);
-          cache.put(request, networkRes.clone());
+        
+        if (networkRes.ok) {
+          const isImg = request.destination === 'image';
+          const isAsset = url.pathname.includes('/assets/');
+          if (isImg || isAsset) {
+            const cache = await caches.open(isImg ? IMAGES_CACHE_NAME : SHELL_CACHE_NAME);
+            cache.put(request, networkRes.clone());
+          }
         }
         return networkRes;
-      } catch {
-        return createErrorResponse('Offline', 503);
+      } catch (err) {
+        return createErrorResponse('Offline Content Unavailable', 503);
       }
     })()
   );
 });
 
-// --- ATOMIC SYNC ENGINE ---
+// --- ATOMIC SYNC ENGINE (PRE-INSTALLER) ---
 
 async function cacheCityIntel(slug: string) {
-  const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
-  const cache = await caches.open(cacheName);
+  // Use a specific sync cache for the city to keep it isolated from the generic shell
+  const cityCacheName = `${CACHE_PREFIX}-sync-${slug}-${CACHE_VERSION}`;
+  const cache = await caches.open(cityCacheName);
 
-  // CRITICAL: Fetching as same-origin to avoid the 'navigate' TypeError.
-  // Including '/' because manifest start_url points to root.
-  // Including '/guide/${slug}' so the bookmark icon works instantly offline.
+  // We cache the exact paths expected by the manifest and navigation
   const urlsToCache = [
-    '/',
-    '/index.html',
     `/guide/${slug}`,
-    `/api/guide/${slug}`
+    `/guide/${slug}?source=pwa`, // Crucial for PWA launches
+    `/api/guide/${slug}`,
+    '/index.html'
   ];
 
   console.log(`📡 SW: Starting atomic sync for ${slug}...`);
 
-  await Promise.allSettled(urlsToCache.map(async (url) => {
-    try {
-      // Standard fetch - NO RequestInit mode: 'navigate' here.
+  const results = await Promise.allSettled(
+    urlsToCache.map(async (url) => {
       const res = await fetch(url, { cache: 'reload' });
-      if (res.ok) await cache.put(url, res);
-    } catch (e) {
-      console.error(`❌ SW: Failed to cache ${url}`, e);
-    }
-  }));
+      if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+      return cache.put(url, res);
+    })
+  );
 
-  // Notify UI of success
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length > 0) {
+    console.error(`❌ SW: Sync partial failure for ${slug}. Errors:`, failed.length);
+  } else {
+    console.log(`🔒 SW: City ${slug} is 100% locked for offline use.`);
+  }
+  
+  // Notify the UI to flip the button to "ADD TO HOME SCREEN"
   const clients = await ctx.clients.matchAll();
   clients.forEach((c) => {
-    c.postMessage({ type: 'SYNC_COMPLETE', slug });
+    c.postMessage({ 
+      type: failed.length === 0 ? 'SYNC_COMPLETE' : 'SYNC_ERROR', 
+      slug,
+      errorCount: failed.length
+    });
   });
 }
 
@@ -167,7 +218,6 @@ ctx.addEventListener('message', (event) => {
   const targetSlug = slug || citySlug;
 
   if (type === 'START_CITY_SYNC' || type === 'ATOMIC_CITY_SYNC') {
-    if (!targetSlug) return;
-    event.waitUntil(cacheCityIntel(targetSlug));
+    if (targetSlug) event.waitUntil(cacheCityIntel(targetSlug));
   }
 });
