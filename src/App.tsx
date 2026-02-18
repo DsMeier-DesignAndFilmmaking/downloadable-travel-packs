@@ -158,8 +158,9 @@ function PWAStandaloneRedirect() {
 
     if (isStandalone && location.pathname === '/') {
       const lastPath = localStorage.getItem('pwa_last_pack');
-      const isVerified = localStorage.getItem('shell_v1_cached') === 'true';
-      if (lastPath && isVerified) navigate(lastPath, { replace: true });
+      const slug = lastPath?.startsWith('/guide/') ? lastPath.slice('/guide/'.length).split('/')[0] : null;
+      const citySynced = slug ? localStorage.getItem(`sync_${slug}`) === 'true' : false;
+      if (lastPath && citySynced) navigate(lastPath, { replace: true });
     }
   }, [routerReady, location.pathname, navigate]);
 

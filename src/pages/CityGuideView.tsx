@@ -181,9 +181,7 @@ export default function CityGuideView() {
   );
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
-    typeof window !== 'undefined' && cleanSlug && localStorage.getItem(`sync_${cleanSlug}`) === 'true' ? 'complete' : 'idle'
-  );
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
   const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
   );
@@ -196,11 +194,9 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
-  /** Derive offlineSyncStatus from localStorage when slug changes. */
   useEffect(() => {
-    if (!cleanSlug) return;
-    const isCached = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    setOfflineSyncStatus(isCached ? 'complete' : 'idle');
+    const citySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    setOfflineSyncStatus(citySynced ? 'complete' : 'idle');
   }, [cleanSlug]);
 
   const isOnline = !isOffline;
@@ -255,7 +251,7 @@ export default function CityGuideView() {
     }
 
     setOfflineSyncStatus('syncing');
-    sw.postMessage({ type: 'ATOMIC_CITY_SYNC', slug: cleanSlug });
+    sw.postMessage({ type: 'START_CITY_SYNC', slug: cleanSlug });
   }
 
 

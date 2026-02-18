@@ -178,7 +178,7 @@ ctx.addEventListener('message', (event) => {
   const { type, assets, images, urls, citySlug, slug } = event.data;
   const port = event.ports?.[0];
 
-  if (type === 'ATOMIC_CITY_SYNC') {
+  if (type === 'START_CITY_SYNC' || type === 'ATOMIC_CITY_SYNC') {
     const targetSlug = slug ?? citySlug;
     if (!targetSlug) return;
 
@@ -255,39 +255,26 @@ ctx.addEventListener('message', (event) => {
   }
 });
 
-/**
- * Caches city route + API data. Explicitly caches the navigation route /guide/:slug
- * so the standalone app can load that URL 100% offline on first boot.
- */
-async function cacheCityIntel(slug: string): Promise<void> {
-  const base = ctx.location.origin;
+async function cacheCityIntel(slug: string) {
   const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cacheName);
 
-  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
+  // We fetch the guide route as a basic request to avoid the 'navigate' TypeError
+  // This "pre-heats" the cache for the standalone offline launch
+  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`, '/'];
 
-  await Promise.allSettled(
-    urlsToCache.map(async (url) => {
-      try {
-        const fullUrl = url.startsWith('http') ? url : new URL(url, base).href;
-        const res = await fetch(fullUrl);
-        if (res.ok) await cache.put(fullUrl, res);
-      } catch (e) {
-        console.warn(`Failed to cache intel for ${url}`);
-      }
-    })
-  );
+  await Promise.allSettled(urlsToCache.map(async (url) => {
+    try {
+      const res = await fetch(url); // Standard fetch, no {mode: 'navigate'}
+      if (res.ok) await cache.put(url, res);
+    } catch (e) {
+      console.warn(`Failed to atomically cache ${url}`);
+    }
+  }));
 
-  // Explicitly cache the navigation route so the Home Screen app has the HTML for this URL when offline
-  const guideUrl = new URL(`/guide/${slug}`, base).href;
-  try {
-    await cache.add(guideUrl);
-  } catch (e) {
-    console.warn(`Failed to cache navigation route /guide/${slug}`);
-  }
-
-  const clients = await ctx.clients.matchAll();
-  clients.forEach((c) => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
+  // Notify the specific tab that THIS city is now physically on disk
+  const clients = await (self as any).clients.matchAll();
+  clients.forEach((c: any) => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
 }
 
 async function precacheImageUrls(urls: unknown): Promise<void> {
