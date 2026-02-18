@@ -259,22 +259,29 @@ async function cacheCityIntel(slug: string) {
   const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cacheName);
 
-  // We fetch the guide route as a basic request to avoid the 'navigate' TypeError
-  // This "pre-heats" the cache for the standalone offline launch
-  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`, '/'];
+  // We fetch as 'same-origin' to avoid the 'navigate' TypeError.
+  // We must cache the root '/' because that is the manifest start_url.
+  const urlsToCache = [
+    '/',
+    '/index.html',
+    `/guide/${slug}`,
+    `/api/guide/${slug}`
+  ];
 
   await Promise.allSettled(urlsToCache.map(async (url) => {
     try {
-      const res = await fetch(url); // Standard fetch, no {mode: 'navigate'}
+      const res = await fetch(url, { cache: 'reload' });
       if (res.ok) await cache.put(url, res);
     } catch (e) {
-      console.warn(`Failed to atomically cache ${url}`);
+      console.error(`Failed to cache ${url}`, e);
     }
   }));
 
-  // Notify the specific tab that THIS city is now physically on disk
+  // IMPORTANT: Notify the specific client that THIS city is on disk
   const clients = await (self as any).clients.matchAll();
-  clients.forEach((c: any) => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
+  clients.forEach((c: any) => {
+    c.postMessage({ type: 'SYNC_COMPLETE', slug });
+  });
 }
 
 async function precacheImageUrls(urls: unknown): Promise<void> {

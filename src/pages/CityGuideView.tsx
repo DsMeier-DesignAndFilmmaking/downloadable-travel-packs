@@ -195,8 +195,8 @@ export default function CityGuideView() {
   );
 
   useEffect(() => {
-    const citySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    setOfflineSyncStatus(citySynced ? 'complete' : 'idle');
+    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
   }, [cleanSlug]);
 
   const isOnline = !isOffline;
@@ -207,17 +207,18 @@ export default function CityGuideView() {
 
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
-   * Listens for the 'CACHE_COMPLETE' event from sw.ts (cacheCityIntel) to update UI feedback.
+   * Only move to 'complete' when SYNC_COMPLETE and slug matches.
    */
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug) return;
+    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
+      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
         setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
         localStorage.setItem('shell_v1_cached', 'true');
         localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
         const now = new Date().toISOString();
         setLastSynced(now);
         setOfflineAvailable(true);
@@ -227,7 +228,7 @@ export default function CityGuideView() {
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug]);
+  }, [cleanSlug, cityData]);
 
   /** Sync gate: track when the page is controlled by a SW (enables safe "Add to Home Screen"). */
   useEffect(() => {
@@ -257,7 +258,8 @@ export default function CityGuideView() {
 
   /**
    * 2. IDENTITY ROTATION & AUTO-SYNC
-   * Ensures PWA manifest matches city and manages Safari/Chrome meta tags.
+   * Only call injectManifest when offlineSyncStatus is 'complete' so the Share panel
+   * sees the city identity only after the SW has confirmed offline files are ready.
    */
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
@@ -266,18 +268,14 @@ export default function CityGuideView() {
     const existingLink = document.querySelector('link[rel="manifest"]');
     const currentManifestId = existingLink?.getAttribute('data-identity');
 
-    // --- 1. IDENTITY ROTATION LOGIC (Preserved) ---
     if (!currentManifestId || currentManifestId !== manifestId) {
       const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
-      if (!hasRotated) {
+      if (!hasRotated && offlineSyncStatus === 'complete') {
         console.log(`🔄 Identity Mismatch: Rotating to ${cityData.name}`);
         const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
         injectManifest(manifest);
         sessionStorage.setItem('pwa_rotator_lock', manifestId);
-        
-        document.title = `${cityData.name} Pack`;
         updateThemeColor('#0f172a');
-        
         window.location.replace(window.location.href);
         return;
       }
@@ -322,7 +320,7 @@ export default function CityGuideView() {
     return () => {
       sessionStorage.removeItem('pwa_rotator_lock');
     };
-  }, [cleanSlug, cityData]);
+  }, [cleanSlug, cityData, offlineSyncStatus]);
 
   /**
    * 3. PERSISTENCE & OFFLINE SIGNALING
