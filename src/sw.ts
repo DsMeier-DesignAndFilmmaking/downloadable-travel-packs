@@ -80,14 +80,14 @@ ctx.addEventListener('install', (event) => {
 ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names
-          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
-          .map(name => caches.delete(name))
-      );
+      // 1. Claim all clients immediately (Browser AND Home Screen)
       await ctx.clients.claim();
-      console.log('⚡ SW: Claimed all clients.');
+      
+      // 2. Clear old caches to save space
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => k !== SHELL_CACHE_NAME && caches.delete(k)));
+      
+      console.log('⚡ SW: Cold-boot protection active.');
     })()
   );
 });

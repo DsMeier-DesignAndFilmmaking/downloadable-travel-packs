@@ -21,7 +21,6 @@ import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
-import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
@@ -170,7 +169,6 @@ export default function CityGuideView() {
     cityData,
     isLoading: packLoading,
     isOffline,
-    isLocalData,
     syncStatus,
     error,
     refetch,
@@ -183,7 +181,6 @@ export default function CityGuideView() {
   const SHELL_CACHE_VERSION = 'v8';
   const shellCachedKey = `shell_cached_${SHELL_CACHE_VERSION}`;
 
-  const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
     typeof localStorage !== 'undefined' && localStorage.getItem(shellCachedKey) === 'true' ? 'complete' : 'idle'
   );
@@ -200,10 +197,6 @@ export default function CityGuideView() {
   );
 
   const isOnline = !isOffline;
-  const isOfflineAvailable = useMemo(
-    () => Boolean(cityData && (isOffline || isLocalData)),
-    [cityData, isOffline, isLocalData]
-  );
 
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
@@ -217,11 +210,12 @@ export default function CityGuideView() {
       if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
         const shellCached = localStorage.getItem(shellCachedKey) === 'true';
         if (shellCached && cityData) {
-          console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
+          console.log(`✅ ${cleanSlug} cache confirmed`);
           const now = new Date().toISOString();
           setLastSynced(now);
-          localStorage.setItem(`sync_${cleanSlug}`, now);
-          setOfflineAvailable(true);
+          localStorage.setItem(`sync_${cleanSlug}`, 'true'); 
+          
+          // Keep this one! This moves the button to the "Add to Home Screen" state
           setOfflineSyncStatus('complete');
         }
       }
@@ -413,20 +407,33 @@ export default function CityGuideView() {
     };
   }, [cleanSlug, cityData]);
 
-  /**
+ /**
    * 3. PERSISTENCE & OFFLINE SIGNALING
+   * Ensures IndexedDB stays in sync and the UI reflects the current city's status.
    */
-  useEffect(() => {
-    if (!cleanSlug) return;
-    isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
-  }, [cleanSlug]);
+ useEffect(() => {
+  // If we're on the Home Screen or offline, we don't want to overwrite IDB
+  if (!cleanSlug || !cityData || isOffline) return;
 
-  useEffect(() => {
-    if (!cleanSlug || !cityData || isOffline) return;
-    saveCityToIndexedDB(cleanSlug, cityData)
-      .then(() => setOfflineAvailable(true))
-      .catch((err) => console.warn('💾 IDB Write Failed:', err));
-  }, [cleanSlug, cityData, isOffline]);
+  saveCityToIndexedDB(cleanSlug, cityData)
+    .then(() => {
+      console.log(`💾 Persisted to IDB: ${cleanSlug}`);
+      // We don't need setOfflineAvailable anymore.
+      // If the city is in IDB and the SW has confirmed the shell, 
+      // the button will handle the rest.
+    })
+    .catch((err) => console.warn('💾 IDB Write Failed:', err));
+}, [cleanSlug, cityData, isOffline]);
+
+// This hook updates the sync status on initial load 
+// by checking if we already have a record of this city.
+useEffect(() => {
+  if (!cleanSlug) return;
+  const isSynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+  if (isSynced) {
+    setOfflineSyncStatus('complete');
+  }
+}, [cleanSlug]);
 
   /**
    * 4. VISA & EXCHANGE PROTOCOLS
@@ -470,11 +477,34 @@ export default function CityGuideView() {
     </div>
   );
 
+    // Detect if the app is launched from the Home Screen (Standalone Mode)  
+  // Detects if we are in the Home Screen App
+  const isStandalone = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      (window.navigator as any).standalone || 
+      window.matchMedia('(display-mode: standalone)').matches
+    );
+  }, []);
+
+  // Checks if this specific city is synced
+  const isThisCitySynced = useMemo(() => {
+    return lastSynced === cleanSlug || localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+  }, [lastSynced, cleanSlug]);
+
   return (
-    <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden">
+    <motion.div 
+      key={cleanSlug} 
+      initial="hidden" 
+      animate="visible" 
+      exit="exit" 
+      variants={containerVariants} 
+      className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden"
+    >
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
+      {/* STATUS BAR: Now more descriptive about offline readiness */}
       <div 
         onClick={() => setIsDiagnosticsOpen(true)}
         className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
@@ -484,7 +514,7 @@ export default function CityGuideView() {
         <div className="flex items-center gap-2">
           <div className={`w-1.5 h-1.5 rounded-full ${!isOnline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
           {!isOnline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
-          {(offlineAvailable || isOfflineAvailable) && <span className="opacity-80"> · Available offline</span>}
+          {(isThisCitySynced) && <span className="opacity-80"> · Pack verified offline</span>}
         </div>
         <div className="flex items-center gap-2 opacity-60"><Activity size={10} /><span>Under the hood</span></div>
       </div>
@@ -516,16 +546,15 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <section className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-    <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
-      Survival Dashboard
-    </h2>
-    {/* Use SourceInfo here to clear TS6133 */}
-    <SourceInfo 
-      source="Global Intelligence Protocol" 
-      lastUpdated={lastSynced || cityData.last_updated} 
-    />
-  </div>
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
+              Survival Dashboard
+            </h2>
+            <SourceInfo 
+              source="Global Intelligence Protocol" 
+              lastUpdated={lastSynced || cityData.last_updated} 
+            />
+          </div>
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
               {isApiLoading ? <HighAlertSkeleton /> : (
@@ -603,83 +632,88 @@ export default function CityGuideView() {
         </section>
       </main>
 
-      {/* FIXED DYNAMIC ACTION BAR */}
-<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
-       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-  
-  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
-    <button
-      onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
-      disabled={isInstalled || !isSwControlling || offlineSyncStatus === 'syncing'}
-      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
-        !isSwControlling || offlineSyncStatus === 'syncing'
-          ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
-          : isInstalled
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-            : offlineSyncStatus === 'complete'
-              ? 'bg-[#FFDD00] text-black border-[#E6C600]' // High contrast for "Action Required"
-              : 'bg-[#222222] text-white border-black'
-      }`}
-    >
-      <div className="flex items-center gap-4">
-        {/* ICON CONTAINER */}
-        <div className={`p-2 rounded-xl transition-colors ${
-          isInstalled 
-            ? 'bg-emerald-200 text-emerald-800' 
-            : offlineSyncStatus === 'complete' 
-              ? 'bg-black text-[#FFDD00]' 
-              : 'bg-white/10 text-white'
-        }`}>
-          {!isSwControlling || offlineSyncStatus === 'syncing' ? (
-            <Activity size={20} className="animate-spin" />
-          ) : isInstalled ? (
-            <Check size={20} strokeWidth={3} />
-          ) : offlineSyncStatus === 'complete' ? (
-            <ArrowUpFromLine size={20} strokeWidth={3} /> // Suggests "Add to Home"
-          ) : (
-            <Download size={20} strokeWidth={3} />
-          )}
+      {/* REFINED CONDITIONAL UX LOGIC */}
+      {isStandalone ? (
+        /* UI STATE: USER IS INSIDE THE HOME SCREEN APP */
+        <div className="fixed bottom-8 left-0 right-0 flex justify-center pointer-events-none z-[100]">
+          <div className="bg-emerald-500/90 backdrop-blur-md text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl border border-white/20 animate-in slide-in-from-bottom-4 duration-700">
+            <Check size={14} strokeWidth={4} />
+            <span className="text-[10px] font-black uppercase tracking-[0.15em]">Ready for Offline Use</span>
+          </div>
         </div>
+      ) : (
+        /* UI STATE: USER IS IN SAFARI BROWSER */
+        <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+          <div 
+            className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
+            style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} 
+          />
+          
+          <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+            <button
+              onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
+              disabled={isInstalled || !isSwControlling || offlineSyncStatus === 'syncing'}
+              className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
+                !isSwControlling || offlineSyncStatus === 'syncing'
+                  ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
+                  : offlineSyncStatus === 'complete'
+                    ? 'bg-[#FFDD00] text-black border-[#E6C600] animate-in fade-in zoom-in duration-300' 
+                    : 'bg-[#222222] text-white border-black'
+              } ${isThisCitySynced && offlineSyncStatus !== 'complete' ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-xl transition-colors ${
+                  offlineSyncStatus === 'complete' 
+                    ? 'bg-black text-[#FFDD00]' 
+                    : 'bg-white/10 text-white'
+                }`}>
+                  {!isSwControlling || offlineSyncStatus === 'syncing' ? (
+                    <Activity size={20} className="animate-spin" />
+                  ) : offlineSyncStatus === 'complete' ? (
+                    <ArrowUpFromLine size={20} strokeWidth={3} />
+                  ) : (
+                    <Download size={20} strokeWidth={3} />
+                  )}
+                </div>
 
-        {/* TEXT LABELS */}
-        <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-            {!isSwControlling && 'System Initializing...'}
-            {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-            {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Add to Home Screen'}
-            {isInstalled && 'Pack Fully Installed'}
-            {isSwControlling && offlineSyncStatus === 'idle' && 'Download Offline Pack'}
-            {isSwControlling && offlineSyncStatus === 'error' && 'Retry Download'}
-          </span>
-          <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-            {!isSwControlling && 'Establishing secure connection...'}
-            {offlineSyncStatus === 'syncing' && 'Writing app shell to local disk...'}
-            {isInstalled && 'Available via Home Screen'}
-            {offlineSyncStatus === 'complete' && !isInstalled && 'Sync complete · Finalize setup'}
-            {offlineSyncStatus === 'idle' && `Prepare ${cityData?.name || 'Guide'} // 2.4MB`}
-          </span>
+                <div className="flex flex-col items-start text-left">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+                    {!isSwControlling && 'System Initializing...'}
+                    {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
+                    {isSwControlling && offlineSyncStatus === 'complete' && `Finalize ${cityData?.name || 'Pack'}`}
+                    {isSwControlling && offlineSyncStatus === 'idle' && `Download ${cityData?.name || 'Pack'}`}
+                    {isSwControlling && offlineSyncStatus === 'error' && 'Retry Sync'}
+                  </span>
+                  <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
+                    {!isSwControlling && 'Waiting for service worker...'}
+                    {offlineSyncStatus === 'syncing' && 'Caching city data & images...'}
+                    {offlineSyncStatus === 'complete' && 'Sync Complete — Add to Home Screen'}
+                    {offlineSyncStatus === 'idle' && 'Initialize 100% Offline Access'}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`h-1.5 w-1.5 rounded-full ${
+                offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
+                offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
+              }`} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* STATUS DOT */}
-      <div className={`h-1.5 w-1.5 rounded-full ${
-        offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
-        isInstalled ? 'bg-emerald-500' : 
-        offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
-      }`} />
-    </button>
-  </div>
-</div>
-
-      {/* Safety: only show install instructions when sync has completed (prevents overlay if sync failed in background) */}
+      {/* MOBILE OVERLAY FOR INSTALL INSTRUCTIONS */}
       <AnimatePresence>
         {showMobileOverlay && offlineSyncStatus === 'complete' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24" onClick={dismissMobileOverlay}>
             <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-              <p className="text-[#222222] font-bold text-center mb-4">Add to Home Screen</p>
-              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside"><li>Tap the Share icon (box with arrow)</li><li>Scroll down and tap &quot;Add to Home Screen&quot;</li></ol>
-              <button onClick={dismissMobileOverlay} className="w-full py-3 rounded-full bg-[#222222] text-white font-bold">Got it</button>
+              <p className="text-[#222222] font-bold text-center mb-4">Finalize Home Screen Setup</p>
+              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside leading-relaxed">
+                <li>Tap the <strong>Share</strong> icon (box with arrow)</li>
+                <li>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></li>
+                <li>Launch from your Home Screen to test offline.</li>
+              </ol>
+              <button onClick={dismissMobileOverlay} className="w-full py-3 rounded-full bg-[#222222] text-white font-bold transition-transform active:scale-95">Got it</button>
             </motion.div>
           </motion.div>
         )}
