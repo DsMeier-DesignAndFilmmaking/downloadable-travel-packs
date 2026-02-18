@@ -181,7 +181,9 @@ export default function CityGuideView() {
   );
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>(() =>
+    typeof window !== 'undefined' && cleanSlug && localStorage.getItem(`sync_${cleanSlug}`) === 'true' ? 'complete' : 'idle'
+  );
   const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
     typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
   );
@@ -209,20 +211,20 @@ export default function CityGuideView() {
 
   /**
    * 1. SERVICE WORKER MESSAGE LISTENER
-   * Listens for the 'SYNC_COMPLETE' event from sw.ts (ATOMIC_CITY_SYNC) to update UI feedback.
+   * Listens for the 'CACHE_COMPLETE' event from sw.ts (cacheCityIntel) to update UI feedback.
    */
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !cleanSlug) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
-        localStorage.setItem('shell_v1_cached', 'true');
+      if (event.data?.type === 'CACHE_COMPLETE' && event.data.slug === cleanSlug) {
+        setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
+        localStorage.setItem('shell_v1_cached', 'true');
         localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
         const now = new Date().toISOString();
         setLastSynced(now);
         setOfflineAvailable(true);
-        setOfflineSyncStatus('complete');
         console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
       }
     };
@@ -255,6 +257,7 @@ export default function CityGuideView() {
     setOfflineSyncStatus('syncing');
     sw.postMessage({ type: 'ATOMIC_CITY_SYNC', slug: cleanSlug });
   }
+
 
   /**
    * 2. IDENTITY ROTATION & AUTO-SYNC

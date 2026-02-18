@@ -110,13 +110,10 @@ ctx.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(async () => {
-        // Try exact URL first (e.g. /guide/:slug cached by cacheCityIntel)
         const exactMatch = await caches.match(request);
         if (exactMatch) return exactMatch;
         const cache = await caches.open(SHELL_CACHE_NAME);
-        const shell = (await cache.match('/index.html')) || (await cache.match(START_URL_PATH));
-        if (shell) return shell;
-        return new Response(SAFETY_BOOTSTRAPPER_HTML, { headers: { 'Content-Type': 'text/html' } });
+        return (await cache.match('/index.html')) || (await cache.match('/')) || new Response(SAFETY_BOOTSTRAPPER_HTML, { headers: { 'Content-Type': 'text/html' } });
       })
     );
     return;
@@ -194,12 +191,9 @@ ctx.addEventListener('message', (event) => {
             const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
             await cache.addAll(allCriticalAssets);
           })();
-          const cityTask = cacheCityIntel(targetSlug, { skipBroadcast: true });
+          const cityTask = cacheCityIntel(targetSlug);
 
           await Promise.all([shellTask, cityTask]);
-
-          const clients = await ctx.clients.matchAll();
-          clients.forEach((c) => c.postMessage({ type: 'SYNC_COMPLETE', slug: targetSlug }));
           console.log(`✅ SW: Atomic sync complete for ${targetSlug}`);
         } catch (error) {
           console.error('❌ SW: Atomic City Sync Failed', error);
@@ -261,48 +255,39 @@ ctx.addEventListener('message', (event) => {
   }
 });
 
-type CacheCompletePayload = { type: 'CACHE_COMPLETE'; slug: string; isAtomicSuccess?: boolean };
-
 /**
  * Caches city route + API data. Explicitly caches the navigation route /guide/:slug
  * so the standalone app can load that URL 100% offline on first boot.
  */
-async function cacheCityIntel(
-  slug: string,
-  options?: { skipBroadcast?: boolean; isAtomicSuccess?: boolean }
-): Promise<void> {
+async function cacheCityIntel(slug: string): Promise<void> {
   const base = ctx.location.origin;
   const cacheName = `${CACHE_PREFIX}-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cacheName);
 
-  // Navigation route: enables offline load of /guide/:slug on first boot
-  const navRoute = `/guide/${slug}`;
-  const navUrl = new URL(navRoute, base).href;
-  const apiUrl = new URL(`/api/guide/${slug}`, base).href;
+  const urlsToCache = [`/guide/${slug}`, `/api/guide/${slug}`];
 
   await Promise.allSettled(
-    [
-      { url: navUrl, req: new Request(navUrl, { mode: 'navigate' }) },
-      { url: apiUrl, req: apiUrl },
-    ].map(async ({ url, req }) => {
+    urlsToCache.map(async (url) => {
       try {
-        const res = await fetch(req);
-        if (res.ok) await cache.put(url, res);
+        const fullUrl = url.startsWith('http') ? url : new URL(url, base).href;
+        const res = await fetch(fullUrl);
+        if (res.ok) await cache.put(fullUrl, res);
       } catch (e) {
         console.warn(`Failed to cache intel for ${url}`);
       }
     })
   );
 
-  if (options?.skipBroadcast) return;
+  // Explicitly cache the navigation route so the Home Screen app has the HTML for this URL when offline
+  const guideUrl = new URL(`/guide/${slug}`, base).href;
+  try {
+    await cache.add(guideUrl);
+  } catch (e) {
+    console.warn(`Failed to cache navigation route /guide/${slug}`);
+  }
 
-  const payload: CacheCompletePayload = {
-    type: 'CACHE_COMPLETE',
-    slug,
-    ...(options?.isAtomicSuccess !== undefined && { isAtomicSuccess: options.isAtomicSuccess }),
-  };
   const clients = await ctx.clients.matchAll();
-  clients.forEach((c) => c.postMessage(payload));
+  clients.forEach((c) => c.postMessage({ type: 'CACHE_COMPLETE', slug }));
 }
 
 async function precacheImageUrls(urls: unknown): Promise<void> {
