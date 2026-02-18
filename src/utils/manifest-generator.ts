@@ -22,21 +22,18 @@ export interface WebAppManifest {
   v?: number; 
 }
 
-/**
- * UPDATED: Per-city isolation logic.
- * @param slug - The clean city slug (e.g., 'seoul-south-korea')
- */
 export function generateCityGuideManifest(cityId: string, cityName: string, slug: string): WebAppManifest {
   const origin = window.location.origin;
-
-  // LOCK LOGIC: 
-  // 1. scope: Limits the "App" context to just this city guide folder.
-  // 2. start_url: Forces the home screen icon to open exactly this guide with a PWA flag.
-  const scope = `/guide/${slug}/`;
-  const start_url = `/guide/${slug}?source=pwa`;
+  /**
+   * CRITICAL FIX FOR BLOB MANIFESTS:
+   * Browsers cannot resolve relative paths inside a Blob URL.
+   * We must prepend 'origin' to make these absolute.
+   */
+  const scope = `${origin}/`; 
+  const start_url = `${origin}/guide/${slug}?source=pwa`;
 
   return {
-    id: `tp-v2-${cityId}`, 
+    id: `tp-v2-${cityId}`,
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,

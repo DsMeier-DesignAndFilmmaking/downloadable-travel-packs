@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { fetchCityPack } from '../services/cityService'
 import type { CityPack } from '../types/cityPack'
 
-export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+// src/hooks/useCityPack.ts (or wherever your types live)
+export type SyncStatus = 'idle' | 'syncing' | 'error' | 'success' | 'complete';
 
 export interface UseCityPackResult {
   cityData: CityPack | null
