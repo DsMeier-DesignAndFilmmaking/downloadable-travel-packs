@@ -1,7 +1,7 @@
 // src/utils/manifest-generator.ts
 
 export interface ManifestIcon {
-src: string;
+  src: string;
   sizes: string;
   type: string;
   purpose?: string;
@@ -22,23 +22,22 @@ export interface WebAppManifest {
   v?: number; // Internal versioning
 }
 
-export function generateCityGuideManifest(cityId: string, cityName: string, slug: string): WebAppManifest {
+export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
 
-  // 1. Define the variables
+  // Scope must be '/' so Safari (and all clients) stay under SW control for every route (e.g. /guide/tokyo).
   const scope = `${origin}/`;
-  const start_url = `${origin}/guide/${slug}?source=pwa`;
+
+  // start_url must match a URL explicitly cached in SW SHELL_ASSETS (sw.ts: '/' and '/index.html').
+  const start_url = `${origin}/`;
 
   return {
-    id: `tp-v2-${cityId}`, 
+    id: `tp-v2-${cityId}`, // Keep this! This ensures the icon/title logic works
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    
-    // 2. Map the variables to the properties (Fixes TS6133)
-    start_url, 
+    start_url,
     scope,
-    
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
@@ -54,7 +53,13 @@ export function generateCityGuideManifest(cityId: string, cityName: string, slug
         sizes: '512x512', 
         type: 'image/png', 
         purpose: 'any' 
-      }
+      },
+      { 
+        src: `${origin}/pwa-pwa-maskable-512x512.png`, 
+        sizes: '512x512', 
+        type: 'image/png', 
+        purpose: 'maskable' 
+      },
     ],
     v: Date.now() 
   };
@@ -65,27 +70,36 @@ export function injectManifest(manifest: WebAppManifest): void {
   const cityName = manifest.short_name;
   const origin = window.location.origin;
 
-  // 1. UPDATE APPLE TAGS IMMEDIATELY — these affect the Share panel, so run first
-  let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (appleTitle) {
-    appleTitle.setAttribute('content', cityName);
-  } else {
-    const meta = document.createElement('meta');
-    meta.name = 'apple-mobile-web-app-title';
-    meta.content = cityName;
-    document.head.appendChild(meta);
-  }
+  // 1. FORCE BROWSER & APPLE TITLES
+  // document.title affects the "Name" field in many share sheets
 
+  document.title = `${cityName} Pack`;
+  
+// 2. Force the Apple Home Screen Meta Tag
+let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+if (appleTitle) {
+  appleTitle.setAttribute('content', cityName);
+} else {
+  const meta = document.createElement('meta');
+  meta.name = "apple-mobile-web-app-title";
+  meta.content = cityName;
+  document.head.appendChild(meta);
+}
+
+  // 2. FORCE UPDATE THE ICON FOR THE SHARE PANEL
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
   if (!appleIcon) {
     appleIcon = document.createElement('link');
     appleIcon.setAttribute('rel', 'apple-touch-icon');
     document.head.appendChild(appleIcon);
   }
-  appleIcon.setAttribute('href', `${origin}/pwa-192x192.png?v=${Date.now()}`);
+  // Add a tiny version query (?v=...) to force the browser to re-fetch the icon 
+// from the public folder instead of using a cached generic one.
+const iconPath = `${origin}/pwa-192x192.png?v=${Date.now()}`;
+appleIcon.href = iconPath;
 
-  // 2. Document title (affects share sheet)
-  document.title = `${cityName} Pack`;
+  // Ensuring the href is absolute helps iOS identify the resource immediately
+  appleIcon.setAttribute('href', `${origin}/pwa-192x192.png`);
 
   // 3. CLEANUP AND INJECT MANIFEST BLOB
   // Remove any existing manifests to force the browser to re-read the new identity

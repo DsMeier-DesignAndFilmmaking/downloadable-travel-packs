@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -19,6 +19,7 @@ import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
+import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
@@ -167,51 +168,34 @@ export default function CityGuideView() {
 
   // --- Effects ---
   useEffect(() => {
-    // 1. Reset UI state on every route change to prevent "City A" data leaking into "City B"
-    setOfflineSyncStatus('idle');
-  
-    if (!cleanSlug || !cityData) return;
-  
-    // 2. Initial Check: Is this specific city already synced?
-    const isSaved = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-  
-    if (isSaved) {
-      setOfflineSyncStatus('complete');
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
-    }
-  
-    // 3. Message Listener: Handle signals from the Service Worker
+    if (!cleanSlug) return;
+    isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
+    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
+    setLastSynced(localStorage.getItem(`sync_${cleanSlug}_time`));
+  }, [cleanSlug]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
     const handleMessage = (event: MessageEvent) => {
-      // SECURITY: Ensure we only react to the sync status of the city we are currently looking at
-      if (event.data?.slug !== cleanSlug) return;
-  
-      if (event.data.type === 'SYNC_COMPLETE') {
+      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
         setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
-        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
-      } else if (event.data.type === 'SYNC_ERROR') {
-        setOfflineSyncStatus('error');
+        localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+        setOfflineAvailable(true);
       }
     };
-  
-    // 4. Attach and Cleanup
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleMessage);
-    }
-  
-    return () => {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.removeEventListener('message', handleMessage);
-      }
-    };
-  }, [cleanSlug, cityData?.name]); // Dependency on name ensures manifest updates if data changes // Re-runs every time you change cities
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [cleanSlug, cityData]);
 
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
     const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
     if (offlineSyncStatus === 'complete') {
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
       updateThemeColor('#0f172a');
     }
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
