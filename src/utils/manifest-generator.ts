@@ -1,7 +1,7 @@
 // src/utils/manifest-generator.ts
 
 export interface ManifestIcon {
-  src: string;
+src: string;
   sizes: string;
   type: string;
   purpose?: string;
@@ -19,24 +19,20 @@ export interface WebAppManifest {
   theme_color: string;
   orientation?: 'any' | 'natural' | 'landscape' | 'portrait';
   icons: ManifestIcon[];
-  v?: number; 
+  v?: number; // Internal versioning
 }
 
-/**
- * UPDATED: Per-city isolation logic.
- * @param slug - The clean city slug (e.g., 'seoul-south-korea')
- */
-export function generateCityGuideManifest(cityId: string, cityName: string, slug: string): WebAppManifest {
+export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
   const origin = window.location.origin;
 
-  // LOCK LOGIC: 
-  // 1. scope: Limits the "App" context to just this city guide folder.
-  // 2. start_url: Forces the home screen icon to open exactly this guide with a PWA flag.
-  const scope = `/guide/${slug}/`;
-  const start_url = `/guide/${slug}?source=pwa`;
+  // Scope must be '/' so Safari (and all clients) stay under SW control for every route (e.g. /guide/tokyo).
+  const scope = `${origin}/`;
+
+  // start_url must match a URL explicitly cached in SW SHELL_ASSETS (sw.ts: '/' and '/index.html').
+  const start_url = `${origin}/`;
 
   return {
-    id: `tp-v2-${cityId}`, 
+    id: `tp-v2-${cityId}`, // Keep this! This ensures the icon/title logic works
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
@@ -74,22 +70,15 @@ export function injectManifest(manifest: WebAppManifest): void {
   const cityName = manifest.short_name;
   const origin = window.location.origin;
 
-  // 1. UPDATE APPLE TAGS (Essential for iOS Home Screen Identity)
+  // 1. UPDATE APPLE TAGS IMMEDIATELY — these affect the Share panel, so run first
   let appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (!appleTitle) {
-    appleTitle = document.createElement('meta');
-    (appleTitle as HTMLMetaElement).name = 'apple-mobile-web-app-title';
-    document.head.appendChild(appleTitle);
-  }
-  appleTitle.setAttribute('content', cityName);
-
-  // Modern standard meta for mobile-web-app-capable
-  let mobileCapable = document.querySelector('meta[name="mobile-web-app-capable"]');
-  if (!mobileCapable) {
-    mobileCapable = document.createElement('meta');
-    (mobileCapable as HTMLMetaElement).name = 'mobile-web-app-capable';
-    (mobileCapable as HTMLMetaElement).content = 'yes';
-    document.head.appendChild(mobileCapable);
+  if (appleTitle) {
+    appleTitle.setAttribute('content', cityName);
+  } else {
+    const meta = document.createElement('meta');
+    meta.name = 'apple-mobile-web-app-title';
+    meta.content = cityName;
+    document.head.appendChild(meta);
   }
 
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]') as HTMLLinkElement;
@@ -98,13 +87,13 @@ export function injectManifest(manifest: WebAppManifest): void {
     appleIcon.setAttribute('rel', 'apple-touch-icon');
     document.head.appendChild(appleIcon);
   }
-  // Cache busting the icon ensures the correct city icon is grabbed by the OS
-  appleIcon.setAttribute('href', `${origin}/pwa-192x192.png?v=${identity}`);
+  appleIcon.setAttribute('href', `${origin}/pwa-192x192.png?v=${Date.now()}`);
 
-  // 2. Document title (Used by iOS as the default Home Screen name)
+  // 2. Document title (affects share sheet)
   document.title = `${cityName} Pack`;
 
   // 3. CLEANUP AND INJECT MANIFEST BLOB
+  // Remove any existing manifests to force the browser to re-read the new identity
   document.querySelectorAll('link[rel="manifest"]').forEach(el => {
     const href = el.getAttribute('href');
     if (href?.startsWith('blob:')) {
@@ -113,6 +102,7 @@ export function injectManifest(manifest: WebAppManifest): void {
     el.remove();
   });
 
+  // Create the new manifest blob
   const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const manifestURL = URL.createObjectURL(blob);
 
@@ -120,12 +110,14 @@ export function injectManifest(manifest: WebAppManifest): void {
   link.rel = 'manifest';
   link.href = manifestURL;
   
+  // Custom attributes to help with debugging and identity tracking
   link.setAttribute('data-identity', identity);
   link.setAttribute('data-city', cityName);
+  link.setAttribute('crossorigin', 'use-credentials'); 
   
   document.head.appendChild(link);
 
-  console.log(`✅ Identity Rotated & Locked: ${cityName} (Scope: ${manifest.scope})`);
+  console.log(`✅ Identity Rotated: ${cityName} manifest injected.`);
 }
 
 export function updateThemeColor(color: string): void {

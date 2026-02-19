@@ -117,47 +117,6 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   TH: { code: 'THB', rate: '31.13' }, JP: { code: 'JPY', rate: '150.40' }, AE: { code: 'AED', rate: '3.67' }, GB: { code: 'GBP', rate: '0.87' }, FR: { code: 'EUR', rate: '0.94' }, IT: { code: 'EUR', rate: '0.94' }, ES: { code: 'EUR', rate: '0.94' }, DE: { code: 'EUR', rate: '0.94' }, MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
-/**
- * SYNC RESET HELPER
- * Clears all local presence of a city guide to re-test the download flow.
- */
-export async function resetCitySync(slug: string): Promise<void> {
-  console.group(`🧹 Resetting Sync: ${slug}`);
-
-  // 1. Clear LocalStorage Flags
-  localStorage.removeItem(`sync_${slug}`);
-  localStorage.removeItem(`sync_${slug}_time`);
-  console.log('✅ LocalStorage flags cleared.');
-
-  // 2. Delete City-Specific Caches
-  if ('caches' in window) {
-    const cacheNames = await caches.keys();
-    const cityCaches = cacheNames.filter(name => name.includes(slug));
-    
-    await Promise.all(
-      cityCaches.map(cacheName => {
-        console.log(`Deleting cache: ${cacheName}`);
-        return caches.delete(cacheName);
-      })
-    );
-    console.log(`✅ ${cityCaches.length} city caches deleted.`);
-  }
-
-  // 3. Optional: Clear Service Worker (Forces a fresh shell install next time)
-  // Warning: This will trigger a reload to unregister the SW
-  /*
-  const registrations = await navigator.serviceWorker.getRegistrations();
-  for (let registration of registrations) {
-    await registration.unregister();
-  }
-  */
-
-  console.groupEnd();
-  
-  // Refresh the page to reset the UI state
-  window.location.reload();
-}
-
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
@@ -216,55 +175,29 @@ export default function CityGuideView() {
     setLastSynced(localStorage.getItem(`sync_${cleanSlug}_time`));
   }, [cleanSlug]);
 
-
-    useEffect(() => {
-      if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
-  
-      // Check if we already synced this city in a previous session
-      const isAlreadySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-      if (isAlreadySynced) {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
         setOfflineSyncStatus('complete');
+        localStorage.setItem(`sync_${cleanSlug}`, 'true');
+        localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
         setOfflineAvailable(true);
       }
-  
-      const handleMessage = (event: MessageEvent) => {
-        // Check for our specific success type and slug match
-        if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
-          console.log(`✅ ${cleanSlug} sync confirmed by SW.`);
-          
-          setOfflineSyncStatus('complete');
-          setOfflineAvailable(true);
-          
-          // Persist the status so the button stays "Complete" on refresh
-          localStorage.setItem(`sync_${cleanSlug}`, 'true');
-          localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
-          
-          // Inject the "Locked" manifest for this specific city
-          injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
-        }
-  
-        if (event.data?.type === 'SYNC_ERROR' && event.data.slug === cleanSlug) {
-          setOfflineSyncStatus('error');
-          console.error("🚫 Sync interrupted. Infrastructure not secured.");
-        }
-      };
-  
-      navigator.serviceWorker.addEventListener('message', handleMessage);
-      return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-    }, [cleanSlug, cityData]);
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [cleanSlug, cityData]);
 
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
-    
     const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-    
     if (offlineSyncStatus === 'complete') {
-      // FIX: Added cleanSlug as the 3rd argument here as well
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
       updateThemeColor('#0f172a');
     }
-    
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
   }, [cleanSlug, cityData, offlineSyncStatus]);
 
@@ -322,47 +255,21 @@ export default function CityGuideView() {
       </div>
 
       <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
-  <div className="flex justify-between items-start">
-    <button 
-      onClick={() => navigate(-1)} 
-      className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-95"
-    >
-      <ChevronLeft size={20} />
-    </button>
-    <div className="text-right">
-      <h1 
-        className="text-4xl font-black italic uppercase leading-none cursor-pointer select-none" 
-        onClick={() => { 
-          setDebugTapCount(c => c + 1); 
-          if(debugTapCount > 4) setShowDebug(true); 
-        }}
-      >
-        {cityData.name}
-      </h1>
-      <p className="text-sm text-slate-600 mt-2 font-medium">{cityData.theme}</p>
-      
-      <div className="mt-4 flex items-center justify-end gap-3">
-         <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
-      </div>
-
-      {/* Vite-compatible Debugger: 
-          Shows automatically in DEV mode, OR if you tap the Title 5 times (showDebug)
-      */}
-      {(import.meta.env.DEV || showDebug) && (
-        <button 
-          onClick={async () => {
-            if (confirm(`Reset all offline data for ${cityData.name}?`)) {
-              await resetCitySync(cleanSlug);
-            }
-          }}
-          className="mt-6 block ml-auto text-right text-[10px] uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors underline font-bold"
-        >
-          ☢️ Debug: Reset Offline Sync
-        </button>
-      )}
-    </div>
-  </div>
-</header>
+        <div className="flex justify-between items-start">
+          <button onClick={() => navigate(-1)} className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-95">
+            <ChevronLeft size={20} />
+          </button>
+          <div className="text-right">
+            <h1 className="text-4xl font-black italic uppercase leading-none" onClick={() => { setDebugTapCount(c => c + 1); if(debugTapCount > 4) setShowDebug(true); }}>
+              {cityData.name}
+            </h1>
+            <p className="text-sm text-slate-600 mt-2 font-medium">{cityData.theme}</p>
+            <div className="mt-4 flex items-center justify-end gap-3">
+               <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
+            </div>
+          </div>
+        </div>
+      </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         <section className="space-y-6">
