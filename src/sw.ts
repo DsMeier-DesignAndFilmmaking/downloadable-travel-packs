@@ -190,20 +190,25 @@ ctx.addEventListener('message', (event) => {
   const port = event.ports?.[0];
 
   if (type === 'PRECACHE_CITY') {
-    const city = event.data.city;
+    const city = event.data?.city;
     if (!city) return;
     event.waitUntil(
       (async () => {
+        const cache = await caches.open(`city-pack-${city}`);
+        const urlsToCache = [`/city/${city}`, `/data/${city}.json`, `/`];
+
         try {
-          const cache = await caches.open(`city-pack-${city}`);
-          await cache.addAll([
-            `/city/${city}`,
-            `/data/${city}.json`,
-            `/`,
-            `/index.html`
-          ]);
+          for (const url of urlsToCache) {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response.clone());
+            } else {
+              console.warn(`Skipping ${url} - status ${response.status}`);
+            }
+          }
           (event.source as Client)?.postMessage({ type: 'PRECACHE_COMPLETE', city });
         } catch (error) {
+          console.error('PRECACHE FAILED', error);
           (event.source as Client)?.postMessage({ type: 'PRECACHE_FAILED', city });
         }
       })()
