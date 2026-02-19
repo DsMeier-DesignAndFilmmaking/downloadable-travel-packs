@@ -179,8 +179,8 @@ export default function CityGuideView() {
     if (isSaved) {
       setOfflineSyncStatus('complete');
       // Rotate the manifest to match THIS city
-      injectManifest(generateCityGuideManifest(cityData.name, cleanSlug));
-    }
+      // Inside CityGuideView.tsx
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));    }
   
     // 3. Listen for the SW finishing the job
     const handleMessage = (event: MessageEvent) => {
@@ -189,7 +189,7 @@ export default function CityGuideView() {
       if (event.data.type === 'SYNC_COMPLETE') {
         setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
-        injectManifest(generateCityGuideManifest(cityData.name, cleanSlug));
+        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
       } else if (event.data.type === 'SYNC_ERROR') {
         setOfflineSyncStatus('error');
       }
@@ -204,7 +204,7 @@ export default function CityGuideView() {
     const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
     if (offlineSyncStatus === 'complete') {
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
       updateThemeColor('#0f172a');
     }
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
