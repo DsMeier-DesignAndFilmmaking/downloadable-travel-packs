@@ -173,44 +173,63 @@ ctx.addEventListener('fetch', (event) => {
 // --- ATOMIC SYNC ENGINE (PRE-INSTALLER) ---
 
 async function cacheCityIntel(slug: string) {
-  // Use a specific sync cache for the city to keep it isolated from the generic shell
   const cityCacheName = `${CACHE_PREFIX}-sync-${slug}-${CACHE_VERSION}`;
   const cache = await caches.open(cityCacheName);
 
-  // We cache the exact paths expected by the manifest and navigation
-  const urlsToCache = [
+  // 1. CRITICAL: These MUST succeed for the "Add to Home Screen" to work
+  const criticalUrls = [
     `/guide/${slug}`,
-    `/guide/${slug}?source=pwa`, // Crucial for PWA launches
-    `/api/guide/${slug}`,
+    `/guide/${slug}?source=pwa`,
     '/index.html'
   ];
 
-  console.log(`📡 SW: Starting atomic sync for ${slug}...`);
+  // 2. OPTIONAL: This is the one hitting the 429 Rate Limit
+  const dataUrls = [`/api/guide/${slug}`];
 
-  const results = await Promise.allSettled(
-    urlsToCache.map(async (url) => {
-      const res = await fetch(url, { cache: 'reload' });
-      if (!res.ok) throw new Error(`Failed to fetch ${url}`);
-      return cache.put(url, res);
-    })
-  );
+  console.log(`📡 SW: Starting Resilient Sync for ${slug}...`);
 
-  const failed = results.filter(r => r.status === 'rejected');
-  if (failed.length > 0) {
-    console.error(`❌ SW: Sync partial failure for ${slug}. Errors:`, failed.length);
-  } else {
-    console.log(`🔒 SW: City ${slug} is 100% locked for offline use.`);
-  }
-  
-  // Notify the UI to flip the button to "ADD TO HOME SCREEN"
-  const clients = await ctx.clients.matchAll();
-  clients.forEach((c) => {
-    c.postMessage({ 
-      type: failed.length === 0 ? 'SYNC_COMPLETE' : 'SYNC_ERROR', 
-      slug,
-      errorCount: failed.length
+  try {
+    // SYNC CRITICAL ASSETS (Use Promise.all - fails if any critical fail)
+    await Promise.all(
+      criticalUrls.map(async (url) => {
+        const res = await fetch(url, { cache: 'reload' });
+        if (!res.ok) throw new Error(`Critical Asset Missing: ${url}`);
+        return cache.put(url, res);
+      })
+    );
+
+    // SYNC DATA ASSETS (Use Promise.allSettled - survives 429 errors)
+    const dataResults = await Promise.allSettled(
+      dataUrls.map(async (url) => {
+        const res = await fetch(url, { cache: 'reload' });
+        if (res.ok) return cache.put(url, res);
+        console.warn(`⚠️ SW: Data asset skipped (likely rate limit): ${url}`);
+      })
+    );
+
+    console.log(`🔒 SW: ${slug} infrastructure secured.`);
+
+    // SUCCESS: Notify UI that the pack is ready to be "Added to Home Screen"
+    const clients = await ctx.clients.matchAll();
+    clients.forEach((c) => {
+      c.postMessage({ 
+        type: 'SYNC_COMPLETE', 
+        slug 
+      });
     });
-  });
+
+  } catch (error) {
+    console.error(`❌ SW: Atomic sync failed for ${slug}:`, error);
+    
+    // ERROR: Only notify error if the Page Shell itself failed to download
+    const clients = await ctx.clients.matchAll();
+    clients.forEach((c) => {
+      c.postMessage({ 
+        type: 'SYNC_ERROR', 
+        slug 
+      });
+    });
+  }
 }
 
 ctx.addEventListener('message', (event) => {

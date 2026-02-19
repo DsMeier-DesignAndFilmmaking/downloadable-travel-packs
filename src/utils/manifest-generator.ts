@@ -22,17 +22,20 @@ export interface WebAppManifest {
   v?: number; // Internal versioning
 }
 
-export function generateCityGuideManifest(cityId: string, cityName: string): WebAppManifest {
+export function generateCityGuideManifest(cityId: string, cityName: string, slug: string): WebAppManifest {
   const origin = window.location.origin;
 
-  // Scope must be '/' so Safari (and all clients) stay under SW control for every route (e.g. /guide/tokyo).
+  // 1. SCOPE: Root '/' ensures the SW controls the whole app 
+  // and Safari doesn't show a 'back to browser' bar.
   const scope = `${origin}/`;
 
-  // start_url must match a URL explicitly cached in SW SHELL_ASSETS (sw.ts: '/' and '/index.html').
-  const start_url = `${origin}/`;
+  // 2. START_URL: This MUST be the specific city path.
+  // This ensures the Bangkok icon opens Bangkok, not the Home Screen.
+  const start_url = `${origin}/guide/${slug}?source=pwa`;
 
   return {
-    id: `tp-v2-${cityId}`, // Keep this! This ensures the icon/title logic works
+    // 3. ID: Crucial for Android/Chrome to treat these as separate apps
+    id: `tp-v2-${slug}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,

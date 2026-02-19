@@ -168,27 +168,36 @@ export default function CityGuideView() {
 
   // --- Effects ---
   useEffect(() => {
-    if (!cleanSlug) return;
-    isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
-    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
-    setLastSynced(localStorage.getItem(`sync_${cleanSlug}_time`));
-  }, [cleanSlug]);
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
+    // 1. Immediately reset UI when the URL changes
+    setOfflineSyncStatus('idle'); 
+    
+    if (!cleanSlug || !cityData) return;
+  
+    // 2. Check if THIS specific city was already saved
+    const isSaved = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
+    
+    if (isSaved) {
+      setOfflineSyncStatus('complete');
+      // Rotate the manifest to match THIS city
+      injectManifest(generateCityGuideManifest(cityData.name, cleanSlug));
+    }
+  
+    // 3. Listen for the SW finishing the job
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
+      if (event.data?.slug !== cleanSlug) return; // IGNORE messages for other cities
+  
+      if (event.data.type === 'SYNC_COMPLETE') {
         setOfflineSyncStatus('complete');
         localStorage.setItem(`sync_${cleanSlug}`, 'true');
-        localStorage.setItem(`sync_${cleanSlug}_time`, new Date().toISOString());
-        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
-        setOfflineAvailable(true);
+        injectManifest(generateCityGuideManifest(cityData.name, cleanSlug));
+      } else if (event.data.type === 'SYNC_ERROR') {
+        setOfflineSyncStatus('error');
       }
     };
+  
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData]);
+  }, [cleanSlug, cityData?.name]); // Re-runs every time you change cities
 
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
