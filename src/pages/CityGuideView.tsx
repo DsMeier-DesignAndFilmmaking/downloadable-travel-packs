@@ -19,7 +19,6 @@ import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
-import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
@@ -168,23 +167,23 @@ export default function CityGuideView() {
 
   // --- Effects ---
   useEffect(() => {
-    // 1. Immediately reset UI when the URL changes
-    setOfflineSyncStatus('idle'); 
-    
+    // 1. Reset UI state on every route change to prevent "City A" data leaking into "City B"
+    setOfflineSyncStatus('idle');
+  
     if (!cleanSlug || !cityData) return;
   
-    // 2. Check if THIS specific city was already saved
+    // 2. Initial Check: Is this specific city already synced?
     const isSaved = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    
+  
     if (isSaved) {
       setOfflineSyncStatus('complete');
-      // Rotate the manifest to match THIS city
-      // Inside CityGuideView.tsx
-      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));    }
+      injectManifest(generateCityGuideManifest(cleanSlug, cityData.name, cleanSlug));
+    }
   
-    // 3. Listen for the SW finishing the job
+    // 3. Message Listener: Handle signals from the Service Worker
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.slug !== cleanSlug) return; // IGNORE messages for other cities
+      // SECURITY: Ensure we only react to the sync status of the city we are currently looking at
+      if (event.data?.slug !== cleanSlug) return;
   
       if (event.data.type === 'SYNC_COMPLETE') {
         setOfflineSyncStatus('complete');
@@ -195,9 +194,17 @@ export default function CityGuideView() {
       }
     };
   
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData?.name]); // Re-runs every time you change cities
+    // 4. Attach and Cleanup
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
+  
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      }
+    };
+  }, [cleanSlug, cityData?.name]); // Dependency on name ensures manifest updates if data changes // Re-runs every time you change cities
 
   useEffect(() => {
     if (!cleanSlug || !cityData) return;

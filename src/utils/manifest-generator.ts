@@ -25,22 +25,20 @@ export interface WebAppManifest {
 export function generateCityGuideManifest(cityId: string, cityName: string, slug: string): WebAppManifest {
   const origin = window.location.origin;
 
-  // 1. SCOPE: Root '/' ensures the SW controls the whole app 
-  // and Safari doesn't show a 'back to browser' bar.
+  // 1. Define the variables
   const scope = `${origin}/`;
-
-  // 2. START_URL: This MUST be the specific city path.
-  // This ensures the Bangkok icon opens Bangkok, not the Home Screen.
   const start_url = `${origin}/guide/${slug}?source=pwa`;
 
   return {
-    // 3. ID: Crucial for Android/Chrome to treat these as separate apps
-    id: `tp-v2-${slug}`, 
+    id: `tp-v2-${cityId}`, 
     name: `${cityName} Travel Pack`,
     short_name: cityName,
     description: `Offline travel pack for ${cityName} — survival, emergency & arrival.`,
-    start_url,
+    
+    // 2. Map the variables to the properties (Fixes TS6133)
+    start_url, 
     scope,
+    
     display: 'standalone',
     background_color: '#0f172a',
     theme_color: '#0f172a',
@@ -56,13 +54,7 @@ export function generateCityGuideManifest(cityId: string, cityName: string, slug
         sizes: '512x512', 
         type: 'image/png', 
         purpose: 'any' 
-      },
-      { 
-        src: `${origin}/pwa-pwa-maskable-512x512.png`, 
-        sizes: '512x512', 
-        type: 'image/png', 
-        purpose: 'maskable' 
-      },
+      }
     ],
     v: Date.now() 
   };
