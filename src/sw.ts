@@ -65,18 +65,28 @@ async function getEntryAssetUrls(): Promise<string[]> {
 }
 
 // --- LIFECYCLE ---
+// Install: skipWaiting() only so the new worker can activate immediately (no blocking precache).
+ctx.addEventListener('install', () => {
+  ctx.skipWaiting();
+});
 
-ctx.addEventListener('install', (event) => {
-  ctx.skipWaiting(); 
+// Activate: claim clients first for fast takeover, then cleanup old caches and warm shell cache.
+ctx.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(SHELL_CACHE_NAME);
-      const entryUrls = await getEntryAssetUrls();
-      const allCriticalAssets = [...new Set([...SHELL_ASSETS, ...entryUrls])];
-      
-      console.log('📦 SW: Caching App Shell assets:', allCriticalAssets.length);
+      await ctx.clients.claim();
+      console.log('⚡ SW: Claimed all clients.');
+
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
+          .map(name => caches.delete(name))
+      );
+
+      console.log('📦 SW: Caching App Shell assets...');
       try {
-        await cache.addAll(allCriticalAssets);
+        await ensureShellCached();
         console.log('✅ SW: Shell Assets fully cached.');
       } catch (err) {
         console.error('❌ SW: Critical Shell Cache Failed!', err);
@@ -85,26 +95,27 @@ ctx.addEventListener('install', (event) => {
   );
 });
 
-ctx.addEventListener('activate', (event) => {
-  event.waitUntil(
-    (async () => {
-      const names = await caches.keys();
-      await Promise.all(
-        names
-          .filter(name => name.startsWith(CACHE_PREFIX) && !name.includes(CACHE_VERSION))
-          .map(name => caches.delete(name))
-      );
-      await ctx.clients.claim();
-      console.log('⚡ SW: Claimed all clients.');
-    })()
-  );
-});
-
 // --- FETCH HANDLERS ---
 
 ctx.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request.url); 
+  const url = new URL(request.url);
+
+  // CITY ROUTES: isolated per-city cache only; if not in cache, fetch normally (no write-back).
+  const cityPathPrefix = '/city/';
+  if (url.pathname.startsWith(cityPathPrefix) && url.pathname.length > cityPathPrefix.length) {
+    const slug = url.pathname.slice(cityPathPrefix.length).split('/')[0];
+    if (slug) {
+      event.respondWith(
+        (async () => {
+          const cached = await caches.match(request, { cacheName: `city-pack-${slug}` });
+          if (cached) return cached;
+          return fetch(request);
+        })()
+      );
+      return;
+    }
+  }
 
   // 1. NAVIGATION FALLBACK (Critical for Offline Home Screen)
   if (request.mode === 'navigate') {
@@ -175,8 +186,31 @@ ctx.addEventListener('fetch', (event) => {
 // --- MESSAGING ---
 
 ctx.addEventListener('message', (event) => {
-  const { type, assets, images, urls, citySlug, slug } = event.data;
+  const { type, assets, images, urls, citySlug, slug, city } = event.data;
   const port = event.ports?.[0];
+
+  if (type === 'PRECACHE_CITY') {
+    const citySlug = event.data.city;
+    if (!citySlug) return;
+    event.waitUntil(
+      (async () => {
+        try {
+          const cache = await caches.open(`city-pack-${citySlug}`);
+          const base = ctx.location.origin;
+          await cache.addAll([
+            new URL(`/city/${citySlug}`, base).href,
+            new URL(`/data/${citySlug}.json`, base).href,
+            new URL('/', base).href,
+            new URL('/index.html', base).href,
+          ]);
+          (event.source as Client)?.postMessage({ type: 'PRECACHE_COMPLETE', city: citySlug });
+        } catch (error) {
+          (event.source as Client)?.postMessage({ type: 'PRECACHE_FAILED', city: citySlug });
+        }
+      })()
+    );
+    return;
+  }
 
   if (type === 'ATOMIC_CITY_SYNC') {
     const targetSlug = slug ?? citySlug;

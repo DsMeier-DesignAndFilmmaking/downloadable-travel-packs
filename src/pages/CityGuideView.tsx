@@ -6,7 +6,6 @@ import {
   Download,
   Zap,
   ChevronLeft,
-  ArrowUpFromLine,
   Plane,
   Wifi,
   Info,
@@ -19,7 +18,6 @@ import {
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
@@ -28,7 +26,7 @@ import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
-import { generateCityGuideManifest, injectManifest, updateThemeColor } from '@/utils/manifest-generator';
+import { updateThemeColor } from '@/utils/manifest-generator';
 
 // ---------------------------------------------------------------------------
 // IndexedDB: persist city pack after load
@@ -176,15 +174,11 @@ export default function CityGuideView() {
     refetch,
   } = useCityPack(cleanSlug ?? undefined);
 
-  const { installPWA, isInstalled, showMobileOverlay, dismissMobileOverlay } = usePWAInstall(
-    cleanSlug ?? ''
-  );
-
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'complete' | 'error'>('idle');
-  const [isSwControlling, setIsSwControlling] = useState<boolean>(() =>
-    typeof navigator !== 'undefined' && 'serviceWorker' in navigator ? !!navigator.serviceWorker.controller : false
-  );
+  const [precacheStatus, setPrecacheStatus] = useState<'idle' | 'preparing' | 'offline-ready' | 'error'>(() => {
+    if (typeof window === 'undefined' || !cleanSlug) return 'idle';
+    return localStorage.getItem(`offline-${cleanSlug}`) ? 'offline-ready' : 'idle';
+  });
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -195,9 +189,14 @@ export default function CityGuideView() {
   );
 
   useEffect(() => {
-    const isThisCitySynced = localStorage.getItem(`sync_${cleanSlug}`) === 'true';
-    setOfflineSyncStatus(isThisCitySynced ? 'complete' : 'idle');
+    if (!cleanSlug) return;
+    setPrecacheStatus(localStorage.getItem(`offline-${cleanSlug}`) ? 'offline-ready' : 'idle');
   }, [cleanSlug]);
+
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true);
 
   const isOnline = !isOffline;
   const isOfflineAvailable = useMemo(
@@ -206,121 +205,58 @@ export default function CityGuideView() {
   );
 
   /**
-   * 1. SERVICE WORKER MESSAGE LISTENER
-   * Only move to 'complete' when SYNC_COMPLETE and slug matches.
+   * Precache message listener: PRECACHE_COMPLETE → offline-ready, PRECACHE_FAILED → error.
+   * No reinstall or manifest logic.
    */
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug || !cityData) return;
+    if (!('serviceWorker' in navigator) || !cleanSlug) return;
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'SYNC_COMPLETE' && event.data.slug === cleanSlug) {
-        setOfflineSyncStatus('complete');
-        localStorage.setItem(`sync_${cleanSlug}`, 'true');
-        localStorage.setItem('shell_v1_cached', 'true');
-        localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-        injectManifest(generateCityGuideManifest(cleanSlug, cityData.name));
-        const now = new Date().toISOString();
-        setLastSynced(now);
+      if (!event.data) return;
+      if (event.data.type === 'PRECACHE_COMPLETE' && event.data.city === cleanSlug) {
+        setPrecacheStatus('offline-ready');
+        localStorage.setItem(`offline-${cleanSlug}`, 'true');
         setOfflineAvailable(true);
-        console.log(`✅ ${cleanSlug} cache confirmed by Service Worker`);
+      }
+      if (event.data.type === 'PRECACHE_FAILED' && event.data.city === cleanSlug) {
+        setPrecacheStatus('error');
       }
     };
 
     navigator.serviceWorker.addEventListener('message', handleMessage);
     return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug, cityData]);
+  }, [cleanSlug]);
 
-  /** Sync gate: track when the page is controlled by a SW (enables safe "Add to Home Screen"). */
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
-    const onControllerChange = () => setIsSwControlling(!!navigator.serviceWorker.controller);
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-  }, []);
-  
-
-  async function handleOfflineSync(): Promise<void> {
-    let sw = navigator.serviceWorker.controller;
-    if (!sw && 'serviceWorker' in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      sw = registration.active;
-    }
-
-    if (!sw || !cleanSlug || !cityData) {
-      setOfflineSyncStatus('error');
+  async function handlePrecache(): Promise<void> {
+    if (!cleanSlug || !('serviceWorker' in navigator)) {
+      setPrecacheStatus('error');
       return;
     }
-
-    setOfflineSyncStatus('syncing');
-    sw.postMessage({ type: 'START_CITY_SYNC', slug: cleanSlug });
+    setPrecacheStatus('preparing');
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const sw = registration.active;
+      if (!sw) {
+        setPrecacheStatus('error');
+        return;
+      }
+      sw.postMessage({ type: 'PRECACHE_CITY', city: cleanSlug });
+    } catch {
+      setPrecacheStatus('error');
+    }
   }
 
 
-  /**
-   * 2. IDENTITY ROTATION & AUTO-SYNC
-   * Only call injectManifest when offlineSyncStatus is 'complete' so the Share panel
-   * sees the city identity only after the SW has confirmed offline files are ready.
-   */
+  /** Document title and theme for city page. */
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
-
-    const manifestId = `tp-v2-${cleanSlug}`;
-    const existingLink = document.querySelector('link[rel="manifest"]');
-    const currentManifestId = existingLink?.getAttribute('data-identity');
-
-    if (!currentManifestId || currentManifestId !== manifestId) {
-      const hasRotated = sessionStorage.getItem('pwa_rotator_lock') === manifestId;
-      if (!hasRotated && offlineSyncStatus === 'complete') {
-        console.log(`🔄 Identity Mismatch: Rotating to ${cityData.name}`);
-        const manifest = generateCityGuideManifest(cleanSlug, cityData.name);
-        injectManifest(manifest);
-        sessionStorage.setItem('pwa_rotator_lock', manifestId);
-        updateThemeColor('#0f172a');
-        window.location.replace(window.location.href);
-        return;
-      }
-    }
-
-    // --- 2. PROACTIVE ASSET CACHING & CITY SYNC ---
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // A. Signal the Service Worker to cache the city-specific data
-      navigator.serviceWorker.controller.postMessage({ 
-        type: 'CACHE_CITY', 
-        citySlug: cleanSlug 
-      });
-
-      /**
-       * B. PROACTIVE SHELL CACHING
-       * This extracts the actual hashed .js and .css files from the current DOM.
-       * Sending these to the SW ensures the Home Screen app has the code 
-       * it needs to boot, even if it's never been opened online before.
-       */
-      const scriptAssets = Array.from(document.querySelectorAll('script[src]'))
-        .map(s => (s as HTMLScriptElement).src);
-      const styleAssets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-        .map(l => (l as HTMLLinkElement).href);
-
-      navigator.serviceWorker.controller.postMessage({
-        type: 'PRECACHE_ASSETS',
-        assets: [...scriptAssets, ...styleAssets]
-      });
-      
-      console.log('📡 Proactive Shell Sync: Handshake sent to SW');
-    }
-
-    // Secondary UI Updates
     const cityName = cityData.name;
     document.title = `${cityName} Pack`;
     const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (appleTitle) appleTitle.setAttribute('content', cityName);
-    
     updateThemeColor('#0f172a');
     localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-
-    return () => {
-      sessionStorage.removeItem('pwa_rotator_lock');
-    };
-  }, [cleanSlug, cityData, offlineSyncStatus]);
+  }, [cleanSlug, cityData]);
 
   /**
    * 3. PERSISTENCE & OFFLINE SIGNALING
@@ -512,87 +448,66 @@ export default function CityGuideView() {
         </section>
       </main>
 
-{/* FIXED DYNAMIC ACTION BAR */}
+{/* FIXED DYNAMIC ACTION BAR — hidden when running as PWA (standalone) */}
+{!isStandalone && (
 <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
   <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
        style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
   
   <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
     <button
-      onClick={() => (offlineSyncStatus !== 'complete' ? handleOfflineSync() : installPWA())}
-      disabled={isInstalled || !isSwControlling || offlineSyncStatus === 'syncing'}
+      onClick={() => (precacheStatus === 'offline-ready' ? undefined : handlePrecache())}
+      disabled={precacheStatus === 'preparing'}
       className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
-        !isSwControlling || offlineSyncStatus === 'syncing'
+        precacheStatus === 'preparing'
           ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
-          : isInstalled
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-            : offlineSyncStatus === 'complete'
-              ? 'bg-[#FFDD00] text-black border-[#E6C600]' // High contrast for "Action Required"
+          : precacheStatus === 'offline-ready'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-100 cursor-default'
+            : precacheStatus === 'error'
+              ? 'bg-rose-50 text-rose-700 border-rose-200'
               : 'bg-[#222222] text-white border-black'
       }`}
     >
       <div className="flex items-center gap-4">
-        {/* ICON CONTAINER */}
         <div className={`p-2 rounded-xl transition-colors ${
-          isInstalled 
-            ? 'bg-emerald-200 text-emerald-800' 
-            : offlineSyncStatus === 'complete' 
-              ? 'bg-black text-[#FFDD00]' 
-              : 'bg-white/10 text-white'
+          precacheStatus === 'offline-ready' ? 'bg-emerald-200 text-emerald-800' :
+          precacheStatus === 'error' ? 'bg-rose-200 text-rose-800' :
+          'bg-white/10 text-white'
         }`}>
-          {!isSwControlling || offlineSyncStatus === 'syncing' ? (
+          {precacheStatus === 'preparing' ? (
             <Activity size={20} className="animate-spin" />
-          ) : isInstalled ? (
+          ) : precacheStatus === 'offline-ready' ? (
             <Check size={20} strokeWidth={3} />
-          ) : offlineSyncStatus === 'complete' ? (
-            <ArrowUpFromLine size={20} strokeWidth={3} /> // Suggests "Add to Home"
           ) : (
             <Download size={20} strokeWidth={3} />
           )}
         </div>
 
-        {/* TEXT LABELS */}
         <div className="flex flex-col items-start text-left">
           <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-            {!isSwControlling && 'System Initializing...'}
-            {isSwControlling && offlineSyncStatus === 'syncing' && 'Securing Assets...'}
-            {isSwControlling && offlineSyncStatus === 'complete' && !isInstalled && 'Add to Home Screen'}
-            {isInstalled && 'Pack Fully Installed'}
-            {isSwControlling && offlineSyncStatus === 'idle' && 'Download Offline Pack'}
-            {isSwControlling && offlineSyncStatus === 'error' && 'Retry Download'}
+            {precacheStatus === 'preparing' && 'Securing Assets...'}
+            {precacheStatus === 'offline-ready' && 'Offline Ready — Add to Home Screen'}
+            {precacheStatus === 'error' && 'Retry Offline Preparation'}
+            {precacheStatus === 'idle' && 'Prepare for Offline Use'}
           </span>
           <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-            {!isSwControlling && 'Establishing secure connection...'}
-            {offlineSyncStatus === 'syncing' && 'Writing app shell to local disk...'}
-            {isInstalled && 'Available via Home Screen'}
-            {offlineSyncStatus === 'complete' && !isInstalled && 'Sync complete · Finalize setup'}
-            {offlineSyncStatus === 'idle' && `Prepare ${cityData?.name || 'Guide'} // 2.4MB`}
+            {precacheStatus === 'preparing' && 'Writing to local disk...'}
+            {precacheStatus === 'offline-ready' && 'Use Safari Share → Add to Home Screen'}
+            {precacheStatus === 'idle' && `${cityData?.name || 'Guide'} pack`}
+            {precacheStatus === 'error' && 'Tap to retry'}
           </span>
         </div>
       </div>
 
-      {/* STATUS DOT */}
       <div className={`h-1.5 w-1.5 rounded-full ${
-        offlineSyncStatus === 'syncing' ? 'bg-amber-500 animate-pulse' : 
-        isInstalled ? 'bg-emerald-500' : 
-        offlineSyncStatus === 'complete' ? 'bg-blue-500 animate-bounce' : 'bg-slate-400'
+        precacheStatus === 'preparing' ? 'bg-amber-500 animate-pulse' :
+        precacheStatus === 'offline-ready' ? 'bg-emerald-500' :
+        precacheStatus === 'error' ? 'bg-rose-500' : 'bg-slate-400'
       }`} />
     </button>
   </div>
 </div>
-
-      {/* Safety: only show install instructions when sync has completed (prevents overlay if sync failed in background) */}
-      <AnimatePresence>
-        {showMobileOverlay && offlineSyncStatus === 'complete' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 flex items-end justify-center p-6 pb-24" onClick={dismissMobileOverlay}>
-            <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="bg-[#F7F7F7] rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-slate-200">
-              <p className="text-[#222222] font-bold text-center mb-4">Add to Home Screen</p>
-              <ol className="text-slate-600 text-sm space-y-3 mb-6 list-decimal list-inside"><li>Tap the Share icon (box with arrow)</li><li>Scroll down and tap &quot;Add to Home Screen&quot;</li></ol>
-              <button onClick={dismissMobileOverlay} className="w-full py-3 rounded-full bg-[#222222] text-white font-bold">Got it</button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+)}
     </motion.div>
   );
 }
