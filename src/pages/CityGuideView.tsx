@@ -10,7 +10,7 @@ import {
   Wifi,
   Info,
   Activity,
-  Check,
+  X,
   Droplets,
   Globe,
   Navigation,
@@ -149,11 +149,96 @@ function AgenticSystemTrigger({ onClick }: { onClick: () => void; }) {
   );
 }
 
+function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const [showWhyRequired, setShowWhyRequired] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) setShowWhyRequired(false);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[210]">
+      <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative h-full w-full overflow-y-auto">
+        <div className="min-h-full px-4 py-6">
+          <div className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
+              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Save This City for Offline Access</h2>
+              <button
+                onClick={onClose}
+                className="rounded-lg border border-slate-200 p-2 text-slate-500 transition-colors active:scale-95"
+                aria-label="Close offline instructions"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-5 py-5 text-[14px] text-slate-700">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 1:</p>
+                <p className="mt-1 leading-relaxed">While connected to the internet, keep this page open until fully loaded.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 2:</p>
+                <p className="mt-1 leading-relaxed">Tap the Share icon in Safari.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 3:</p>
+                <p className="mt-1 leading-relaxed">Scroll and tap "Add to Home Screen."</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 4:</p>
+                <p className="mt-1 leading-relaxed">After adding it, OPEN the city from your home screen icon while still online.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Important:</p>
+                <p className="mt-1 leading-relaxed">The first time you open it from your home screen, it finalizes offline setup. After that, this city will work without internet.</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Note:</p>
+                <p className="mt-1 leading-relaxed">If you open the home screen icon for the first time while offline, it may not load properly.</p>
+              </div>
+
+              <div className="border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowWhyRequired((v) => !v)}
+                  className="text-xs font-black uppercase tracking-wider text-slate-500 underline underline-offset-2"
+                >
+                  Why is this required?
+                </button>
+                {showWhyRequired && (
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                    iPhone web apps need to be opened once from the home screen to complete offline setup.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 px-5 py-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-12 w-full rounded-2xl bg-[#222222] text-[11px] font-black uppercase tracking-[0.18em] text-white active:scale-[0.98] transition-transform"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   TH: { code: 'THB', rate: '31.13' }, JP: { code: 'JPY', rate: '150.40' }, AE: { code: 'AED', rate: '3.67' }, GB: { code: 'GBP', rate: '0.87' }, FR: { code: 'EUR', rate: '0.94' }, IT: { code: 'EUR', rate: '0.94' }, ES: { code: 'EUR', rate: '0.94' }, DE: { code: 'EUR', rate: '0.94' }, MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
 const DEFAULT_PASSPORT = 'US';
+const STANDALONE_FIRST_LAUNCH_KEY = 'travelpacks-standalone-first-launch';
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -175,10 +260,9 @@ export default function CityGuideView() {
   } = useCityPack(cleanSlug ?? undefined);
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [precacheStatus, setPrecacheStatus] = useState<'idle' | 'preparing' | 'offline-ready' | 'error'>(() => {
-    if (typeof window === 'undefined' || !cleanSlug) return 'idle';
-    return localStorage.getItem(`offline-${cleanSlug}`) ? 'offline-ready' : 'idle';
-  });
+  const [isBrowserOfflineAvailable, setIsBrowserOfflineAvailable] = useState<boolean>(false);
+  const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
+  const [showStandaloneBanner, setShowStandaloneBanner] = useState(false);
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -188,9 +272,26 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
+  // Browser-only cache probe: true when current URL can be served from cache.
   useEffect(() => {
-    if (!cleanSlug) return;
-    setPrecacheStatus(localStorage.getItem(`offline-${cleanSlug}`) ? 'offline-ready' : 'idle');
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+
+    setIsBrowserOfflineAvailable(false);
+    fetch(window.location.href, {
+      cache: 'only-if-cached',
+      mode: 'same-origin',
+    })
+      .then(() => {
+        if (!cancelled) setIsBrowserOfflineAvailable(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsBrowserOfflineAvailable(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [cleanSlug]);
 
   const isStandalone =
@@ -203,48 +304,28 @@ export default function CityGuideView() {
     () => Boolean(cityData && (isOffline || isLocalData)),
     [cityData, isOffline, isLocalData]
   );
+  const browserOfflineStatus =
+    typeof navigator !== 'undefined' && navigator.onLine === false
+      ? 'Viewing Offline'
+      : isBrowserOfflineAvailable
+        ? 'Available Offline in Browser'
+        : null;
 
-  /**
-   * Precache message listener: PRECACHE_COMPLETE → offline-ready, PRECACHE_FAILED → error.
-   * No reinstall or manifest logic.
-   */
   useEffect(() => {
-    if (!('serviceWorker' in navigator) || !cleanSlug) return;
+    if (typeof window === 'undefined' || !isStandalone) return;
+    if (localStorage.getItem(STANDALONE_FIRST_LAUNCH_KEY)) return;
 
-    const handleMessage = (event: MessageEvent) => {
-      if (!event.data) return;
-      if (event.data.type === 'PRECACHE_COMPLETE' && event.data.city === cleanSlug) {
-        setPrecacheStatus('offline-ready');
-        localStorage.setItem(`offline-${cleanSlug}`, 'true');
-        setOfflineAvailable(true);
-      }
-      if (event.data.type === 'PRECACHE_FAILED' && event.data.city === cleanSlug) {
-        setPrecacheStatus('error');
-      }
+    localStorage.setItem(STANDALONE_FIRST_LAUNCH_KEY, '1');
+    setShowStandaloneBanner(true);
+
+    const timeoutId = window.setTimeout(() => {
+      setShowStandaloneBanner(false);
+    }, 3000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
     };
-
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [cleanSlug]);
-
-  async function handlePrecache(): Promise<void> {
-    if (!cleanSlug || !('serviceWorker' in navigator)) {
-      setPrecacheStatus('error');
-      return;
-    }
-    setPrecacheStatus('preparing');
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const sw = registration.active;
-      if (!sw) {
-        setPrecacheStatus('error');
-        return;
-      }
-      sw.postMessage({ type: 'PRECACHE_CITY', city: cleanSlug });
-    } catch {
-      setPrecacheStatus('error');
-    }
-  }
+  }, [isStandalone]);
 
 
   /** Document title and theme for city page. */
@@ -319,6 +400,14 @@ export default function CityGuideView() {
   return (
     <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden">
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
+      <OfflineAccessModal isOpen={isOfflineHelpOpen} onClose={() => setIsOfflineHelpOpen(false)} />
+      {showStandaloneBanner && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[190] w-full max-w-md px-4 pointer-events-none">
+          <div className="mx-auto rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2 text-[11px] font-black text-[#222222] tracking-wide shadow-lg backdrop-blur-sm">
+            Opening from home screen. Finalizing offline setup...
+          </div>
+        </div>
+      )}
       {showDebug && <DebugBanner data={visaData ?? undefined} cityId={cityData.slug} loading={isApiLoading} />}
 
       <div 
@@ -351,6 +440,11 @@ export default function CityGuideView() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
                   {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
                 </span>
+                {browserOfflineStatus && (
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                    {browserOfflineStatus}
+                  </span>
+                )}
               </div>
               <div className="h-8 w-[1px] bg-slate-200" />
               <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
@@ -457,54 +551,23 @@ export default function CityGuideView() {
   
   <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
     <button
-      onClick={() => (precacheStatus === 'offline-ready' ? undefined : handlePrecache())}
-      disabled={precacheStatus === 'preparing'}
-      className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border ${
-        precacheStatus === 'preparing'
-          ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-wait'
-          : precacheStatus === 'offline-ready'
-            ? 'bg-emerald-50 text-emerald-700 border-emerald-100 cursor-default'
-            : precacheStatus === 'error'
-              ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-[#222222] text-white border-black'
-      }`}
+      onClick={() => setIsOfflineHelpOpen(true)}
+      className="w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border bg-[#222222] text-white border-black"
     >
       <div className="flex items-center gap-4">
-        <div className={`p-2 rounded-xl transition-colors ${
-          precacheStatus === 'offline-ready' ? 'bg-emerald-200 text-emerald-800' :
-          precacheStatus === 'error' ? 'bg-rose-200 text-rose-800' :
-          'bg-white/10 text-white'
-        }`}>
-          {precacheStatus === 'preparing' ? (
-            <Activity size={20} className="animate-spin" />
-          ) : precacheStatus === 'offline-ready' ? (
-            <Check size={20} strokeWidth={3} />
-          ) : (
-            <Download size={20} strokeWidth={3} />
-          )}
+        <div className="p-2 rounded-xl transition-colors bg-white/10 text-white">
+          <Download size={20} strokeWidth={3} />
         </div>
 
         <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-            {precacheStatus === 'preparing' && 'Securing Assets...'}
-            {precacheStatus === 'offline-ready' && 'Offline Ready — Add to Home Screen'}
-            {precacheStatus === 'error' && 'Retry Offline Preparation'}
-            {precacheStatus === 'idle' && 'Prepare for Offline Use'}
-          </span>
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">SAVE FOR OFFLINE ACCESS</span>
           <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-            {precacheStatus === 'preparing' && 'Writing to local disk...'}
-            {precacheStatus === 'offline-ready' && 'Use Safari Share → Add to Home Screen'}
-            {precacheStatus === 'idle' && `${cityData?.name || 'Guide'} pack`}
-            {precacheStatus === 'error' && 'Tap to retry'}
+            Setup instructions
           </span>
         </div>
       </div>
 
-      <div className={`h-1.5 w-1.5 rounded-full ${
-        precacheStatus === 'preparing' ? 'bg-amber-500 animate-pulse' :
-        precacheStatus === 'offline-ready' ? 'bg-emerald-500' :
-        precacheStatus === 'error' ? 'bg-rose-500' : 'bg-slate-400'
-      }`} />
+      <div className="h-1.5 w-1.5 rounded-full bg-slate-400" />
     </button>
   </div>
 </div>
