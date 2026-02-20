@@ -272,22 +272,28 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
-  // Browser-only cache probe: true when current URL can be served from cache.
+  // Browser-only cache probe via CacheStorage (no network request noise).
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !('caches' in window)) return;
     let cancelled = false;
 
     setIsBrowserOfflineAvailable(false);
-    fetch(window.location.href, {
-      cache: 'only-if-cached',
-      mode: 'same-origin',
-    })
-      .then(() => {
-        if (!cancelled) setIsBrowserOfflineAvailable(true);
-      })
-      .catch(() => {
+    (async () => {
+      try {
+        const candidates = [
+          window.location.href,
+          window.location.pathname,
+          '/index.html',
+          '/',
+        ];
+        const matches = await Promise.all(
+          candidates.map((url) => caches.match(url, { ignoreSearch: true }))
+        );
+        if (!cancelled) setIsBrowserOfflineAvailable(matches.some(Boolean));
+      } catch {
         if (!cancelled) setIsBrowserOfflineAvailable(false);
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
