@@ -89,8 +89,11 @@ ctx.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Ignore /check to prevent 429
-  if (url.pathname === '/check') return;
+  // Never proxy cross-origin requests (e.g., RapidAPI).
+  if (url.origin !== ctx.location.origin) return;
+
+  // Ignore /check-like endpoints to avoid retry loops under rate limits.
+  if (url.pathname === '/check' || url.pathname.endsWith('/check')) return;
 
   // Navigation fallback
   if (request.mode === 'navigate') {

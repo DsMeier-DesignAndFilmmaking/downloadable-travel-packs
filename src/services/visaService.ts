@@ -1,7 +1,9 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
-const API_KEY = import.meta.env.VITE_TRAVEL_BUDDY_KEY;
-const API_HOST = 'visa-requirement.p.rapidapi.com';
+const VISA_CHECK_ENDPOINT = '/api/visa-check';
+const RATE_LIMIT_UNTIL_KEY = 'visa_rate_limit_until';
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 30 * 60 * 1000;
+const inflightVisaRequests = new Map<string, Promise<VisaCheckData | null>>();
 
 export interface VisaCheckData {
   passport?: { currency_code?: string; [key: string]: unknown };
@@ -21,59 +23,65 @@ export interface VisaCheckData {
 }
 
 export const fetchVisaCheck = async (passport: string, destination: string): Promise<VisaCheckData | null> => {
-    const cleanPassport = passport.toUpperCase().trim();
-    const cleanDestination = destination.toUpperCase().trim();
-    const cacheKey = `visa_${cleanPassport}_${cleanDestination}`;
+  const cleanPassport = passport.toUpperCase().trim();
+  const cleanDestination = destination.toUpperCase().trim();
+  const cacheKey = `visa_${cleanPassport}_${cleanDestination}`;
 
-    // 1. Check Session Storage (Persists through refreshes)
-    const cachedData = sessionStorage.getItem(cacheKey);
-    if (cachedData) {
-      console.log(`📦 Serving cached visa data for ${cleanDestination}`);
-      return JSON.parse(cachedData);
-    }
+  // 1. Check Session Storage (persists through refreshes)
+  const cachedData = sessionStorage.getItem(cacheKey);
+  if (cachedData) {
+    console.log(`📦 Serving cached visa data for ${cleanDestination}`);
+    return JSON.parse(cachedData) as VisaCheckData;
+  }
 
-    const params = new URLSearchParams();
-    params.append('passport', cleanPassport);
-    params.append('destination', cleanDestination);
-  
-    const options = {
-      method: 'POST',
-      url: `https://${API_HOST}/v2/visa/check`,
-      headers: {
-        'content-type': 'application/x-www-form-urlencoded',
-        'x-rapidapi-host': API_HOST,
-        'x-rapidapi-key': API_KEY
-      },
-      data: params
-    };
-  
+  // 2. Avoid duplicate in-flight requests for the same route.
+  const existingRequest = inflightVisaRequests.get(cacheKey);
+  if (existingRequest) return existingRequest;
+
+  // 3. Respect temporary cooldown when backend reports rate limiting.
+  const now = Date.now();
+  const cooldownUntilRaw = localStorage.getItem(RATE_LIMIT_UNTIL_KEY);
+  const cooldownUntil = Number(cooldownUntilRaw || '0');
+  if (Number.isFinite(cooldownUntil) && cooldownUntil > now) {
+    return null;
+  }
+  if (cooldownUntilRaw && (!Number.isFinite(cooldownUntil) || cooldownUntil <= now)) {
+    localStorage.removeItem(RATE_LIMIT_UNTIL_KEY);
+  }
+
+  const requestPromise = (async () => {
     try {
-      const response = await axios.request(options);
-      const rawData = response.data?.data || response.data;
-      
-      if (!rawData) return null;
+      const response = await axios.get<VisaCheckData>(VISA_CHECK_ENDPOINT, {
+        params: {
+          passport: cleanPassport,
+          destination: cleanDestination,
+        },
+      });
 
-      const regSource = rawData.mandatory_registration || rawData.registration || rawData.requirement;
+      if (!response.data) return null;
 
-      const normalizedData: VisaCheckData = {
-        ...rawData,
-        mandatory_registration: regSource ? {
-          text: regSource.text || regSource.label || regSource.name || regSource.description,
-          link: regSource.link || regSource.url,
-          color: regSource.color || 'amber'
-        } : null
-      };
-
-      // 2. Save to Session Storage before returning
-      sessionStorage.setItem(cacheKey, JSON.stringify(normalizedData));
-    
-      return normalizedData;
-    } catch (error: any) {
-      if (error.response?.status === 429) {
-        console.error("🚫 429 ERROR: RapidAPI Rate Limit Exceeded. Using fallback empty state.");
+      sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
+      return response.data;
+    } catch (error: unknown) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 429) {
+        const retryAfterRaw = axiosError.response.headers?.['retry-after'];
+        const retryAfterSeconds = Number.parseInt(String(retryAfterRaw ?? ''), 10);
+        const backoffMs =
+          Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+            ? retryAfterSeconds * 1000
+            : DEFAULT_RATE_LIMIT_BACKOFF_MS;
+        localStorage.setItem(RATE_LIMIT_UNTIL_KEY, String(Date.now() + backoffMs));
+        console.error('🚫 429 ERROR: Visa API rate-limited. Backing off temporarily.');
       } else {
-        console.error("❌ API ERROR:", error);
+        console.error('❌ API ERROR:', error);
       }
       return null;
     }
-  };
+  })().finally(() => {
+    inflightVisaRequests.delete(cacheKey);
+  });
+
+  inflightVisaRequests.set(cacheKey, requestPromise);
+  return requestPromise;
+};

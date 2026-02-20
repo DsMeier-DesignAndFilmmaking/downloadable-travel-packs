@@ -278,6 +278,7 @@ export default function CityGuideView() {
    */
   useEffect(() => {
     if (!cityData?.countryCode) return;
+    setVisaData(null);
     if (isOffline) {
       setIsApiLoading(false);
       return;
