@@ -165,7 +165,7 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         <div className="min-h-full px-4 py-6">
           <div className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
-              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Save This City for Offline Access</h2>
+              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Store This City Pack for Offline Access</h2>
               <button
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition-colors active:scale-95"
@@ -176,29 +176,55 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             </div>
 
             <div className="space-y-5 px-5 py-5 text-[14px] text-slate-700">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 1:</p>
-                <p className="mt-1 leading-relaxed">While connected to the internet, keep this page open until fully loaded.</p>
+              <div className="space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Add To Device Setup</p>
+                <p className="text-sm leading-relaxed text-slate-600">
+                  Do this once while online so this city pack is dependable offline.
+                </p>
               </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 2:</p>
-                <p className="mt-1 leading-relaxed">Tap the Share icon in Safari.</p>
+
+              <ol className="space-y-3">
+                <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">1</span>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Open Share Menu</p>
+                      <p className="mt-1 leading-relaxed">Tap the Share icon in Safari.</p>
+                    </div>
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">2</span>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Add To Home Screen</p>
+                      <p className="mt-1 leading-relaxed">Scroll and tap "Add to Home Screen."</p>
+                    </div>
+                  </div>
+                </li>
+                <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">3</span>
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Launch Once Online</p>
+                      <p className="mt-1 leading-relaxed">Open this city from the home screen icon while still online.</p>
+                    </div>
+                  </div>
+                </li>
+              </ol>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-800">Critical</p>
+                <p className="mt-1 text-sm leading-relaxed text-amber-900">
+                  The first home-screen launch finalizes offline setup. After this, the city pack can open without internet.
+                </p>
               </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 3:</p>
-                <p className="mt-1 leading-relaxed">Scroll and tap "Add to Home Screen."</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Step 4:</p>
-                <p className="mt-1 leading-relaxed">After adding it, OPEN the city from your home screen icon while still online.</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Important:</p>
-                <p className="mt-1 leading-relaxed">The first time you open it from your home screen, it finalizes offline setup. After that, this city will work without internet.</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Note:</p>
-                <p className="mt-1 leading-relaxed">If you open the home screen icon for the first time while offline, it may not load properly.</p>
+
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">If It Fails</p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                  If that first home-screen launch happens offline, the city pack may not load correctly.
+                </p>
               </div>
 
               <div className="border-t border-slate-100 pt-4">
@@ -260,7 +286,6 @@ export default function CityGuideView() {
   } = useCityPack(cleanSlug ?? undefined);
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
-  const [isBrowserOfflineAvailable, setIsBrowserOfflineAvailable] = useState<boolean>(false);
   const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
   const [showStandaloneBanner, setShowStandaloneBanner] = useState(false);
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
@@ -272,50 +297,17 @@ export default function CityGuideView() {
     typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
   );
 
-  // Browser-only cache probe via CacheStorage (no network request noise).
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('caches' in window)) return;
-    let cancelled = false;
-
-    setIsBrowserOfflineAvailable(false);
-    (async () => {
-      try {
-        const candidates = [
-          window.location.href,
-          window.location.pathname,
-          '/index.html',
-          '/',
-        ];
-        const matches = await Promise.all(
-          candidates.map((url) => caches.match(url, { ignoreSearch: true }))
-        );
-        if (!cancelled) setIsBrowserOfflineAvailable(matches.some(Boolean));
-      } catch {
-        if (!cancelled) setIsBrowserOfflineAvailable(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cleanSlug]);
-
   const isStandalone =
     typeof window !== 'undefined' &&
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
   const isOnline = !isOffline;
+  const modeStatusLabel = isOnline ? 'Online Mode Active' : 'Offline Mode Active';
   const isOfflineAvailable = useMemo(
     () => Boolean(cityData && (isOffline || isLocalData)),
     [cityData, isOffline, isLocalData]
   );
-  const browserOfflineStatus =
-    typeof navigator !== 'undefined' && navigator.onLine === false
-      ? 'Viewing Offline'
-      : isBrowserOfflineAvailable
-        ? 'Available Offline in Browser'
-        : null;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !isStandalone) return;
@@ -418,19 +410,18 @@ export default function CityGuideView() {
 
       <div 
         onClick={() => setIsDiagnosticsOpen(true)}
-        className={`px-6 py-2.5 text-[9px] font-black flex justify-between items-center tracking-[0.2em] uppercase sticky top-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
-          !isOnline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white hover:bg-black'
+        className={`px-6 py-2.5 text-[9px] font-black flex justify-center items-center tracking-[0.2em] uppercase fixed top-0 left-0 right-0 z-[60] border-b border-slate-200 shadow-sm cursor-pointer transition-colors ${
+          !isOnline ? 'bg-orange-50 text-orange-700' : 'bg-[#222222] text-white'
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2 text-center">
           <div className={`w-1.5 h-1.5 rounded-full ${!isOnline ? 'bg-orange-600 animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`} />
-          {!isOnline ? 'Offline Mode Active' : 'System Healthy / Live Feed Active'}
+          {modeStatusLabel}
           {(offlineAvailable || isOfflineAvailable) && <span className="opacity-80"> · Available offline</span>}
         </div>
-        <div className="flex items-center gap-2 opacity-60"><Activity size={10} /><span>Under the hood</span></div>
       </div>
 
-      <header className="px-6 pt-10 pb-6 max-w-2xl mx-auto">
+      <header className="px-6 pt-14 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
           <button onClick={() => navigate(-1)} className="back-button-nav p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
             <ChevronLeft size={20} />
@@ -446,11 +437,6 @@ export default function CityGuideView() {
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
                   {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
                 </span>
-                {browserOfflineStatus && (
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                    {browserOfflineStatus}
-                  </span>
-                )}
               </div>
               <div className="h-8 w-[1px] bg-slate-200" />
               <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
@@ -566,7 +552,7 @@ export default function CityGuideView() {
         </div>
 
         <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">SAVE FOR OFFLINE ACCESS</span>
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Add to Your Device</span>
           <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
             Setup instructions
           </span>

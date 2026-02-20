@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
-import { ChevronRight, Globe, Activity } from 'lucide-react';
+import { ChevronRight, Globe, Activity, Info, X } from 'lucide-react';
 
 // Services & Data
 import { cityPacksList } from '../services/cityService';
@@ -33,6 +33,26 @@ const itemVariants: Variants = {
 
 export default function HomePage() {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
+  const [isValuePropOpen, setIsValuePropOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isValuePropOpen) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsValuePropOpen(false);
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isValuePropOpen]);
 
   return (
     <motion.div 
@@ -44,6 +64,31 @@ export default function HomePage() {
         isOpen={isDiagnosticsOpen} 
         onClose={() => setIsDiagnosticsOpen(false)} 
       />
+      {isValuePropOpen && (
+        <div className="fixed inset-0 z-[170]">
+          <div
+            className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px]"
+            onClick={() => setIsValuePropOpen(false)}
+          />
+          <div className="relative h-full overflow-y-auto px-4 py-6 sm:py-10">
+            <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)] ring-1 ring-black/5">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Detailed Value Overview</p>
+                <button
+                  onClick={() => setIsValuePropOpen(false)}
+                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 active:scale-95 transition-transform"
+                  aria-label="Close more info"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto bg-slate-50 p-5 md:p-6">
+                <AgenticValueProp />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="w-full py-16">
         
@@ -53,7 +98,7 @@ export default function HomePage() {
             <motion.div variants={itemVariants} className="flex items-center gap-3 origin-left">
               <div className="w-8 h-10 bg-[#FFDD00] shadow-sm" />
               <span className="text-[10px] font-black tracking-[0.4em] uppercase opacity-40">
-                Edition 1.0 // Genesis Build
+              v1.0 – Launch Edition
               </span>
             </motion.div>
             
@@ -83,29 +128,31 @@ export default function HomePage() {
         variants={itemVariants}
         className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl"
       >
-        <span className="text-[#222222] font-semibold">Live updates</span> to solve on-the-ground friction as it happens.<br className="hidden md:block" />
+        <span className="text-[#222222] font-semibold">Instant updates</span> to solve on-the-ground friction as it happens.<br className="hidden md:block" />
         <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">Offline Packs</span> for when the signal is spotty or dead.
       </motion.p>
         </header>
 
 {/* System Diagnostics Trigger */}
 <motion.div variants={itemVariants} className="max-w-xl mx-auto px-6 mb-16">
-  <div>
-    {/* Now just a static display of your value props */}
-    <AgenticValueProp />
-    
-    {/* This is the ONLY element that triggers the overlay now */}
-    <div className="flex justify-center items-center">
-      <button 
-        onClick={() => setIsDiagnosticsOpen(true)}
-        className="flex items-center gap-2 mt-6 opacity-30 hover:opacity-100 transition-all duration-300 group cursor-pointer border-none bg-transparent"
-      >
-        <Activity size={10} className="text-emerald-600 group-hover:animate-pulse" />
-        <p className="text-[9px] font-black text-[#222222] uppercase tracking-[0.2em]">
-          Click to inspect system logic
-        </p>
-      </button>
-    </div>
+  <div className="flex flex-col items-center gap-4">
+    <button
+      onClick={() => setIsValuePropOpen(true)}
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition-all hover:text-[#222222] hover:border-slate-300 active:scale-95"
+    >
+      <Info size={12} className="text-slate-400" />
+      More Details
+    </button>
+
+    <button 
+      onClick={() => setIsDiagnosticsOpen(true)}
+      className="flex items-center gap-2 opacity-30 hover:opacity-100 transition-all duration-300 group cursor-pointer border-none bg-transparent"
+    >
+      <Activity size={10} className="text-emerald-600 group-hover:animate-pulse" />
+      <p className="text-[9px] font-black text-[#222222] uppercase tracking-[0.2em]">
+        Click to inspect system logic
+      </p>
+    </button>
   </div>
 </motion.div>
 
@@ -124,7 +171,7 @@ export default function HomePage() {
           <div className="flex flex-col items-end">
             {/* 11px is the bare minimum for "secondary" data if font-weight is high */}
             <span className="text-[11px] font-bold text-slate-600 tabular-nums leading-tight">
-              Currently {cityPacksList.length} UNITS
+              Currently {cityPacksList.length} City Packs
             </span>
             <div className="flex items-center gap-1.5 mt-0.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
