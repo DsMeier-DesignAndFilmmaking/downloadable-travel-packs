@@ -302,6 +302,15 @@ export default function CityGuideView() {
     (window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true);
 
+  const isMobileDevice =
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(max-width: 768px)').matches ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        window.navigator.userAgent
+      ));
+
+  const showBackButton = !isStandalone || (!isMobileDevice && isLocalData);
+
   const isOnline = !isOffline;
   const modeStatusLabel = isOnline ? 'Online Mode Active' : 'Offline Mode Active';
   const isOfflineAvailable = useMemo(
@@ -423,9 +432,11 @@ export default function CityGuideView() {
 
       <header className="px-6 pt-14 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
-          <button onClick={() => navigate(-1)} className="back-button-nav p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
-            <ChevronLeft size={20} />
-          </button>
+          {showBackButton && (
+            <button onClick={() => navigate(-1)} className="back-button-nav p-3 bg-white border border-slate-200 rounded-xl shadow-sm active:scale-90 transition-transform">
+              <ChevronLeft size={20} />
+            </button>
+          )}
           <div className="text-right flex flex-col items-end">
             <h1 className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic" onClick={() => { setDebugTapCount(p => p + 1); if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); } }}>
               {cityData.name}
