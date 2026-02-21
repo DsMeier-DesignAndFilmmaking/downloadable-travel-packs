@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@posthog/react": "^1.8.0",
     "axios": "^1.13.5",
     "fuse.js": "^7.1.0",
+    "posthog-js": "^1.352.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

@@ -28,6 +28,8 @@ import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import { updateThemeColor } from '@/utils/manifest-generator';
 
+import { usePostHog } from '@posthog/react';
+
 // ---------------------------------------------------------------------------
 // IndexedDB: persist city pack after load
 // ---------------------------------------------------------------------------
@@ -149,8 +151,23 @@ function AgenticSystemTrigger({ onClick }: { onClick: () => void; }) {
   );
 }
 
-function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+// ---------------------------------------------------------------------------
+// Updated OfflineAccessModal (Receives data via props)
+// ---------------------------------------------------------------------------
+
+function OfflineAccessModal({ 
+  isOpen, 
+  onClose, 
+  cityData, 
+  cleanSlug 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  cityData: CityPack; 
+  cleanSlug: string | undefined;
+}) {
   const [showWhyRequired, setShowWhyRequired] = useState(false);
+  const posthog = usePostHog();
 
   useEffect(() => {
     if (!isOpen) setShowWhyRequired(false);
@@ -245,7 +262,13 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
             <div className="border-t border-slate-100 px-5 py-4">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  posthog?.capture('pwa_instructions_acknowledged', {
+                    city: cityData?.name,
+                    slug: cleanSlug,
+                  });
+                  onClose();
+                }}
                 className="h-12 w-full rounded-2xl bg-[#222222] text-[11px] font-black uppercase tracking-[0.18em] text-white active:scale-[0.98] transition-transform"
               >
                 Got It
@@ -273,7 +296,8 @@ export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
-
+  const posthog = usePostHog();
+  
   const {
     cityData,
     isLoading: packLoading,
@@ -406,7 +430,15 @@ export default function CityGuideView() {
   return (
     <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden">
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
-      <OfflineAccessModal isOpen={isOfflineHelpOpen} onClose={() => setIsOfflineHelpOpen(false)} />
+      
+      {/* Fixed Modal Call with passed Props */}
+      <OfflineAccessModal 
+        isOpen={isOfflineHelpOpen} 
+        onClose={() => setIsOfflineHelpOpen(false)} 
+        cityData={cityData}
+        cleanSlug={cleanSlug}
+      />
+
       {showStandaloneBanner && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[190] w-full max-w-md px-4 pointer-events-none">
           <div className="mx-auto rounded-xl border border-slate-200/80 bg-white/90 px-4 py-2 text-[11px] font-black text-[#222222] tracking-wide shadow-lg backdrop-blur-sm">
@@ -462,7 +494,6 @@ export default function CityGuideView() {
     <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
       Survival Dashboard
     </h2>
-    {/* Use SourceInfo here to clear TS6133 */}
     <SourceInfo 
       source="Global Intelligence Protocol" 
       lastUpdated={lastSynced || cityData.last_updated} 
@@ -545,35 +576,40 @@ export default function CityGuideView() {
         </section>
       </main>
 
-{/* FIXED DYNAMIC ACTION BAR — hidden when running as PWA (standalone) */}
-{!isStandalone && (
-<div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-  <div className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
-       style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} />
-  
-  <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
-    <button
-      onClick={() => setIsOfflineHelpOpen(true)}
-      className="w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border bg-[#222222] text-white border-black"
-    >
-      <div className="flex items-center gap-4">
-        <div className="p-2 rounded-xl transition-colors bg-white/10 text-white">
-          <Download size={20} strokeWidth={3} />
+      {!isStandalone && (
+        <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
+          <div 
+            className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
+            style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} 
+          />
+          
+          <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
+            <button
+              onClick={() => {
+                posthog?.capture('pwa_install_instructions_viewed', {
+                  city: cityData?.name,
+                  slug: cleanSlug,
+                  network_status: isOnline ? 'online' : 'offline',
+                  device_type: isMobileDevice ? 'mobile' : 'desktop'
+                });
+                setIsOfflineHelpOpen(true);
+              }}
+              className="w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border bg-[#222222] text-white border-black group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-xl transition-colors bg-white/10 text-white group-hover:bg-emerald-500/20 group-hover:text-emerald-400">
+                  <Download size={20} strokeWidth={3} />
+                </div>
+                <div className="flex flex-col items-start text-left">
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">Add to Your Device</span>
+                  <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">Setup offline access</span>
+                </div>
+              </div>
+              <div className={`h-1.5 w-1.5 rounded-full transition-colors ${offlineAvailable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+            </button>
+          </div>
         </div>
-
-        <div className="flex flex-col items-start text-left">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Add to Your Device</span>
-          <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">
-            Setup instructions
-          </span>
-        </div>
-      </div>
-
-      <div className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-    </button>
-  </div>
-</div>
-)}
+      )}
     </motion.div>
   );
 }
