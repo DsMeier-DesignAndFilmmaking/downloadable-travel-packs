@@ -317,9 +317,7 @@ export default function CityGuideView() {
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string | null>(() =>
-    typeof window !== 'undefined' ? localStorage.getItem(`sync_${cleanSlug}`) : null
-  );
+  const [lastSynced, setLastSynced] = useState<string>(() => new Date().toISOString());
 
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -400,6 +398,11 @@ export default function CityGuideView() {
   }, [cleanSlug]);
 
   useEffect(() => {
+    // Always show a fresh "Updated" timestamp when a city page loads.
+    setLastSynced(new Date().toISOString());
+  }, [cleanSlug]);
+
+  useEffect(() => {
     if (!cleanSlug || !cityData || isOffline) return;
     saveCityToIndexedDB(cleanSlug, cityData)
       .then(() => setOfflineAvailable(true))
@@ -428,7 +431,6 @@ export default function CityGuideView() {
       await refetch();
       const now = new Date().toISOString();
       setLastSynced(now);
-      localStorage.setItem(`sync_${cleanSlug}`, now);
     } catch (err) {
       console.error("Sync failed", err);
     }
@@ -499,7 +501,7 @@ export default function CityGuideView() {
               <div className="flex flex-col items-end">
                 <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced || cityData.last_updated).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+                  {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
                 </span>
               </div>
               <div className="h-8 w-[1px] bg-slate-200" />
@@ -518,7 +520,7 @@ export default function CityGuideView() {
     </h2>
     <SourceInfo 
       source="Global Intelligence Protocol" 
-      lastUpdated={lastSynced || cityData.last_updated} 
+      lastUpdated={lastSynced} 
     />
   </div>
           <div className="min-h-[140px]">
