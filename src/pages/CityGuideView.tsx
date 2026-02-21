@@ -30,6 +30,11 @@ import { updateThemeColor } from '@/utils/manifest-generator';
 
 import { usePostHog } from '@posthog/react';
 
+import { trackCityPackView, PageTimer } from '@/lib/analytics';
+
+new PageTimer('homepage')
+
+
 // ---------------------------------------------------------------------------
 // IndexedDB: persist city pack after load
 // ---------------------------------------------------------------------------
@@ -359,6 +364,10 @@ export default function CityGuideView() {
   useEffect(() => {
     // Check if cityData exists before trying to access .name
     if (cityData?.name) {
+      
+      // Fire your analytics event
+      trackCityPackView(cityData.name);
+
       posthog.capture('city_pack_opened', {
         city: cityData.name, // Changed from cityName to cityData.name
         is_online: navigator.onLine,
