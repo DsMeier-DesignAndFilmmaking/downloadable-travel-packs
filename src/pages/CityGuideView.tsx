@@ -165,7 +165,7 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
         <div className="min-h-full px-4 py-6">
           <div className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
-              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Store This City Pack for Offline Access</h2>
+              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Add This Pack to Your Device</h2>
               <button
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition-colors active:scale-95"
@@ -177,37 +177,36 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
 
             <div className="space-y-5 px-5 py-5 text-[14px] text-slate-700">
               <div className="space-y-2">
-                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Add To Device Setup</p>
                 <p className="text-sm leading-relaxed text-slate-600">
-                  Do this once while online so this city pack is dependable offline.
+                  Do these steps once, so you can easily access this pack from your device home screen <strong>100% OFFLINE</strong>.
                 </p>
               </div>
 
               <ol className="space-y-3">
                 <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">1</span>
+                    <span className="mt-0.5 inline-grid h-5 w-5 shrink-0 aspect-square place-items-center rounded-full bg-slate-900 text-[10px] leading-none font-black text-white">1</span>
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Open Share Menu</p>
-                      <p className="mt-1 leading-relaxed">Tap the Share icon in Safari.</p>
+                      <p className="mt-1 leading-relaxed">Tap the <strong>Share icon</strong> (or more or three ...) in your browser address bar.</p>
                     </div>
                   </div>
                 </li>
                 <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">2</span>
+                    <span className="mt-0.5 inline-grid h-5 w-5 shrink-0 aspect-square place-items-center rounded-full bg-slate-900 text-[10px] leading-none font-black text-white">2</span>
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Add To Home Screen</p>
-                      <p className="mt-1 leading-relaxed">Scroll and tap "Add to Home Screen."</p>
+                      <p className="mt-1 leading-relaxed">Find and tap <strong>"Add to Home Screen."</strong></p>
                     </div>
                   </div>
                 </li>
                 <li className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
                   <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white">3</span>
+                    <span className="mt-0.5 inline-grid h-5 w-5 shrink-0 aspect-square place-items-center rounded-full bg-slate-900 text-[10px] leading-none font-black text-white">3</span>
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Launch Once Online</p>
-                      <p className="mt-1 leading-relaxed">Open this city from the home screen icon while still online.</p>
+                      <p className="mt-1 leading-relaxed">Open this city <strong>from the home screen icon</strong> while still online.</p>
                     </div>
                   </div>
                 </li>
@@ -223,7 +222,7 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">If It Fails</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  If that first home-screen launch happens offline, the city pack may not load correctly.
+                  If that first home-screen launch happens offline, the city pack may not load correctly. Go back online to relaunch the pack from your home screen icon.
                 </p>
               </div>
 
@@ -237,7 +236,7 @@ function OfflineAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                 </button>
                 {showWhyRequired && (
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                    iPhone web apps need to be opened once from the home screen to complete offline setup.
+                    Local device storage for web apps need to be opened once from the home screen to complete offline setup.
                   </p>
                 )}
               </div>

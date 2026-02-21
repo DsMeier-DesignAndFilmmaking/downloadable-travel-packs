@@ -82,7 +82,7 @@ export default function Footer() {
               Engineered with <Heart size={10} className="text-rose-400 fill-rose-400" /> for the modern traveler.
             </p>
             <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">
-              © {currentYear} All Rights Reserved // Intelligent Systems Corp.
+              © {currentYear} All Rights Reserved // MODERN TRAVEL FIELD NOTES
             </p>
           </div>
         </div>

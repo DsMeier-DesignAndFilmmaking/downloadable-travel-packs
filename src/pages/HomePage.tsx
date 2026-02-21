@@ -82,6 +82,11 @@ export default function HomePage() {
                   <X size={16} />
                 </button>
               </div>
+              <div className="border-b border-slate-200 bg-white px-5 py-3">
+                <p className="text-sm leading-relaxed font-bold text-slate-700">
+                  Travel Pack Field Notes give you the essential local knowledge for a city — fully offline — so you never feel stuck or dependent on bad WiFi.
+                </p>
+              </div>
               <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto bg-slate-50 p-5 md:p-6">
                 <AgenticValueProp />
               </div>
