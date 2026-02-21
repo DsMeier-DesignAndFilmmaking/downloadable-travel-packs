@@ -7,8 +7,6 @@ import { PostHogProvider } from '@posthog/react'
 import App from './App'
 import './index.css'
 
-
-
 // 1. Initialize PostHog before the React tree renders
 // Replace the placeholder strings with your actual project key and host
 if (typeof window !== 'undefined') {
