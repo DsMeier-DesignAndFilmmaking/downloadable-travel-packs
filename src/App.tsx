@@ -9,6 +9,8 @@ import {
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
+import posthog from './lib/analytics'
+
 // Views
 import HomePage from './pages/HomePage';
 import CityGuideView from './pages/CityGuideView';
@@ -18,7 +20,6 @@ import TravelDisclaimerView from './pages/TravelDisclaimerView';
 import SystemSpecsView from './pages/SystemSpecsView';
 import SecurityProtocolView from './pages/SecurityProtocolView';
 import SettingsView from './pages/SettingsView';
-
 
 // Components
 import PageTransition from './components/PageTransition';
@@ -40,6 +41,12 @@ function AnimatedRoutes() {
       scrollPositions.current[location.key] = window.scrollY;
     };
   }, [location]);
+
+  useEffect(() => {
+    window.addEventListener('appinstalled', () => {
+      posthog.capture('app_installed')
+    })
+  }, [])
 
   return (
     <AnimatePresence
