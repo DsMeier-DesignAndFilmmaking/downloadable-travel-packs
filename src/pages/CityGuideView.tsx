@@ -358,17 +358,31 @@ export default function CityGuideView() {
     };
   }, [isStandalone]);
 
-
-  /** Document title and theme for city page. */
   useEffect(() => {
-    if (!cleanSlug || !cityData) return;
-    const cityName = cityData.name;
-    document.title = `${cityName} Pack`;
-    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (appleTitle) appleTitle.setAttribute('content', cityName);
-    updateThemeColor('#0f172a');
-    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-  }, [cleanSlug, cityData]);
+    // Check if cityData exists before trying to access .name
+    if (cityData?.name) {
+      posthog.capture('city_pack_opened', {
+        city: cityData.name, // Changed from cityName to cityData.name
+        is_online: navigator.onLine,
+        slug: cleanSlug
+      });
+    }
+  }, [cityData?.name, posthog, cleanSlug]); // Added dependencies for safety
+
+/** Document title, theme, and Analytics for city page. */
+useEffect(() => {
+  if (!cleanSlug || !cityData) return;
+  
+  const cityName = cityData.name; // Now cityName is defined here
+  document.title = `${cityName} Pack`;
+  
+
+  const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (appleTitle) appleTitle.setAttribute('content', cityName);
+  
+  updateThemeColor('#0f172a');
+  localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+}, [cleanSlug, cityData, posthog]);
 
   /**
    * 3. PERSISTENCE & OFFLINE SIGNALING
