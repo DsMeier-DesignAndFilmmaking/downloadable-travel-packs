@@ -266,6 +266,7 @@ function OfflineAccessModal({
                   posthog?.capture('pwa_instructions_acknowledged', {
                     city: cityData?.name,
                     slug: cleanSlug,
+                    network_status: navigator.onLine ? 'online' : 'offline',
                   });
                   onClose();
                 }}
