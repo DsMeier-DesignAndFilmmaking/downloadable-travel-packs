@@ -369,20 +369,27 @@ export default function CityGuideView() {
     }
   }, [cityData?.name, posthog, cleanSlug]); // Added dependencies for safety
 
+  /** Document title and theme for city page. */
 /** Document title, theme, and Analytics for city page. */
-useEffect(() => {
-  if (!cleanSlug || !cityData) return;
-  
-  const cityName = cityData.name; // Now cityName is defined here
-  document.title = `${cityName} Pack`;
-  
+  useEffect(() => {
+    if (!cleanSlug || !cityData) return;
+    
+    const cityName = cityData.name; // Now cityName is defined here
+    document.title = `${cityName} Pack`;
+    
+    // Track page open
+    posthog.capture('city_pack_opened', {
+      city: cityName,
+      is_online: navigator.onLine,
+      slug: cleanSlug
+    });
 
-  const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-  if (appleTitle) appleTitle.setAttribute('content', cityName);
-  
-  updateThemeColor('#0f172a');
-  localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-}, [cleanSlug, cityData, posthog]);
+    const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (appleTitle) appleTitle.setAttribute('content', cityName);
+    
+    updateThemeColor('#0f172a');
+    localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
+  }, [cleanSlug, cityData, posthog]);
 
   /**
    * 3. PERSISTENCE & OFFLINE SIGNALING

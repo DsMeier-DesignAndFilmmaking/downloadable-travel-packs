@@ -19,17 +19,10 @@ import SystemSpecsView from './pages/SystemSpecsView';
 import SecurityProtocolView from './pages/SecurityProtocolView';
 import SettingsView from './pages/SettingsView';
 
-import posthog from './lib/analytics'
 
 // Components
 import PageTransition from './components/PageTransition';
 import Footer from './components/Footer';
-
-useEffect(() => {
-  window.addEventListener('appinstalled', () => {
-    posthog.capture('app_installed')
-  })
-}, [])
 
 /**
  * AnimatedRoutes with scroll restoration
