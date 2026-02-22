@@ -27,6 +27,14 @@
           "Bird seed/bracelet 'gifts' that you are then forced to pay for"
         ]
       },
+      "fuel": {
+        "staple": "7-Eleven Toasties or Go-Ang Chicken Rice (Pratunam).",
+        "intel": "The 'Pink Uniform' chicken rice is a Michelin-rated survival staple for ~$2-3. Open until 9:30 PM.",
+        "price_anchor": "50-120 THB for a full street meal.",
+        "price_usd": 2.8,
+        "availability": "Mixed hours (7-Eleven 24h / Go-Ang until 9:30 PM).",
+        "source": ["Michelin Guide", "Local Expat Forums", "2026 Price Index"]
+      },
       "facility_intel": {
         "access": "Free in malls/BTS; 5-10 THB in markets/parks.",
         "hygiene": "Malls are 5-star; public/temple sites are basic.",
@@ -221,6 +229,14 @@
           "Shinjuku bar touts",
           "Fake monk donations"
         ]
+      },
+      "fuel": {
+        "staple": "Lawson/7-Eleven Onigiri or Standing Ramen (Ekimeishi).",
+        "intel": "Look for 'Standing Ramen' inside major stations for a $4 high-quality fuel hit in 10 minutes.",
+        "price_anchor": "500-900 JPY for arrival fuel.",
+        "price_usd": 4,
+        "availability": "Open 24h options via major konbini chains.",
+        "source": ["Michelin Guide", "r/Travel", "2026 Price Index"]
       },
       "facility_intel": {
         "access": "Free (Universal); no purchase required for most.",
@@ -611,6 +627,14 @@
           "Fake police asking to see wallet or 'check' money",
           "ATM skimmers—use bank lobbies and cover the keypad"
         ]
+      },
+      "fuel": {
+        "staple": "Tacos de Canasta or Tamales (Morning) / Tacos al Pastor (Night).",
+        "intel": "Street stalls near Metro stations are safe, fast, and the city's true energy source.",
+        "price_anchor": "60-120 MXN for a 3-taco set.",
+        "price_usd": 5.3,
+        "availability": "Strong morning/night windows near Metro corridors.",
+        "source": ["Local Expat Forums", "r/Travel", "2026 Price Index"]
       },
       "facility_intel": {
         "access": "Paid (5-10 MXN); attendant provides 3-4 paper squares.",

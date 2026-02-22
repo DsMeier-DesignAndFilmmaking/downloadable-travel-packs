@@ -33,6 +33,15 @@ export interface CityPackSurvival {
   currentScams: string[]
 }
 
+export interface CityPackFuel {
+  staple: string
+  intel: string
+  price_anchor: string
+  price_usd: number
+  availability?: string
+  source?: string[]
+}
+
 /** Arrival: eSIM, airport, eSIM hack, transit hack, essential apps. */
 export interface CityPackArrival {
   eSimAdvice: string
@@ -96,6 +105,7 @@ export interface CityGuide {
   survival_kit: CityPackSurvivalKit
   transit_logic: CityPackTransitLogic
   facility_intel: FacilityIntel;
+  fuel?: CityPackFuel
   scam_alerts: string[]
   real_time_hacks: string[]
 }
