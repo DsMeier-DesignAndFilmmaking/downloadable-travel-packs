@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
-import { ChevronRight, Globe, Activity, Info, X } from 'lucide-react';
+import { ChevronRight, Globe, Activity, Info } from 'lucide-react';
 
 // Services & Data
 import { cityPacksList } from '../services/cityService';
@@ -10,6 +10,7 @@ import { cityPacksList } from '../services/cityService';
 import AgenticValueProp from '../components/AgenticValueProp';
 import DiagnosticsOverlay from '../components/DiagnosticsOverlay';
 import SpontaneityEnginePromo from '../components/SpontaneityEnginePromo';
+import SystemBottomSheet from '@/components/SystemBottomSheet';
 
 // Analytics
 import { trackHomepageView, PageTimer } from '@/lib/analytics';
@@ -45,23 +46,7 @@ const itemVariants: Variants = {
 export default function HomePage() {
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [isValuePropOpen, setIsValuePropOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isValuePropOpen) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsValuePropOpen(false)
-    };
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', onKeyDown);
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isValuePropOpen]);
+  const moreDetailsTriggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <motion.div initial="hidden" animate="visible" exit="exit" className="min-h-screen bg-[#F7F7F7] antialiased">
@@ -72,36 +57,22 @@ export default function HomePage() {
         onClose={() => setIsDiagnosticsOpen(false)} 
       />
 
-      {/* Value Prop Overlay */}
-      {isValuePropOpen && (
-        <div className="fixed inset-0 z-[170]">
-          <div className="absolute inset-0 bg-slate-900/55 backdrop-blur-[2px]" onClick={() => setIsValuePropOpen(false)} />
-          <div className="relative h-full overflow-y-auto px-4 py-6 sm:py-10">
-            <div className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)] ring-1 ring-black/5">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                  Detailed Value Overview
-                </p>
-                <button
-                  onClick={() => setIsValuePropOpen(false)}
-                  className="p-2 rounded-lg border border-slate-200 bg-white text-slate-500 active:scale-95 transition-transform"
-                  aria-label="Close more info"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="border-b border-slate-200 bg-white px-5 py-3">
-                <p className="text-sm leading-relaxed font-bold text-slate-700">
-                  Travel Pack Field Notes give you the essential local knowledge for a city — fully offline — so you never feel stuck or dependent on bad WiFi.
-                </p>
-              </div>
-              <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto bg-slate-50 p-5 md:p-6">
-                <AgenticValueProp />
-              </div>
-            </div>
-          </div>
+      <SystemBottomSheet
+        isOpen={isValuePropOpen}
+        onClose={() => setIsValuePropOpen(false)}
+        title="Detailed Value Overview"
+        triggerRef={moreDetailsTriggerRef}
+        initialSnap="partial"
+      >
+        <div className="border-b border-slate-200 py-3">
+          <p className="text-sm leading-relaxed font-bold text-slate-700">
+            Travel Pack Field Notes give you the essential local knowledge for a city — fully offline — so you never feel stuck or dependent on bad WiFi.
+          </p>
         </div>
-      )}
+        <div className="bg-slate-50 p-5 md:p-6 rounded-b-2xl">
+          <AgenticValueProp />
+        </div>
+      </SystemBottomSheet>
 
       {/* Main Content */}
       <main className="w-full py-16">
@@ -137,7 +108,7 @@ export default function HomePage() {
           </motion.h1>
           <motion.p variants={itemVariants} className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl">
             <span className="text-[#222222] font-semibold">Instant updates</span> to solve on-the-ground friction as it happens.<br className="hidden md:block" />
-            <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4">Offline Packs</span> for when the signal is spotty or dead.
+            <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4"> Offline Packs</span> for when the signal is spotty or dead.
           </motion.p>
         </header>
 
@@ -145,6 +116,7 @@ export default function HomePage() {
         <motion.div variants={itemVariants} className="max-w-xl mx-auto px-6 mb-16">
           <div className="flex flex-col items-center gap-4">
             <button
+              ref={moreDetailsTriggerRef}
               onClick={() => setIsValuePropOpen(true)}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 transition-all hover:text-[#222222] hover:border-slate-300 active:scale-95"
             >

@@ -1,4 +1,5 @@
 import { CloudOff, Globe, Zap } from 'lucide-react';
+import NativePlatformPreview from '@/components/NativePlatformPreview';
 
 const COLUMNS = [
   {
@@ -62,6 +63,10 @@ export default function AgenticValueProp() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-6">
+        <NativePlatformPreview />
       </div>
     </section>
   );
