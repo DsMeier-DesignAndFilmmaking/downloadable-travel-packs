@@ -164,17 +164,17 @@ function BorderClearance({
   const checklistItems = [
     {
       key: 'line',
-      label: 'THE LINE',
-      prompt: 'What line do I stand in?',
+      label: 'What line do I stand in?',
       instruction: lineInstruction,
       icon: Navigation,
-      support: isStandardLane ? 'Proceed directly to immigration queue.' : 'Complete visa-on-arrival desk first.',
+      support: isStandardLane
+        ? 'Look for blue signs near the Visa Validation split.'
+        : 'Complete visa-on-arrival desk first, then join immigration.',
       tacticalStatus: 'clear' as const,
     },
     {
       key: 'qr',
-      label: 'THE QR CODE / CONNECT',
-      prompt: 'Where is the QR code?',
+      label: 'Where is the QR code?',
       instruction: qrInstruction,
       icon: QrCode,
       support: qrSupport,
@@ -182,8 +182,7 @@ function BorderClearance({
     },
     {
       key: 'fee',
-      label: 'THE EXIT FEE',
-      prompt: 'Do I need cash to exit?',
+      label: 'Do I need cash to exit?',
       instruction: feeInstruction,
       icon: Banknote,
       support: requiresCash ? 'Cash needed before exit.' : 'Fee is clear at this checkpoint.',
@@ -254,36 +253,33 @@ function BorderClearance({
                 isCleared ? 'opacity-40' : 'opacity-100'
               }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className={`rounded-lg border p-2 ${iconClasses}`}>
                     <TopicIcon size={16} />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">
+                    <p className="text-base md:text-lg font-black text-slate-900 leading-tight">
                       {balanceText(item.label)}
                     </p>
-                    <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                    <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
                       {balanceText(item.instruction)}
-                    </p>
-                    <p className="mt-1 text-xs font-semibold tracking-[0.01em] text-slate-500">
-                      {balanceText(item.support)}
                     </p>
                   </div>
                 </div>
                 {isCleared ? (
-                  <CheckCircle size={18} className="mt-1 shrink-0 text-emerald-600" />
+                  <CheckCircle size={18} className="shrink-0 text-emerald-600" />
                 ) : (
                   <span
-                    className={`mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
+                    className={`inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
                       isAction ? 'bg-amber-500' : 'bg-emerald-500'
                     }`}
                     aria-hidden="true"
                   />
                 )}
               </div>
-              <p className="mt-2 text-xs font-semibold tracking-[0.01em] text-slate-500">
-                {balanceText(item.prompt)}
+              <p className="mt-2 pl-11 text-xs font-medium tracking-[0.01em] text-slate-500 leading-relaxed">
+                {balanceText(item.support)}
               </p>
             </button>
           );
@@ -320,7 +316,7 @@ function AgenticSystemTrigger({ onClick }: { onClick: () => void; }) {
   return (
     <motion.button variants={itemVariants} onClick={onClick} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold transition-all active:scale-95 focus:outline-none">
       <Zap size={14} />
-      <span>Live Intelligence</span>
+      <span>Behind The Hood</span>
       <Activity size={14} className="opacity-60" />
     </motion.button>
   );
@@ -1133,7 +1129,7 @@ export default function CityGuideView() {
                 <Download size={16} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Install Field Pack</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Add To Device</p>
                 <p className="text-xs font-semibold text-slate-700">{balanceText(installButtonSubLabel)}</p>
               </div>
               <button
@@ -1143,14 +1139,7 @@ export default function CityGuideView() {
               >
                 {isInstallable ? 'Install' : 'How To'}
               </button>
-              <button
-                type="button"
-                onClick={() => setDismissedInstallBanner(true)}
-                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 active:scale-95 transition-transform"
-                aria-label="Dismiss install prompt"
-              >
-                <X size={12} />
-              </button>
+              
             </div>
           </div>
         </div>
@@ -1217,7 +1206,7 @@ export default function CityGuideView() {
               </div>
               <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
                 <Wifi size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect Locally</span>
               </div>
               <div className="p-8 text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
                 {balanceText(cityData.arrival.eSimAdvice)}
@@ -1233,19 +1222,7 @@ export default function CityGuideView() {
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
               <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
-                {balanceText(`DRINK: ${cityData.survival?.tapWater || 'Check Local Intel'}`)}
-              </p>
-            </div>
-
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
-              <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
-              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
-              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
-                {balanceText(
-                  typeof cityData.survival?.power === 'object'
-                    ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
-                    : (cityData.survival?.power || 'Check Local Intel'),
-                )}
+                {balanceText(`${cityData.survival?.tapWater || 'Check Local Intel'}`)}
               </p>
             </div>
 
@@ -1278,6 +1255,18 @@ export default function CityGuideView() {
               </p>
               <p className="mt-3 text-[10px] tracking-[0.02em] font-medium text-slate-500 leading-relaxed">
                 {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
+              </p>
+            </div>
+
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
+              <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
+              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+                {balanceText(
+                  typeof cityData.survival?.power === 'object'
+                    ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
+                    : (cityData.survival?.power || 'Check Local Intel'),
+                )}
               </p>
             </div>
 
