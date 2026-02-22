@@ -12,9 +12,10 @@ import {
   X,
   Droplets,
   Thermometer,
+  Cloud,
   CloudRain,
+  CloudLightning,
   Sun,
-  SunDim,
   Globe,
   Navigation,
   Utensils,
@@ -30,6 +31,7 @@ import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import { fetchCityWeather, climateAdviceFallback } from '@/services/weatherService';
+import { isClimateSafetyWarning } from '@/constants/weatherAdvice';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
@@ -708,6 +710,7 @@ export default function CityGuideView() {
   const [climatePulseCondition, setClimatePulseCondition] = useState<string>('');
   const [climatePulseUv, setClimatePulseUv] = useState<number | null>(null);
   const [climatePulseHighUv, setClimatePulseHighUv] = useState(false);
+  const [climatePulseSafetyWarning, setClimatePulseSafetyWarning] = useState(false);
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
@@ -769,26 +772,42 @@ export default function CityGuideView() {
         : false,
     [quickFuelIntel],
   );
-  const climatePulseIsRaining = /rain|storm/i.test(climatePulseCondition);
-  const climatePulseVeryHot = climatePulseTempC != null && climatePulseTempC > 38;
-  const climatePulseExtremeExposure = climatePulseVeryHot && climatePulseHighUv;
-  const ClimatePulseIcon = climatePulseHighUv
-    ? climatePulseExtremeExposure
-      ? SunDim
-      : Sun
-    : climatePulseIsRaining
+  const climatePulseConditionLower = climatePulseCondition.toLowerCase();
+  const climatePulseIconIsThunder = climatePulseConditionLower.includes('thunderstorm');
+  const climatePulseIconIsRain =
+    climatePulseConditionLower.includes('rain') ||
+    climatePulseConditionLower.includes('drizzle') ||
+    climatePulseConditionLower.includes('showers');
+  const climatePulseIconIsCloud =
+    climatePulseConditionLower.includes('cloudy') ||
+    climatePulseConditionLower.includes('overcast');
+  const climatePulseIconIsSun =
+    climatePulseConditionLower.includes('clear') ||
+    climatePulseConditionLower.includes('mainly clear');
+  const climatePulseVeryHot = climatePulseTempC != null && climatePulseTempC > 35;
+  const climatePulseShouldPulse = climatePulseHighUv || climatePulseVeryHot;
+
+  const ClimatePulseIcon = climatePulseIconIsThunder
+    ? CloudLightning
+    : climatePulseIconIsRain
       ? CloudRain
-      : Thermometer;
-  const climatePulseIconClass = `${climatePulseHighUv
-    ? climatePulseExtremeExposure
-      ? 'text-red-600'
-      : 'text-amber-600'
-    : climatePulseIsRaining
+      : climatePulseIconIsCloud
+        ? Cloud
+        : climatePulseIconIsSun
+          ? Sun
+          : Thermometer;
+  const climatePulseIconClass = `${climatePulseIconIsThunder
+    ? 'text-violet-600'
+    : climatePulseIconIsRain
       ? 'text-blue-500'
-      : climatePulseTempC != null && climatePulseTempC > 30
-        ? 'text-orange-600'
-        : 'text-red-500'
-    } mb-4${climatePulseVeryHot ? ' animate-pulse' : ''}`;
+      : climatePulseIconIsCloud
+        ? 'text-slate-500'
+        : climatePulseIconIsSun
+          ? 'text-amber-500'
+          : climatePulseTempC != null && climatePulseTempC > 30
+            ? 'text-orange-600'
+            : 'text-red-500'
+    } mb-4${climatePulseShouldPulse ? ' animate-pulse' : ''}`;
   const climatePulseSummary = useMemo(() => {
     const metrics: string[] = [];
     if (climatePulseTempC != null) metrics.push(`TEMP: ${Math.round(climatePulseTempC)}°C.`);
@@ -1000,12 +1019,17 @@ export default function CityGuideView() {
   }, [cityData?.countryCode, isOffline]);
 
   useEffect(() => {
+    const coordinates = cityData?.coordinates;
     const rawCityName = cityData?.name?.toString() || '';
     const cityName = rawCityName.split(',')[0].trim();
-    if (!cityName) return;
-    if (climatePulseSyncedCityRef.current === cityName) return;
+    const lat = coordinates?.lat;
+    const lng = coordinates?.lng;
+    if (!cityName || typeof lat !== 'number' || typeof lng !== 'number') return;
 
-    climatePulseSyncedCityRef.current = cityName;
+    const climateSyncKey = `${lat},${lng}`;
+    if (climatePulseSyncedCityRef.current === climateSyncKey) return;
+
+    climatePulseSyncedCityRef.current = climateSyncKey;
     let cancelled = false;
 
     setClimatePulseAdvice(climateAdviceFallback);
@@ -1013,10 +1037,11 @@ export default function CityGuideView() {
     setClimatePulseCondition('');
     setClimatePulseUv(null);
     setClimatePulseHighUv(false);
+    setClimatePulseSafetyWarning(false);
 
     const syncClimate = async () => {
       try {
-        const climate = await fetchCityWeather(cityName);
+        const climate = await fetchCityWeather(lat, lng);
         if (cancelled) return;
 
         setClimatePulseTempC(climate.temp);
@@ -1024,6 +1049,7 @@ export default function CityGuideView() {
         setClimatePulseUv(climate.uv);
         const isHighUv = climate.uv >= 8;
         setClimatePulseHighUv(isHighUv);
+        setClimatePulseSafetyWarning(isClimateSafetyWarning(climate.temp, climate.condition, climate.uv));
         setClimatePulseAdvice(climate.advice);
         console.log('☀️ SUN SAFETY LOG:', {
           city: cityName,
@@ -1036,6 +1062,7 @@ export default function CityGuideView() {
         setClimatePulseCondition('');
         setClimatePulseUv(null);
         setClimatePulseHighUv(false);
+        setClimatePulseSafetyWarning(false);
         setClimatePulseAdvice(climateAdviceFallback);
         console.warn('Climate pulse fallback active:', err);
       }
@@ -1046,7 +1073,7 @@ export default function CityGuideView() {
     return () => {
       cancelled = true;
     };
-  }, [cityData?.name]);
+  }, [cityData?.coordinates]);
 
   useEffect(() => {
     if (!cityData || !quickFuelIntel) return;
@@ -1276,7 +1303,7 @@ export default function CityGuideView() {
 
             <div
               className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
-                climatePulseHighUv ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
+                climatePulseSafetyWarning ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
               }`}
             >
               <ClimatePulseIcon size={32} className={climatePulseIconClass} />

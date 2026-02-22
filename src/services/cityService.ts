@@ -17,11 +17,16 @@ function isCityPack(value: unknown): value is CityPack {
   const o = value as Record<string, unknown>;
   const survival = o.survival as Record<string, unknown> | null;
   const arrival = o.arrival as Record<string, unknown> | null;
+  const coordinates = o.coordinates as Record<string, unknown> | null;
   return (
     typeof o.slug === 'string' &&
     typeof o.theme === 'string' &&
     typeof o.countryCode === 'string' &&
     typeof o.countryName === 'string' &&
+    typeof coordinates === 'object' &&
+    coordinates !== null &&
+    typeof coordinates.lat === 'number' &&
+    typeof coordinates.lng === 'number' &&
     typeof o.emergency === 'object' &&
     o.emergency !== null &&
     typeof (o.emergency as Record<string, unknown>).police === 'string' &&

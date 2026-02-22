@@ -88,6 +88,11 @@ export interface CityPackTransitLogic {
   etiquette: string
 }
 
+export interface CityCoordinates {
+  lat: number
+  lng: number
+}
+
 /** 2026 Superior Schema — main city guide type. */
 export interface CityGuide {
   slug: string
@@ -95,6 +100,7 @@ export interface CityGuide {
   countryCode: string
   currencyCode: string;
   countryName: string
+  coordinates: CityCoordinates
   last_updated: string
   theme: string
   emergency: CityPackEmergency
