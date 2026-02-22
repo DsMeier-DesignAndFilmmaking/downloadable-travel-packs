@@ -1,10 +1,8 @@
-const WEATHER_API_BASE_URL = 'https://api.weatherapi.com/v1/current.json';
-
 const FALLBACK_ADVICE = 'Check live hydration windows and heat alerts before moving.';
 
 type WeatherApiResponse = {
   current?: {
-    temp_c?: number;
+    feelslike_c?: number;
     uv?: number;
     condition?: {
       text?: string;
@@ -56,7 +54,10 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   const sanitizedName = encodeURIComponent(q);
   console.log('🔍 SANITIZED CITY QUERY:', sanitizedName);
 
-  const url = `${WEATHER_API_BASE_URL}?key=${apiKey}&q=${sanitizedName}&aqi=no`;
+  const e = apiKey;
+  const o = sanitizedName;
+  const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${o}&aqi=no`;
+  console.log('🔗 FINAL FETCH URL:', url);
   const response = await fetch(url);
   if (!response.ok) {
     const errorBody = await response.json();
@@ -65,7 +66,7 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   }
 
   const data = (await response.json()) as WeatherApiResponse;
-  const temp = data.current?.temp_c;
+  const temp = data.current?.feelslike_c;
   const condition = data.current?.condition?.text;
   const uv = data.current?.uv;
 
