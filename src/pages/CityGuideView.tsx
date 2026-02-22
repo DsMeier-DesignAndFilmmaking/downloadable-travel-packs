@@ -13,6 +13,8 @@ import {
   Droplets,
   Globe,
   Navigation,
+  QrCode,
+  Banknote,
   ShieldCheck,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
@@ -83,199 +85,184 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
 // ---------------------------------------------------------------------------
 
 
-function BorderClearanceSkeleton() {
-  return (
-    <div className="w-full h-[180px] rounded-[2rem] border border-slate-200/70 bg-slate-100/70 animate-pulse" />
-  );
-}
-
 function BorderClearance({
+  visaData,
+  loading = false,
+  error = null,
   digitalEntry,
   touristTax,
   visaStatus,
   isLive,
 }: {
+  visaData?: VisaCheckData | null;
+  loading?: boolean;
+  error?: string | null;
   digitalEntry?: string;
   touristTax?: string;
   visaStatus?: string;
   isLive: boolean;
 }) {
-  const entryText = digitalEntry?.trim() ?? '';
-  const taxText = touristTax?.trim() ?? '';
-  const visaText = visaStatus?.trim() ?? '';
+  const payload = (visaData ?? {}) as Record<string, unknown>;
 
-  const hasEntry = entryText.length > 0;
-  const hasTax = taxText.length > 0;
-  const hasActionData = hasEntry || hasTax;
-  const frictionLevel: 'ACTION' | 'LOW' = hasActionData ? 'ACTION' : 'LOW';
+  useEffect(() => {
+    console.log('🛰️ FIELD INTEL FETCHED:', visaData);
+  }, [visaData]);
 
-  // Fallback path for missing API payloads / 502 conditions routed through non-live state.
-  const isError = !isLive || visaStatus == null;
-
-  const balanceText = (text: string) => {
-    const words = text.trim().split(/\s+/);
-    if (words.length < 3) return text;
-    const tail = `${words[words.length - 2]}\u00A0${words[words.length - 1]}`;
-    return `${words.slice(0, -2).join(' ')} ${tail}`;
+  const parseMoneyValue = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value !== 'string') return 0;
+    const match = value.match(/([0-9]+(?:\.[0-9]+)?)/);
+    if (!match) return 0;
+    const parsed = Number.parseFloat(match[1]);
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
-  const extractFormName = (input: string) => {
-    const cleaned = input.replace(/\s+/g, ' ').trim();
-    const match = cleaned.match(/([A-Za-z0-9][A-Za-z0-9\s/-]{2,40}(?:card|form|pass))/i);
-    return match?.[1]?.trim() ?? 'Digital Arrival Card';
-  };
+  const laneTypeFromApi = typeof payload.laneType === 'string' ? payload.laneType.trim() : '';
+  const laneTypeFromFallback = typeof visaStatus === 'string' && /standard/i.test(visaStatus) ? 'Standard' : '';
+  const laneType = laneTypeFromApi || laneTypeFromFallback || 'Arrival';
+  const isStandardLane = /^standard$/i.test(laneType);
 
-  const visaLower = visaText.toLowerCase();
-  const taxLower = taxText.toLowerCase();
+  const digitalFormFromApi = typeof payload.digitalForm === 'string' ? payload.digitalForm.trim() : '';
+  const digitalForm = digitalFormFromApi || digitalEntry?.trim() || '';
+  const hasDigitalForm = digitalForm.length > 0;
 
-  const lineInstruction = isError
+  const arrivalFeeRaw = payload.arrivalFee ?? touristTax ?? 0;
+  const arrivalFee = parseMoneyValue(arrivalFeeRaw);
+  const requiresCash = arrivalFee > 0;
+
+  const hasApiError = Boolean(error) || (!loading && !isLive && !visaData);
+  const requiresAction = requiresCash || !isStandardLane || hasApiError;
+
+  const lineInstruction = hasApiError
     ? 'PROTOCOL: Standard Entry. Keep Passport & Onward Flight Proof ready.'
-    : /(exempt|exemption|visa[-\s]?free|no visa|standard)/i.test(visaLower)
-      ? 'STATUS: CLEAR // Use Standard Immigration Lane.'
-      : /(arrival|visa[-\s]?on[-\s]?arrival|e-?visa|required)/i.test(visaLower)
-        ? 'STATUS: DIRECTIONAL // Proceed to Visa Validation Lane.'
-        : 'STATUS: DIRECTIONAL // Follow Immigration Signage.';
+    : isStandardLane
+      ? "Go to the 'Visa Validation' Lane. (Look for the blue signs)."
+      : "Head to the 'Visa-on-Arrival' desk before the main queue.";
 
-  const qrInstruction = isError
-    ? 'HARDWARE: Ensure Digital Arrival Card is saved to Wallet.'
-    : !hasEntry
-      ? 'HARDWARE: Ensure Digital Arrival Card is saved to Wallet.'
-      : /(not required|none|n\/a|not needed|no digital)/i.test(entryText)
-        ? 'HARDWARE: No digital arrival QR required.'
-        : `HARDWARE: Open ${extractFormName(entryText)} QR Code.`;
+  const qrInstruction = hasApiError
+    ? 'Keep your Passport and Onward Flight proof in your hand.'
+    : hasDigitalForm
+      ? `Have your '${digitalForm}' ready. (Open it now to save time).`
+      : 'Keep your Passport and Onward Flight proof in your hand.';
 
-  const hasNoFeeSignal = /(no tax|no fee|none|not required|waived|free|\$?\s?0\b)/i.test(taxLower);
-  const feeMatch = taxText.match(/\$\s?\d+(?:\.\d+)?|\d+(?:\.\d+)?\s?(usd|eur|thb|aed|jpy|mxn|gbp)/i);
-  const feeInstruction = !hasTax || hasNoFeeSignal
-    ? 'FEE: $0 // No exit payment required.'
-    : feeMatch
-      ? `FEE: ATM REQUIRED FOR ${feeMatch[0].toUpperCase()} ENTRY FEE.`
-      : 'FEE: ATM REQUIRED // Confirm payment counter before exit.';
+  const feeInstruction = hasApiError
+    ? 'No exit fee required. Proceed directly to ground transport.'
+    : requiresCash
+      ? 'Stop at an ATM. You’ll need local cash for the payment counter before you can exit.'
+      : 'No exit fee required. Proceed directly to ground transport.';
 
-  const tacticalChecklist: Array<{
-    key: string;
-    question: string;
-    instruction: string;
-    tone: 'clear' | 'directional';
-  }> = [
+  const checklistItems = [
     {
       key: 'line',
-      question: 'What line do I stand in?',
+      label: 'THE LINE',
+      prompt: 'What line do I stand in?',
       instruction: lineInstruction,
-      tone: /^STATUS:\sCLEAR/i.test(lineInstruction) ? 'clear' : 'directional',
+      icon: Navigation,
+      clear: !requiresAction && isStandardLane,
     },
     {
       key: 'qr',
-      question: 'Where is the QR code?',
+      label: 'THE QR CODE',
+      prompt: 'Where is the QR code?',
       instruction: qrInstruction,
-      tone: /no digital arrival qr required/i.test(qrInstruction) ? 'clear' : 'directional',
+      icon: QrCode,
+      clear: hasDigitalForm,
     },
     {
       key: 'fee',
-      question: 'Do I need cash to exit?',
+      label: 'THE EXIT FEE',
+      prompt: 'Do I need cash to exit?',
       instruction: feeInstruction,
-      tone: /^FEE:\s\$0/i.test(feeInstruction) ? 'clear' : 'directional',
+      icon: Banknote,
+      clear: !requiresCash,
     },
-  ];
+  ] as const;
 
-  const isLowFriction = frictionLevel === 'LOW';
-
-  return (
-    <AnimatePresence mode="wait">
+  if (loading) {
+    return (
       <motion.div
-        key={`${frictionLevel}-${isError ? 'cached' : 'live'}-${hasEntry ? 'entry' : 'none'}-${hasTax ? 'tax' : 'none'}`}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -4 }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        className={`relative overflow-hidden rounded-[2rem] border shadow-sm ${
-          isLowFriction
-            ? 'border-emerald-200/90 bg-emerald-50'
-            : 'border-amber-200/90 bg-amber-50'
-        }`}
+        className="relative overflow-hidden rounded-[2rem] border border-slate-200 border-t-4 border-t-slate-300 bg-white shadow-sm p-5"
       >
-        {!isLive && (
-          <span className="absolute right-4 top-3 rounded-full border border-slate-300 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
-            CACHED
-          </span>
-        )}
-
-        <div
-          className={`flex items-center gap-3 border-b px-5 py-4 ${
-            isLowFriction
-              ? 'border-emerald-200/90 bg-emerald-100/70'
-              : 'border-amber-200/90 bg-amber-100/70'
-          }`}
-        >
-          <ShieldCheck size={18} className={`shrink-0 ${isLowFriction ? 'text-emerald-700' : 'text-amber-700'}`} />
-          <div className="min-w-0">
-            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isLowFriction ? 'text-emerald-800' : 'text-amber-800'}`}>
-              Border Status
-            </p>
-            <p className="mt-0.5 text-sm font-semibold text-[#222222]">
-              {isLowFriction ? 'Low Friction' : 'Action Required'}
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-4 p-5">
-          <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-              Tactical Checklist
-            </p>
-            <ol className="mt-3 border-l border-slate-200 pl-4 space-y-4">
-              {tacticalChecklist.map((item) => {
-                const isClear = item.tone === 'clear';
-                const ItemIcon = isClear ? ShieldCheck : Navigation;
-                return (
-                  <li key={item.key} className="relative">
-                    <span className={`absolute -left-[1.15rem] top-2 h-2 w-2 rounded-full ${isClear ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                    <div className="flex items-start gap-2.5">
-                      <ItemIcon size={16} className={`mt-0.5 shrink-0 ${isClear ? 'text-emerald-700' : 'text-amber-700'}`} />
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                          {item.question}
-                        </p>
-                        <p className="mt-1 text-[13px] md:text-[12px] font-mono font-semibold uppercase tracking-[0.015em] leading-relaxed text-[#222222]">
-                          {balanceText(item.instruction)}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-            {isError && (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2">
-                <p className="text-xs md:text-[11px] font-mono font-semibold uppercase tracking-[0.015em] text-slate-700 leading-relaxed">
-                  PROTOCOL: STANDARD ENTRY. KEEP PASSPORT & ONWARD FLIGHT PROOF READY.
-                </p>
-              </div>
-            )}
-          </div>
-          {hasTax && (
-            <div className="rounded-xl border border-slate-200 bg-white/85 px-3 py-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Source Signal
-              </p>
-              <p className="mt-1 text-sm md:text-xs tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
-                {balanceText(taxText)}
-              </p>
-            </div>
-          )}
-          {hasEntry && (
-            <div className="rounded-xl border border-slate-200 bg-white/85 px-3 py-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Hardware Source
-              </p>
-              <p className="mt-1 text-sm md:text-xs tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
-                {balanceText(entryText)}
-              </p>
-            </div>
-          )}
-        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+          Field Fixer
+        </p>
+        <p className="mt-3 text-sm font-medium text-slate-600 animate-pulse">
+          {balanceText('Loading live border instructions...')}
+        </p>
       </motion.div>
-    </AnimatePresence>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      className={`relative overflow-hidden rounded-[2rem] border border-slate-200 border-t-4 shadow-sm ${
+        requiresAction ? 'border-t-amber-500 bg-amber-50/40' : 'border-t-emerald-500 bg-emerald-50/40'
+      }`}
+    >
+      {!isLive && (
+        <span className="absolute right-4 top-3 rounded-full border border-slate-300 bg-white/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600">
+          USING CACHED FIELD NOTES
+        </span>
+      )}
+
+      <div className="border-b border-slate-200 px-5 py-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+          Field Fixer
+        </p>
+        <p className="mt-1 text-sm font-semibold text-[#222222]">
+          {requiresAction ? balanceText('Action required before terminal exit.') : balanceText('Border flow is clear and direct.')}
+        </p>
+      </div>
+
+      <div className="space-y-3 p-5">
+        {checklistItems.map((item) => {
+          const TopicIcon = item.icon;
+          const StatusIcon = item.clear ? ShieldCheck : Navigation;
+          return (
+            <div key={item.key} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <TopicIcon size={16} className="text-slate-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">
+                      {balanceText(item.label)}
+                    </p>
+                    <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                      {balanceText(item.instruction)}
+                    </p>
+                  </div>
+                </div>
+                <StatusIcon
+                  size={16}
+                  className={`mt-1 shrink-0 ${item.clear ? 'text-emerald-600' : 'text-amber-600'}`}
+                />
+              </div>
+              <p className="mt-2 text-xs font-semibold tracking-[0.01em] text-slate-500">
+                {balanceText(item.prompt)}
+              </p>
+            </div>
+          );
+        })}
+
+        {hasApiError && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-700">
+              API FALLBACK
+            </p>
+            <p className="mt-1 text-sm font-medium text-amber-900 leading-relaxed">
+              {balanceText('PROTOCOL: Standard Entry. Keep Passport & Onward Flight Proof ready.')}
+            </p>
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
@@ -587,6 +574,7 @@ export default function CityGuideView() {
   const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
   const [showStandaloneBanner, setShowStandaloneBanner] = useState(false);
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
+  const [visaFetchError, setVisaFetchError] = useState<string | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
@@ -776,14 +764,25 @@ export default function CityGuideView() {
   useEffect(() => {
     if (!cityData?.countryCode) return;
     setVisaData(null);
+    setVisaFetchError(null);
     if (isOffline) {
       setIsApiLoading(false);
       return;
     }
     setIsApiLoading(true);
     fetchVisaCheck(DEFAULT_PASSPORT, cityData.countryCode)
-      .then((data) => { if (data) setVisaData(data); })
-      .catch(err => console.error("Visa Protocol Failed:", err))
+      .then((data) => {
+        if (data) {
+          setVisaData(data);
+          setVisaFetchError(null);
+          return;
+        }
+        setVisaFetchError('Live visa intel unavailable');
+      })
+      .catch((err) => {
+        console.error("Visa Protocol Failed:", err);
+        setVisaFetchError('Visa API error (502 fallback active)');
+      })
       .finally(() => setIsApiLoading(false));
   }, [cityData?.countryCode, isOffline]);
 
@@ -904,19 +903,20 @@ export default function CityGuideView() {
       source="Global Intelligence Protocol" 
       lastUpdated={lastSynced} 
     />
-  </div>
+          </div>
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
-              {isApiLoading ? <BorderClearanceSkeleton /> : (
-                <BorderClearance
-                  digitalEntry={cityData.survival?.digitalEntry}
-                  touristTax={cityData.survival?.touristTax}
-                  isLive={!!visaData}
-                  visaStatus={visaData?.visa_rules?.primary_rule 
-                    ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                    : "Standard Entry Protocol applies."}
-                />
-              )}
+              <BorderClearance
+                visaData={visaData}
+                loading={isApiLoading}
+                error={visaFetchError}
+                digitalEntry={cityData.survival?.digitalEntry}
+                touristTax={cityData.survival?.touristTax}
+                isLive={!!visaData}
+                visaStatus={visaData?.visa_rules?.primary_rule 
+                  ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
+                  : "Standard Entry Protocol applies."}
+              />
             </AnimatePresence>
           </div>
           <div className="grid grid-cols-2 gap-4">
