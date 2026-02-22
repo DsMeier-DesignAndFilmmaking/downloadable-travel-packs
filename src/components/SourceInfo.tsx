@@ -26,7 +26,10 @@ export default function SourceInfo({
   isLive = false,
 }: SourceInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [desktopPlacement, setDesktopPlacement] = useState<'above' | 'below'>('above');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,9 +53,42 @@ export default function SourceInfo({
     });
   }, [isLive, isOpen, lastUpdated, source]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window === 'undefined') return;
+
+    const updatePlacement = () => {
+      if (window.innerWidth < 768) return;
+      if (!triggerRef.current || !panelRef.current) return;
+
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const panelHeight = panelRef.current.offsetHeight || 360;
+      const spaceAbove = triggerRect.top;
+      const spaceBelow = window.innerHeight - triggerRect.bottom;
+
+      // Prefer top placement, but flip below if top space is insufficient.
+      if (spaceAbove < panelHeight + 20 && spaceBelow > spaceAbove) {
+        setDesktopPlacement('below');
+      } else {
+        setDesktopPlacement('above');
+      }
+    };
+
+    const rafId = window.requestAnimationFrame(updatePlacement);
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
+    };
+  }, [isOpen]);
+
   return (
     <div ref={containerRef} className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -85,14 +121,16 @@ export default function SourceInfo({
             />
 
             <motion.div
+              ref={panelRef}
               initial={{ opacity: 0, y: 10, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.2 }}
               className="
                 fixed bottom-32 inset-x-6 mx-auto z-[100] w-auto max-w-[360px]
-                md:absolute md:bottom-full md:left-1/2 md:-translate-x-1/2 md:inset-x-auto md:mb-4 md:w-[340px]
+                md:absolute md:left-1/2 md:-translate-x-1/2 md:inset-x-auto md:w-[340px]
                 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]
+                ${desktopPlacement === 'above' ? 'md:bottom-full md:mb-4' : 'md:top-full md:mt-4'}
               "
             >
               <div className="absolute inset-0 pointer-events-none">
@@ -153,7 +191,11 @@ export default function SourceInfo({
                 </div>
               </div>
 
-              <div className="hidden md:block absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white" />
+              {desktopPlacement === 'above' ? (
+                <div className="hidden md:block absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white" />
+              ) : (
+                <div className="hidden md:block absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-white" />
+              )}
             </motion.div>
           </>
         )}
