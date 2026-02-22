@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -12,6 +12,9 @@ import {
   X,
   Droplets,
   Thermometer,
+  CloudRain,
+  Sun,
+  SunDim,
   Globe,
   Navigation,
   Utensils,
@@ -26,6 +29,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
+import { fetchCityWeather, climateAdviceFallback } from '@/services/weatherService';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
@@ -565,18 +569,6 @@ function deriveQuickFuelIntel(city: CityPack): QuickFuelIntel {
   };
 }
 
-function deriveClimatePulse(city: CityPack): string {
-  const bySlug: Record<string, string> = {
-    'bangkok-thailand': 'HEAT: 38°C. Limit outdoor walking to <10 mins between 10am-4pm. Use air-conditioned walkways.',
-    'dubai-uae': 'HEAT: 42°C. Stay indoors from 11am-4pm. Use metro-linked malls and hydrate every 30 minutes.',
-    'tokyo-japan': 'HEAT: 34°C + humidity. Use station cooling zones and rehydrate every transit stop.',
-    'mexico-city-mexico': 'UV: High at altitude. Midday sun is intense; cap outdoor blocks to 20 mins and rehydrate often.',
-    'paris-france': 'HEAT WAVES SPIKE FAST. Carry water and avoid long unshaded walks from 12pm-4pm.',
-  };
-
-  return bySlug[city.slug] ?? 'WEATHER SWING: Check midday heat and hydration before long walking routes.';
-}
-
 function extractFirstNumber(value: string): number | null {
   const match = value.match(/([0-9]+(?:[.,][0-9]+)?)/);
   if (!match) return null;
@@ -715,6 +707,11 @@ export default function CityGuideView() {
   const [lastSynced, setLastSynced] = useState<string>(() => new Date().toISOString());
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [dismissedInstallBanner, setDismissedInstallBanner] = useState(false);
+  const [climatePulseAdvice, setClimatePulseAdvice] = useState<string>(climateAdviceFallback);
+  const [climatePulseTempC, setClimatePulseTempC] = useState<number | null>(null);
+  const [climatePulseCondition, setClimatePulseCondition] = useState<string>('');
+  const [climatePulseUv, setClimatePulseUv] = useState<number | null>(null);
+  const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -775,7 +772,34 @@ export default function CityGuideView() {
         : false,
     [quickFuelIntel],
   );
-  const climatePulseAdvice = useMemo(() => (cityData ? deriveClimatePulse(cityData) : null), [cityData]);
+  const climatePulseIsRaining = /rain|storm/i.test(climatePulseCondition);
+  const climatePulseHighUv = climatePulseUv != null && climatePulseUv >= 8;
+  const climatePulseExtremeExposure = climatePulseTempC != null && climatePulseTempC > 38 && climatePulseHighUv;
+  const climatePulseUvPrimaryThreat = climatePulseHighUv && (climatePulseTempC == null || climatePulseTempC < 30);
+  const ClimatePulseIcon = climatePulseExtremeExposure
+    ? SunDim
+    : climatePulseUvPrimaryThreat
+      ? Sun
+      : climatePulseIsRaining
+        ? CloudRain
+        : Thermometer;
+  const climatePulseIconClass = climatePulseExtremeExposure
+    ? 'text-red-600 mb-4 animate-pulse'
+    : climatePulseUvPrimaryThreat
+      ? 'text-amber-600 mb-4'
+      : climatePulseIsRaining
+        ? 'text-blue-500 mb-4'
+        : climatePulseTempC != null && climatePulseTempC > 38
+          ? 'text-red-600 mb-4 animate-pulse'
+          : climatePulseTempC != null && climatePulseTempC > 30
+            ? 'text-orange-600 mb-4'
+            : 'text-red-500 mb-4';
+  const climatePulseSummary = useMemo(() => {
+    const metrics: string[] = [];
+    if (climatePulseTempC != null) metrics.push(`TEMP: ${Math.round(climatePulseTempC)}°C.`);
+    if (climatePulseUv != null) metrics.push(`UV: ${climatePulseUv.toFixed(1)}.`);
+    return `${metrics.join(' ')} ${climatePulseAdvice}`.trim();
+  }, [climatePulseAdvice, climatePulseTempC, climatePulseUv]);
   const exchangeRateNumeric = useMemo(() => {
     const parsed = Number.parseFloat(exchangeRateDisplay);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -981,6 +1005,50 @@ export default function CityGuideView() {
   }, [cityData?.countryCode, isOffline]);
 
   useEffect(() => {
+    const cityName = cityData?.name;
+    if (!cityName) return;
+    if (climatePulseSyncedCityRef.current === cityName) return;
+
+    climatePulseSyncedCityRef.current = cityName;
+    let cancelled = false;
+
+    setClimatePulseAdvice(climateAdviceFallback);
+    setClimatePulseTempC(null);
+    setClimatePulseCondition('');
+    setClimatePulseUv(null);
+
+    const syncClimate = async () => {
+      try {
+        const climate = await fetchCityWeather(cityName);
+        if (cancelled) return;
+
+        setClimatePulseTempC(climate.temp);
+        setClimatePulseCondition(climate.condition);
+        setClimatePulseUv(climate.uv);
+        setClimatePulseAdvice(climate.advice);
+        console.log('☀️ SUN SAFETY LOG:', {
+          city: cityName,
+          uvLevel: climate.uv,
+          advice: climate.advice,
+        });
+      } catch (err) {
+        if (cancelled) return;
+        setClimatePulseTempC(null);
+        setClimatePulseCondition('');
+        setClimatePulseUv(null);
+        setClimatePulseAdvice(climateAdviceFallback);
+        console.warn('Climate pulse fallback active:', err);
+      }
+    };
+
+    void syncClimate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cityData?.name]);
+
+  useEffect(() => {
     if (!cityData || !quickFuelIntel) return;
     console.log('🥘 BASIC NEEDS SYNC:', {
       water: cityData.survival?.tapWater,
@@ -1160,8 +1228,8 @@ export default function CityGuideView() {
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
               <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
@@ -1169,7 +1237,7 @@ export default function CityGuideView() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
               <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
               <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
@@ -1181,7 +1249,7 @@ export default function CityGuideView() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
               <Utensils size={32} className="text-orange-500 mb-4" />
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Quick Fuel</h3>
@@ -1213,11 +1281,15 @@ export default function CityGuideView() {
               </p>
             </div>
 
-            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
-              <Thermometer size={32} className="text-red-500 mb-4" />
+            <div
+              className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
+                climatePulseHighUv ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
+              }`}
+            >
+              <ClimatePulseIcon size={32} className={climatePulseIconClass} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Climate Pulse</h3>
               <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-                {balanceText(climatePulseAdvice ?? 'Check live weather and hydration windows before moving.')}
+                {balanceText(climatePulseSummary)}
               </p>
             </div>
           </div>
@@ -1289,8 +1361,8 @@ export default function CityGuideView() {
         </section>
       </main>
 
-      <footer className="px-6 pb-10 pt-2 max-w-2xl mx-auto">
-        <section className="space-y-4">
+      <footer className="px-6 pt-8 pb-12 max-w-2xl mx-auto">
+        <section className="space-y-5 border-t border-slate-200 pt-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {primaryEmergencyItems.map(({ key, label, number }) => (
