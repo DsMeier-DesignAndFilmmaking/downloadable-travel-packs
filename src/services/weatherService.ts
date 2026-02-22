@@ -49,7 +49,12 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
     throw new Error('Missing VITE_WEATHER_API_KEY');
   }
 
-  const url = `${WEATHER_API_BASE_URL}?key=${apiKey}&q=${encodeURIComponent(cityName)}&aqi=no`;
+  const trimmedName = cityName.trim();
+  const baseName = trimmedName.includes('-') ? trimmedName.split('-')[0].trim() : trimmedName;
+  const sanitizedName = encodeURIComponent(baseName);
+  console.log('🔍 SANITIZED CITY QUERY:', sanitizedName);
+
+  const url = `${WEATHER_API_BASE_URL}?key=${apiKey}&q=${sanitizedName}&aqi=no`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Weather API request failed with status ${response.status}`);
@@ -65,7 +70,7 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   }
 
   return {
-    city: cityName,
+    city: baseName,
     temp,
     condition,
     uv,
