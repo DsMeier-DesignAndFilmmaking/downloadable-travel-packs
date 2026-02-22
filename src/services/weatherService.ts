@@ -44,20 +44,24 @@ export function getClimateAdvice(temp: number, condition: string, uv: number): s
 }
 
 export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
-  const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
+  const apiKey = import.meta.env.VITE_WEATHER_API_KEY?.trim();
+  const maskedApiKey = apiKey ? `${'*'.repeat(Math.max(0, apiKey.length - 4))}${apiKey.slice(-4)}` : '(missing)';
+  console.log('🔑 WEATHER API KEY MASKED:', maskedApiKey);
+  console.log('🔑 KEY LENGTH CHECK:', apiKey?.length);
   if (!apiKey) {
     throw new Error('Missing VITE_WEATHER_API_KEY');
   }
 
-  const trimmedName = cityName.trim();
-  const baseName = trimmedName.includes('-') ? trimmedName.split('-')[0].trim() : trimmedName;
-  const sanitizedName = encodeURIComponent(baseName);
+  const q = cityName.split('-')[0].trim().toLowerCase();
+  const sanitizedName = encodeURIComponent(q);
   console.log('🔍 SANITIZED CITY QUERY:', sanitizedName);
 
   const url = `${WEATHER_API_BASE_URL}?key=${apiKey}&q=${sanitizedName}&aqi=no`;
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Weather API request failed with status ${response.status}`);
+    const errorBody = await response.json();
+    console.error('❌ WEATHER API REJECTED REQUEST:', errorBody);
+    throw new Error(`Weather API Error: ${errorBody.error.message}`);
   }
 
   const data = (await response.json()) as WeatherApiResponse;
@@ -70,7 +74,7 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   }
 
   return {
-    city: baseName,
+    city: q,
     temp,
     condition,
     uv,

@@ -227,7 +227,7 @@ function BorderClearance({
           Checklist
         </p>
         <p className="mt-1 text-sm font-semibold text-[#222222]">
-          {requiresAction ? balanceText('Action required before terminal exit.') : balanceText('Border flow is clear and direct.')}
+          {requiresAction ? balanceText('Actions required before terminal exit.') : balanceText('Border flow is clear and direct.')}
         </p>
       </div>
 
