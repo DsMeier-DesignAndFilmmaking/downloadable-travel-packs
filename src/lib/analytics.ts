@@ -51,6 +51,14 @@ export function trackAddToDevice(cityName: string): void {
   })
 }
 
+export function captureEvent(
+  posthogClient: { capture: (eventName: string, properties?: Record<string, unknown>) => void } | null | undefined,
+  eventName: string,
+  properties: Record<string, unknown> = {},
+): void {
+  posthogClient?.capture(eventName, properties)
+}
+
 // -----------------------------
 // Page Duration Tracker
 // -----------------------------

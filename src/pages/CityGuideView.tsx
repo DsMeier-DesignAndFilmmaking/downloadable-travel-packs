@@ -30,7 +30,7 @@ import { updateThemeColor } from '@/utils/manifest-generator';
 
 import { usePostHog } from '@posthog/react';
 
-import { trackCityPackView, PageTimer } from '@/lib/analytics';
+import { trackCityPackView, PageTimer, captureEvent } from '@/lib/analytics';
 
 new PageTimer('homepage')
 
@@ -73,6 +73,7 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
 // ---------------------------------------------------------------------------
 // Components & Helpers
 // ---------------------------------------------------------------------------
+
 
 function HighAlertSkeleton() {
   return <div className="w-full h-[140px] rounded-2xl bg-slate-200/50 animate-pulse border border-slate-200/60" />;
@@ -268,7 +269,7 @@ function OfflineAccessModal({
               <button
                 type="button"
                 onClick={() => {
-                  posthog?.capture('pwa_instructions_acknowledged', {
+                  captureEvent(posthog, 'pwa_instructions_acknowledged', {
                     city: cityData?.name,
                     slug: cleanSlug,
                     network_status: navigator.onLine ? 'online' : 'offline',
@@ -345,12 +346,21 @@ export default function CityGuideView() {
     [cityData, isOffline, isLocalData]
   );
 
+  // ---------------------------------------------------------------------------
+  // 1️⃣ Standalone first launch: show banner & fire PostHog event
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (typeof window === 'undefined' || !isStandalone) return;
+    if (typeof window === 'undefined' || !isStandalone || !cityData?.name || !cleanSlug) return;
     if (localStorage.getItem(STANDALONE_FIRST_LAUNCH_KEY)) return;
 
     localStorage.setItem(STANDALONE_FIRST_LAUNCH_KEY, '1');
     setShowStandaloneBanner(true);
+
+    captureEvent(posthog, 'standalone_first_launch', {
+      city: cityData.name,
+      slug: cleanSlug,
+      timestamp: new Date().toISOString(),
+    });
 
     const timeoutId = window.setTimeout(() => {
       setShowStandaloneBanner(false);
@@ -359,55 +369,47 @@ export default function CityGuideView() {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isStandalone]);
+  }, [isStandalone, cityData?.name, cleanSlug, posthog]);
 
+  // ---------------------------------------------------------------------------
+  // 2️⃣ Track city pack view on load
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    // Check if cityData exists before trying to access .name
     if (cityData?.name) {
-      
-      // Fire your analytics event
       trackCityPackView(cityData.name);
 
-      posthog.capture('city_pack_opened', {
-        city: cityData.name, // Changed from cityName to cityData.name
+      posthog?.capture('city_pack_opened', {
+        city: cityData.name,
         is_online: navigator.onLine,
         slug: cleanSlug
       });
     }
-  }, [cityData?.name, posthog, cleanSlug]); // Added dependencies for safety
+  }, [cityData?.name, posthog, cleanSlug]);
 
-  /** Document title and theme for city page. */
-/** Document title, theme, and Analytics for city page. */
+  // ---------------------------------------------------------------------------
+  // 3️⃣ Document title, theme, and last pack
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!cleanSlug || !cityData) return;
-    
-    const cityName = cityData.name; // Now cityName is defined here
-    document.title = `${cityName} Pack`;
-    
-    // Track page open
-    posthog.capture('city_pack_opened', {
-      city: cityName,
-      is_online: navigator.onLine,
-      slug: cleanSlug
-    });
+
+    document.title = `${cityData.name} Pack`;
 
     const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (appleTitle) appleTitle.setAttribute('content', cityName);
-    
+    if (appleTitle) appleTitle.setAttribute('content', cityData.name);
+
     updateThemeColor('#0f172a');
     localStorage.setItem('pwa_last_pack', `/guide/${cleanSlug}`);
-  }, [cleanSlug, cityData, posthog]);
+  }, [cleanSlug, cityData]);
 
-  /**
-   * 3. PERSISTENCE & OFFLINE SIGNALING
-   */
+  // ---------------------------------------------------------------------------
+  // 4️⃣ Offline availability & persistence
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!cleanSlug) return;
     isGuideOfflineAvailable(cleanSlug).then(setOfflineAvailable);
   }, [cleanSlug]);
 
   useEffect(() => {
-    // Always show a fresh "Updated" timestamp when a city page loads.
     setLastSynced(new Date().toISOString());
   }, [cleanSlug]);
 
@@ -418,9 +420,9 @@ export default function CityGuideView() {
       .catch((err) => console.warn('💾 IDB Write Failed:', err));
   }, [cleanSlug, cityData, isOffline]);
 
-  /**
-   * 4. VISA & EXCHANGE PROTOCOLS
-   */
+  // ---------------------------------------------------------------------------
+  // 5️⃣ Visa data fetch
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!cityData?.countryCode) return;
     setVisaData(null);
@@ -438,13 +440,15 @@ export default function CityGuideView() {
   const handleSync = async () => {
     try {
       await refetch();
-      const now = new Date().toISOString();
-      setLastSynced(now);
+      setLastSynced(new Date().toISOString());
     } catch (err) {
       console.error("Sync failed", err);
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // 6️⃣ Render loaders, errors, and main content
+  // ---------------------------------------------------------------------------
   if (packLoading || !cityData) return (
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col justify-center items-center">
        <div className="w-12 h-12 border-4 border-slate-200 border-t-emerald-500 rounded-full animate-spin" />
@@ -619,10 +623,10 @@ export default function CityGuideView() {
           <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
             <button
               onClick={() => {
-                posthog?.capture('pwa_install_instructions_viewed', {
-                  city: cityData?.name,
+                captureEvent(posthog, 'pwa_install_instructions_viewed', {
+                  city: cityData.name,
                   slug: cleanSlug,
-                  network_status: isOnline ? 'online' : 'offline',
+                  network_status: navigator.onLine ? 'online' : 'offline',
                   device_type: isMobileDevice ? 'mobile' : 'desktop'
                 });
                 setIsOfflineHelpOpen(true);
