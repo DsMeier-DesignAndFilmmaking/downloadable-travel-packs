@@ -505,10 +505,10 @@
         "availability": "Excellent; Malls act as massive infrastructure hubs."
       },
       "arrival": {
-        "eSimAdvice": "Etisalat or du eSIM at DXB; pre-order or buy on arrival. UAE has strict content filtering.",
+        "eSimAdvice": "Etisalat or du eSIM at DXB; pre-order or buy on arrival. Strict Web Filter: Use VPN for WhatsApp/Skype calls.",
         "eSimHack": "Etisalat eSIM at DXB arrivals; RTA Dubai app for Metro/tram/bus and Nol balance.",
         "airportHack": "DXB: Metro Red Line to city; eGates for eligible nationals. Taxi queue is organised; use Careem for app-based.",
-        "transitHack": "Nol card for Metro, tram, bus; Careem for taxis. RTA app shows real-time services.",
+        "transitHack": "Buy 'Silver Nol' at DXB Metro Entrance (AED 25). Scan Nol on Entry AND Exit. Careem for taxis; RTA app shows real-time services.",
         "essentialApps": ["Careem", "RTA Dubai", "Google Maps", "Talabat"]
       },
       "neighborhoods": [
@@ -524,7 +524,7 @@
       },
       "transit_logic": {
         "primary_app": "Careem or RTA Dubai (Nol card); Google Maps for directions",
-        "payment_method": "Nol card for Metro/tram/bus; cards widely accepted elsewhere",
+        "payment_method": "Buy 'Silver Nol' at DXB Metro Entrance (AED 25) for Metro/tram/bus. Scan Nol on Entry AND Exit. Cards widely accepted elsewhere.",
         "etiquette": "Women-only carriages on Metro; no eating/drinking on Metro; dress modestly"
       },
       "scam_alerts": [
@@ -533,7 +533,7 @@
         "Overpriced tours and activities sold on the street or beach"
       ],
       "real_time_hacks": [
-        "Nol card is refillable and works across Metro, tram, bus, and some taxis",
+        "Buy 'Silver Nol' at DXB Metro Entrance (AED 25) and scan on Entry AND Exit",
         "Friday brunches are a Dubai institution but book in advance",
         "Mall AC is fierce—carry a light layer"
       ]

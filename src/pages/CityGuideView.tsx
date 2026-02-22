@@ -11,12 +11,13 @@ import {
   Activity,
   X,
   Droplets,
+  Thermometer,
   Globe,
   Navigation,
   Utensils,
   QrCode,
   Banknote,
-  ShieldCheck,
+  CheckCircle,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
@@ -104,10 +105,19 @@ function BorderClearance({
   isLive: boolean;
 }) {
   const payload = (visaData ?? {}) as Record<string, unknown>;
+  const [cleared, setCleared] = useState<string[]>([]);
+
+  const toggleCleared = useCallback((key: string) => {
+    setCleared((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
+  }, []);
 
   useEffect(() => {
     console.log('🛰️ FIELD INTEL FETCHED:', visaData);
   }, [visaData]);
+
+  useEffect(() => {
+    setCleared([]);
+  }, [visaData, digitalEntry, touristTax, visaStatus, error, loading]);
 
   const parseMoneyValue = (value: unknown): number => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -134,17 +144,12 @@ function BorderClearance({
   const hasApiError = Boolean(error) || (!loading && !isLive && !visaData);
   const requiresAction = requiresCash || !isStandardLane || hasApiError;
 
-  const lineInstruction = hasApiError
-    ? 'PROTOCOL: Standard Entry. Keep Passport & Onward Flight Proof ready.'
-    : isStandardLane
-      ? "Go to the 'Visa Validation' Lane. (Look for the blue signs)."
-      : "Head to the 'Visa-on-Arrival' desk before the main queue.";
+  const lineInstruction = isStandardLane || hasApiError
+    ? "Go to the 'Visa Validation' Lane. (Look for the blue signs)."
+    : "Head to the 'Visa-on-Arrival' desk before the main queue.";
 
-  const qrInstruction = hasApiError
-    ? 'Keep your Passport and Onward Flight proof in your hand.'
-    : hasDigitalForm
-      ? `Have your '${digitalForm}' ready. (Open it now to save time).`
-      : 'Keep your Passport and Onward Flight proof in your hand.';
+  const qrInstruction = "Have your Digital Arrival Card ready. (Open it now to save time).";
+  const qrSupport = hasDigitalForm ? `Detected form: ${digitalForm}.` : 'If unavailable, keep passport + onward flight proof ready.';
 
   const feeInstruction = hasApiError
     ? 'No exit fee required. Proceed directly to ground transport.'
@@ -159,15 +164,17 @@ function BorderClearance({
       prompt: 'What line do I stand in?',
       instruction: lineInstruction,
       icon: Navigation,
-      clear: !requiresAction && isStandardLane,
+      support: isStandardLane ? 'Proceed directly to immigration queue.' : 'Complete visa-on-arrival desk first.',
+      tacticalStatus: 'clear' as const,
     },
     {
       key: 'qr',
-      label: 'THE QR CODE',
+      label: 'THE QR CODE / CONNECT',
       prompt: 'Where is the QR code?',
       instruction: qrInstruction,
       icon: QrCode,
-      clear: hasDigitalForm,
+      support: qrSupport,
+      tacticalStatus: 'action' as const,
     },
     {
       key: 'fee',
@@ -175,7 +182,8 @@ function BorderClearance({
       prompt: 'Do I need cash to exit?',
       instruction: feeInstruction,
       icon: Banknote,
-      clear: !requiresCash,
+      support: requiresCash ? 'Cash needed before exit.' : 'Fee is clear at this checkpoint.',
+      tacticalStatus: requiresCash ? ('action' as const) : ('clear' as const),
     },
   ] as const;
 
@@ -223,13 +231,29 @@ function BorderClearance({
       <div className="space-y-3 p-5">
         {checklistItems.map((item) => {
           const TopicIcon = item.icon;
-          const StatusIcon = item.clear ? ShieldCheck : Navigation;
+          const isCleared = cleared.includes(item.key);
+          const isAction = item.tacticalStatus === 'action';
+          const accentClasses = isAction
+            ? 'border-l-amber-500 bg-amber-50/50'
+            : 'border-l-emerald-500 bg-emerald-50/50';
+          const iconClasses = isAction
+            ? 'border-amber-200 bg-amber-100 text-amber-700'
+            : 'border-emerald-200 bg-emerald-100 text-emerald-700';
+
           return (
-            <div key={item.key} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => toggleCleared(item.key)}
+              aria-pressed={isCleared}
+              className={`w-full rounded-xl border border-slate-200 border-l-4 px-4 py-3 text-left transition-opacity ${accentClasses} ${
+                isCleared ? 'opacity-40' : 'opacity-100'
+              }`}
+            >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                    <TopicIcon size={16} className="text-slate-700" />
+                  <div className={`rounded-lg border p-2 ${iconClasses}`}>
+                    <TopicIcon size={16} />
                   </div>
                   <div className="min-w-0">
                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">
@@ -238,45 +262,41 @@ function BorderClearance({
                     <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
                       {balanceText(item.instruction)}
                     </p>
+                    <p className="mt-1 text-xs font-semibold tracking-[0.01em] text-slate-500">
+                      {balanceText(item.support)}
+                    </p>
                   </div>
                 </div>
-                <StatusIcon
-                  size={16}
-                  className={`mt-1 shrink-0 ${item.clear ? 'text-emerald-600' : 'text-amber-600'}`}
-                />
+                {isCleared ? (
+                  <CheckCircle size={18} className="mt-1 shrink-0 text-emerald-600" />
+                ) : (
+                  <span
+                    className={`mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
+                      isAction ? 'bg-amber-500' : 'bg-emerald-500'
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
               </div>
               <p className="mt-2 text-xs font-semibold tracking-[0.01em] text-slate-500">
                 {balanceText(item.prompt)}
               </p>
-            </div>
+            </button>
           );
         })}
-
-        {hasApiError && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-700">
-              API FALLBACK
-            </p>
-            <p className="mt-1 text-sm font-medium text-amber-900 leading-relaxed">
-              {balanceText('PROTOCOL: Standard Entry. Keep Passport & Onward Flight Proof ready.')}
-            </p>
-          </div>
-        )}
       </div>
     </motion.div>
   );
 }
 
-function getEmergencyGridItems(emergency: Record<string, string | undefined>) {
-  const order = ['police', 'medical', 'ambulance', 'tourist_police', 'emergency_all', 'general_eu', 'non_emergency'] as const;
-  const labels: Record<string, string> = { police: 'Police', medical: 'Medical', ambulance: 'Ambulance', tourist_police: 'Tourist Police', emergency_all: 'Emergency', general_eu: 'EU 112', non_emergency: 'Non-Emergency' };
+function getPrimaryEmergencyItems(emergency: Record<string, string | undefined>) {
+  const primaryKeys = ['police', 'medical'] as const;
+  const labels: Record<string, string> = { police: 'Police', medical: 'Medical' };
   const out: { key: string; label: string; number: string }[] = [];
-  for (const key of order) {
-    const val = emergency[key];
-    if (val && /[\d]/.test(val)) {
-      out.push({ key, label: labels[key] ?? key, number: val });
-      if (out.length >= 4) break;
-    }
+  for (const key of primaryKeys) {
+    const value = emergency[key];
+    if (!value || !/[\d]/.test(value)) continue;
+    out.push({ key, label: labels[key], number: value });
   }
   return out;
 }
@@ -545,6 +565,18 @@ function deriveQuickFuelIntel(city: CityPack): QuickFuelIntel {
   };
 }
 
+function deriveClimatePulse(city: CityPack): string {
+  const bySlug: Record<string, string> = {
+    'bangkok-thailand': 'HEAT: 38°C. Limit outdoor walking to <10 mins between 10am-4pm. Use air-conditioned walkways.',
+    'dubai-uae': 'HEAT: 42°C. Stay indoors from 11am-4pm. Use metro-linked malls and hydrate every 30 minutes.',
+    'tokyo-japan': 'HEAT: 34°C + humidity. Use station cooling zones and rehydrate every transit stop.',
+    'mexico-city-mexico': 'UV: High at altitude. Midday sun is intense; cap outdoor blocks to 20 mins and rehydrate often.',
+    'paris-france': 'HEAT WAVES SPIKE FAST. Carry water and avoid long unshaded walks from 12pm-4pm.',
+  };
+
+  return bySlug[city.slug] ?? 'WEATHER SWING: Check midday heat and hydration before long walking routes.';
+}
+
 function extractFirstNumber(value: string): number | null {
   const match = value.match(/([0-9]+(?:[.,][0-9]+)?)/);
   if (!match) return null;
@@ -681,6 +713,8 @@ export default function CityGuideView() {
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
   const [lastSynced, setLastSynced] = useState<string>(() => new Date().toISOString());
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [dismissedInstallBanner, setDismissedInstallBanner] = useState(false);
 
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -741,26 +775,42 @@ export default function CityGuideView() {
         : false,
     [quickFuelIntel],
   );
+  const climatePulseAdvice = useMemo(() => (cityData ? deriveClimatePulse(cityData) : null), [cityData]);
+  const exchangeRateNumeric = useMemo(() => {
+    const parsed = Number.parseFloat(exchangeRateDisplay);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [exchangeRateDisplay]);
+  const quickReferenceRows = useMemo(
+    () => {
+      const localCode = currencyCodeDisplay || cityData?.currencyCode || '';
+      const contexts = ['Coffee/Snack', 'Short Taxi', 'Dinner'];
+      const localAmounts = [10, 50, 100];
+
+      if (localCode === 'AED') {
+        return [
+          { localAmount: 10, usdAmount: '2.70', context: contexts[0] },
+          { localAmount: 50, usdAmount: '13.60', context: contexts[1] },
+          { localAmount: 100, usdAmount: '27.20', context: contexts[2] },
+        ];
+      }
+
+      return localAmounts.map((localAmount, index) => ({
+        localAmount,
+        usdAmount: exchangeRateNumeric ? (localAmount / exchangeRateNumeric).toFixed(2) : '--',
+        context: contexts[index],
+      }));
+    },
+    [cityData?.currencyCode, currencyCodeDisplay, exchangeRateNumeric],
+  );
+  const primaryEmergencyItems = useMemo(
+    () => (cityData ? getPrimaryEmergencyItems(cityData.emergency) : []),
+    [cityData],
+  );
   const isPackInstalled = isPWAInstalled || isStandalone;
   const isIOS = platform.os === 'ios';
-  // Hide the install bar only when the user is already in mobile standalone mode.
-  const shouldShowInstallBar = !(isStandalone && isMobileDevice);
+  const shouldOfferInstall = !(isStandalone && isMobileDevice) && !isPackInstalled;
 
-  const installButtonLabel = isPackInstalled
-    ? 'Pack Installed'
-    : isInstallable
-      ? 'Install Field Pack to Home Screen'
-      : isIOS
-        ? 'Add to Home Screen'
-        : 'Add to Your Device';
-
-  const installButtonSubLabel = isPackInstalled
-    ? 'Ready for offline launch'
-    : isInstallable
-      ? 'Live install path ready'
-      : isIOS
-        ? 'Use share flow to install'
-        : 'Setup offline access';
+  const installButtonSubLabel = isInstallable ? 'Live install path ready' : isIOS ? 'Use share flow to install' : 'Setup offline access';
 
   const handleInstallButtonClick = useCallback(async () => {
     if (!cityData) return;
@@ -806,6 +856,27 @@ export default function CityGuideView() {
     platform.os,
     posthog,
   ]);
+
+  useEffect(() => {
+    setShowInstallBanner(false);
+    setDismissedInstallBanner(false);
+  }, [cleanSlug]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!shouldOfferInstall || dismissedInstallBanner) {
+      setShowInstallBanner(false);
+      return;
+    }
+
+    const onScroll = () => {
+      setShowInstallBanner(window.scrollY > 300);
+    };
+
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [dismissedInstallBanner, shouldOfferInstall]);
 
   // ---------------------------------------------------------------------------
   // 1️⃣ Standalone first launch: show banner & fire PostHog event
@@ -986,6 +1057,37 @@ export default function CityGuideView() {
         </div>
       </div>
 
+      {showInstallBanner && shouldOfferInstall && (
+        <div className="fixed top-11 left-1/2 z-[70] w-full max-w-md -translate-x-1/2 px-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <div className={`rounded-xl p-2 ${hasActivePrompt ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+                <Download size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Install Field Pack</p>
+                <p className="text-xs font-semibold text-slate-700">{balanceText(installButtonSubLabel)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleInstallButtonClick}
+                className="h-8 rounded-xl bg-[#222222] px-3 text-[10px] font-black uppercase tracking-[0.14em] text-white active:scale-[0.98] transition-transform"
+              >
+                {isInstallable ? 'Install' : 'How To'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDismissedInstallBanner(true)}
+                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 active:scale-95 transition-transform"
+                aria-label="Dismiss install prompt"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="px-6 pt-14 pb-6 max-w-2xl mx-auto">
         <div className="flex justify-between items-start mb-10">
           {showBackButton && (
@@ -1014,35 +1116,12 @@ export default function CityGuideView() {
       </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
-        {cityData.arrival && (
-          <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">ARRIVAL</h2>
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
-                <Plane size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
-              </div>
-              <div className="p-8 text-[#222222] font-medium leading-relaxed text-base md:text-[15px] tracking-[0.01em]">{cityData.arrival.airportHack}</div>
-              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
-                <Wifi size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
-              </div>
-              <div className="p-8 text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
-            </div>
-          </section>
-        )}
-
         <section className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-    <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
-      ENTRY INFO
-    </h2>
-    <SourceInfo
-      source={integritySource}
-      lastUpdated={integrityLastVerified}
-      isLive={!!visaData}
-    />
-  </div>
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Active Arrival Intelligence</h2>
+            <SourceInfo source={integritySource} lastUpdated={integrityLastVerified} isLive={!!visaData} />
+          </div>
+
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
               <BorderClearance
@@ -1052,41 +1131,36 @@ export default function CityGuideView() {
                 digitalEntry={cityData.survival?.digitalEntry}
                 touristTax={cityData.survival?.touristTax}
                 isLive={!!visaData}
-                visaStatus={visaData?.visa_rules?.primary_rule 
+                visaStatus={visaData?.visa_rules?.primary_rule
                   ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                  : "Standard Entry Protocol applies."}
+                  : 'Standard Entry Protocol applies.'}
               />
             </AnimatePresence>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {getEmergencyGridItems(cityData.emergency).map(({ key, label, number }) => (
-              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg active:scale-95 transition-transform">
-                <Phone size={22} className="mb-2 text-[#FFDD00]" />
-                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
-                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
-              </div>
-            ))}
-          </div>
-        </section>
 
-        {cityData.transit_logic && (
-          <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Transit & Transportation</h2>
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center gap-3 mb-6"><div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Fare Strategy</p></div>
-              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">{cityData.transit_logic.payment_method}</p>
-              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2"><Phone size={14} className="text-slate-400" /><span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span></div>
-                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">{cityData.transit_logic.primary_app}</span>
+          {cityData.arrival && (
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
+                <Plane size={20} className="text-[#222222]" />
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
               </div>
-              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p><p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">"{cityData.transit_logic.etiquette}"</p></div>
+              <div className="p-8 text-[#222222] font-medium leading-relaxed text-base md:text-[15px] tracking-[0.01em]">
+                {balanceText(cityData.arrival.airportHack)}
+              </div>
+              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
+                <Wifi size={20} className="text-[#222222]" />
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
+              </div>
+              <div className="p-8 text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                {balanceText(cityData.arrival.eSimAdvice)}
+              </div>
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
@@ -1134,89 +1208,102 @@ export default function CityGuideView() {
               <p className="mt-1 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
                 {balanceText(`Budget: ${quickFuelIntel?.priceAnchor ?? deriveQuickFuelBudget(cityData).replace(/^Budget\s*~/, '')}`)}
               </p>
-              <div className="relative mt-2 w-fit group/fuel-source">
-                <button
-                  type="button"
-                  className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500 underline decoration-slate-300 underline-offset-2"
-                  aria-describedby="quick-fuel-source-tooltip"
-                >
-                  Source Credibility
-                </button>
-                <div
-                  id="quick-fuel-source-tooltip"
-                  role="tooltip"
-                  className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-20 w-[220px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-semibold tracking-[0.01em] text-slate-600 opacity-0 shadow-lg transition-opacity duration-150 group-hover/fuel-source:opacity-100 group-focus-within/fuel-source:opacity-100"
-                >
-                  {balanceText(
-                    `Verified via [${(quickFuelIntel?.sources ?? ['Michelin Guide', 'Local Expat Forums', '2026 Price Index']).join(' / ')}].`,
-                  )}
-                </div>
-              </div>
               <p className="mt-3 text-[10px] tracking-[0.02em] font-medium text-slate-500 leading-relaxed">
                 {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
               </p>
             </div>
+
+            <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[180px]">
+              <Thermometer size={32} className="text-red-500 mb-4" />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Climate Pulse</h3>
+              <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
+                {balanceText(climatePulseAdvice ?? 'Check live weather and hydration windows before moving.')}
+              </p>
+            </div>
           </div>
-          {cityData.facility_intel && <FacilityKit data={cityData.facility_intel} />}
         </section>
 
-        <section className="space-y-4">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending Shield</h2>
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-            <div className="flex items-center gap-2 mb-2"><Globe size={14} className="text-slate-400" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exchange Rate</p></div>
-            <div className="text-3xl font-black text-[#222222] tabular-nums">
-              1 USD = {exchangeRateDisplay}
-              {currencyCodeDisplay && (
-                <span className="ml-2 text-sm md:text-base font-bold text-slate-500">
-                  {currencyCodeDisplay}
-                  {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
-                </span>
-              )}
+        <section className="space-y-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Field Operations</h2>
+
+          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Globe size={14} className="text-slate-400" />
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spending Shield / Quick Reference</p>
             </div>
-            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping || "Standard 10% is expected."}</div>
+            <p className="text-sm font-semibold text-slate-600 leading-relaxed">
+              1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
+              {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+            </p>
+            <div className="mt-4 rounded-2xl border border-slate-200 overflow-hidden">
+              {quickReferenceRows.map((row) => (
+                <div key={row.localAmount} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0">
+                  <span className="text-sm font-semibold text-slate-700">{row.context}</span>
+                  <span className="text-sm font-black text-slate-800 tabular-nums">
+                    {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
+                  </span>
+                  <span className="text-sm font-bold text-emerald-700 tabular-nums">
+                    ≈ ${row.usdAmount}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
+              {cityData.survival?.tipping || 'Standard 10% is expected.'}
+            </div>
           </div>
+
+          {cityData.facility_intel && (
+            <div className="space-y-3">
+              <h3 className="px-2 text-[11px] font-black text-slate-500 uppercase tracking-[0.24em]">Restroom Guide</h3>
+              <FacilityKit data={cityData.facility_intel} />
+            </div>
+          )}
+
+          {cityData.transit_logic && (
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Mobility</p>
+              </div>
+              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                {balanceText(cityData.transit_logic.payment_method)}
+              </p>
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone size={14} className="text-slate-400" />
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span>
+                </div>
+                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
+                  {cityData.transit_logic.primary_app}
+                </span>
+              </div>
+              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
+                <p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">
+                  "{balanceText(cityData.transit_logic.etiquette)}"
+                </p>
+              </div>
+            </div>
+          )}
         </section>
       </main>
 
-      {shouldShowInstallBar && (
-        <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
-          <div 
-            className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
-            style={{ maskImage: 'linear-gradient(to top, black 80%, transparent)' }} 
-          />
-          
-          <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
-            <button
-              onClick={handleInstallButtonClick}
-              disabled={isPackInstalled}
-              className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 transition-all border group ${
-                isPackInstalled
-                  ? 'bg-slate-500 text-white border-slate-500 cursor-not-allowed'
-                  : 'bg-[#222222] text-white border-black active:scale-[0.97]'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-2 rounded-xl transition-colors bg-white/10 text-white group-hover:bg-emerald-500/20 group-hover:text-emerald-400">
-                  <Download size={20} strokeWidth={3} />
-                </div>
-                <div className="flex flex-col items-start text-left">
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">{balanceText(installButtonLabel)}</span>
-                  <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">{balanceText(installButtonSubLabel)}</span>
-                </div>
+      <footer className="px-6 pb-10 pt-2 max-w-2xl mx-auto">
+        <section className="space-y-4">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {primaryEmergencyItems.map(({ key, label, number }) => (
+              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
+                <Phone size={22} className="mb-2 text-[#FFDD00]" />
+                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
+                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
               </div>
-              <div
-                className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                  isPackInstalled
-                    ? 'bg-emerald-500'
-                    : hasActivePrompt
-                      ? 'bg-emerald-500 animate-pulse'
-                      : 'bg-slate-400'
-                }`}
-              />
-            </button>
+            ))}
           </div>
-        </div>
-      )}
+        </section>
+      </footer>
+
     </motion.div>
   );
 }
