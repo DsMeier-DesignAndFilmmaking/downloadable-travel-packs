@@ -8,12 +8,12 @@ import {
   ChevronLeft,
   Plane,
   Wifi,
-  Info,
   Activity,
   X,
   Droplets,
   Globe,
   Navigation,
+  ShieldCheck,
 } from 'lucide-react';
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
@@ -75,50 +75,199 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
 // ---------------------------------------------------------------------------
 
 
-function HighAlertSkeleton() {
-  return <div className="w-full h-[140px] rounded-2xl bg-slate-200/50 animate-pulse border border-slate-200/60" />;
+function BorderClearanceSkeleton() {
+  return (
+    <div className="w-full h-[180px] rounded-[2rem] border border-slate-200/70 bg-slate-100/70 animate-pulse" />
+  );
 }
 
-function HighAlertBanner({ digitalEntry, touristTax, visaStatus, isLive }: { digitalEntry?: string; touristTax?: string; visaStatus?: string; isLive: boolean; }) {
-  const hasEntry = Boolean(digitalEntry?.trim());
-  const hasTax = Boolean(touristTax?.trim());
-  const hasVisaStatus = Boolean(visaStatus?.trim());
-  if (!hasEntry && !hasTax && !hasVisaStatus) return null;
+function BorderClearance({
+  digitalEntry,
+  touristTax,
+  visaStatus,
+  isLive,
+}: {
+  digitalEntry?: string;
+  touristTax?: string;
+  visaStatus?: string;
+  isLive: boolean;
+}) {
+  const entryText = digitalEntry?.trim() ?? '';
+  const taxText = touristTax?.trim() ?? '';
+  const visaText = visaStatus?.trim() ?? '';
+
+  const hasEntry = entryText.length > 0;
+  const hasTax = taxText.length > 0;
+  const hasActionData = hasEntry || hasTax;
+  const frictionLevel: 'ACTION' | 'LOW' = hasActionData ? 'ACTION' : 'LOW';
+
+  // Fallback path for missing API payloads / 502 conditions routed through non-live state.
+  const isError = !isLive || visaStatus == null;
+
+  const balanceText = (text: string) => {
+    const words = text.trim().split(/\s+/);
+    if (words.length < 3) return text;
+    const tail = `${words[words.length - 2]}\u00A0${words[words.length - 1]}`;
+    return `${words.slice(0, -2).join(' ')} ${tail}`;
+  };
+
+  const extractFormName = (input: string) => {
+    const cleaned = input.replace(/\s+/g, ' ').trim();
+    const match = cleaned.match(/([A-Za-z0-9][A-Za-z0-9\s/-]{2,40}(?:card|form|pass))/i);
+    return match?.[1]?.trim() ?? 'Digital Arrival Card';
+  };
+
+  const visaLower = visaText.toLowerCase();
+  const taxLower = taxText.toLowerCase();
+
+  const lineInstruction = isError
+    ? 'PROTOCOL: Standard Entry. Keep Passport & Onward Flight Proof ready.'
+    : /(exempt|exemption|visa[-\s]?free|no visa|standard)/i.test(visaLower)
+      ? 'STATUS: CLEAR // Use Standard Immigration Lane.'
+      : /(arrival|visa[-\s]?on[-\s]?arrival|e-?visa|required)/i.test(visaLower)
+        ? 'STATUS: DIRECTIONAL // Proceed to Visa Validation Lane.'
+        : 'STATUS: DIRECTIONAL // Follow Immigration Signage.';
+
+  const qrInstruction = isError
+    ? 'HARDWARE: Ensure Digital Arrival Card is saved to Wallet.'
+    : !hasEntry
+      ? 'HARDWARE: Ensure Digital Arrival Card is saved to Wallet.'
+      : /(not required|none|n\/a|not needed|no digital)/i.test(entryText)
+        ? 'HARDWARE: No digital arrival QR required.'
+        : `HARDWARE: Open ${extractFormName(entryText)} QR Code.`;
+
+  const hasNoFeeSignal = /(no tax|no fee|none|not required|waived|free|\$?\s?0\b)/i.test(taxLower);
+  const feeMatch = taxText.match(/\$\s?\d+(?:\.\d+)?|\d+(?:\.\d+)?\s?(usd|eur|thb|aed|jpy|mxn|gbp)/i);
+  const feeInstruction = !hasTax || hasNoFeeSignal
+    ? 'FEE: $0 // No exit payment required.'
+    : feeMatch
+      ? `FEE: ATM REQUIRED FOR ${feeMatch[0].toUpperCase()} ENTRY FEE.`
+      : 'FEE: ATM REQUIRED // Confirm payment counter before exit.';
+
+  const tacticalChecklist: Array<{
+    key: string;
+    question: string;
+    instruction: string;
+    tone: 'clear' | 'directional';
+  }> = [
+    {
+      key: 'line',
+      question: 'What line do I stand in?',
+      instruction: lineInstruction,
+      tone: /^STATUS:\sCLEAR/i.test(lineInstruction) ? 'clear' : 'directional',
+    },
+    {
+      key: 'qr',
+      question: 'Where is the QR code?',
+      instruction: qrInstruction,
+      tone: /no digital arrival qr required/i.test(qrInstruction) ? 'clear' : 'directional',
+    },
+    {
+      key: 'fee',
+      question: 'Do I need cash to exit?',
+      instruction: feeInstruction,
+      tone: /^FEE:\s\$0/i.test(feeInstruction) ? 'clear' : 'directional',
+    },
+  ];
+
+  const isLowFriction = frictionLevel === 'LOW';
+
   return (
-    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-amber-200/80 bg-amber-100 shadow-sm overflow-hidden">
-      <div className="p-4 space-y-4">
-        {hasVisaStatus && (
-          <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Entry status</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">
-                {visaStatus}
-                {!isLive && <span className="block mt-1 text-[9px] font-black text-amber-700/60 uppercase tracking-tighter">// Live Sync Paused - Using Cached Protocol</span>}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`${frictionLevel}-${isError ? 'cached' : 'live'}-${hasEntry ? 'entry' : 'none'}-${hasTax ? 'tax' : 'none'}`}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+        className={`relative overflow-hidden rounded-[2rem] border shadow-sm ${
+          isLowFriction
+            ? 'border-emerald-200/90 bg-emerald-50'
+            : 'border-amber-200/90 bg-amber-50'
+        }`}
+      >
+        {!isLive && (
+          <span className="absolute right-4 top-3 rounded-full border border-slate-300 bg-white/80 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-500">
+            CACHED
+          </span>
+        )}
+
+        <div
+          className={`flex items-center gap-3 border-b px-5 py-4 ${
+            isLowFriction
+              ? 'border-emerald-200/90 bg-emerald-100/70'
+              : 'border-amber-200/90 bg-amber-100/70'
+          }`}
+        >
+          <ShieldCheck size={18} className={`shrink-0 ${isLowFriction ? 'text-emerald-700' : 'text-amber-700'}`} />
+          <div className="min-w-0">
+            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${isLowFriction ? 'text-emerald-800' : 'text-amber-800'}`}>
+              Border Status
+            </p>
+            <p className="mt-0.5 text-sm font-semibold text-[#222222]">
+              {isLowFriction ? 'Low Friction' : 'Action Required'}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+              Tactical Checklist
+            </p>
+            <ol className="mt-3 border-l border-slate-200 pl-4 space-y-4">
+              {tacticalChecklist.map((item) => {
+                const isClear = item.tone === 'clear';
+                const ItemIcon = isClear ? ShieldCheck : Navigation;
+                return (
+                  <li key={item.key} className="relative">
+                    <span className={`absolute -left-[1.15rem] top-2 h-2 w-2 rounded-full ${isClear ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                    <div className="flex items-start gap-2.5">
+                      <ItemIcon size={16} className={`mt-0.5 shrink-0 ${isClear ? 'text-emerald-700' : 'text-amber-700'}`} />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                          {item.question}
+                        </p>
+                        <p className="mt-1 text-[12px] font-mono font-semibold uppercase leading-relaxed text-[#222222]">
+                          {balanceText(item.instruction)}
+                        </p>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            {isError && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2">
+                <p className="text-[11px] font-mono font-semibold uppercase text-slate-700 leading-relaxed">
+                  PROTOCOL: STANDARD ENTRY. KEEP PASSPORT & ONWARD FLIGHT PROOF READY.
+                </p>
+              </div>
+            )}
+          </div>
+          {hasTax && (
+            <div className="rounded-xl border border-slate-200 bg-white/85 px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                Source Signal
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-700 leading-relaxed">
+                {balanceText(taxText)}
               </p>
             </div>
-          </div>
-        )}
-        {hasEntry && (
-          <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" aria-hidden />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Entry / visa</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">{digitalEntry}</p>
+          )}
+          {hasEntry && (
+            <div className="rounded-xl border border-slate-200 bg-white/85 px-3 py-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                Hardware Source
+              </p>
+              <p className="mt-1 text-xs font-medium text-slate-700 leading-relaxed">
+                {balanceText(entryText)}
+              </p>
             </div>
-          </div>
-        )}
-        {hasTax && (
-          <div className="flex gap-3">
-            <Info size={20} className="text-amber-700 shrink-0 mt-0.5" aria-hidden />
-            <div>
-              <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Tourist tax / budget</p>
-              <p className="text-[#222222] text-sm font-medium leading-relaxed">{touristTax}</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </motion.div>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
@@ -526,6 +675,24 @@ export default function CityGuideView() {
       </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
+        {cityData.arrival && (
+          <section className="space-y-4">
+            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
+              <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
+                <Plane size={20} className="text-[#222222]" />
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
+              </div>
+              <div className="p-8 text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</div>
+              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
+                <Wifi size={20} className="text-[#222222]" />
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
+              </div>
+              <div className="p-8 text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
+            </div>
+          </section>
+        )}
+
         <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
     <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
@@ -538,8 +705,8 @@ export default function CityGuideView() {
   </div>
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
-              {isApiLoading ? <HighAlertSkeleton /> : (
-                <HighAlertBanner
+              {isApiLoading ? <BorderClearanceSkeleton /> : (
+                <BorderClearance
                   digitalEntry={cityData.survival?.digitalEntry}
                   touristTax={cityData.survival?.touristTax}
                   isLive={!!visaData}
@@ -560,24 +727,6 @@ export default function CityGuideView() {
             ))}
           </div>
         </section>
-
-        {cityData.arrival && (
-          <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
-                <Plane size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
-              </div>
-              <div className="p-8 text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</div>
-              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
-                <Wifi size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
-              </div>
-              <div className="p-8 text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
-            </div>
-          </section>
-        )}
 
         {cityData.transit_logic && (
           <section className="space-y-4">
