@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Phone,
@@ -18,6 +18,7 @@ import {
 import { motion, type Variants, AnimatePresence } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
@@ -33,6 +34,13 @@ import { usePostHog } from '@posthog/react';
 import { trackCityPackView, PageTimer, captureEvent } from '@/lib/analytics';
 
 new PageTimer('homepage')
+
+function balanceText(text: string): string {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= 2) return text;
+  const tail = `${words[words.length - 2]}\u00A0${words[words.length - 1]}`;
+  return `${words.slice(0, -2).join(' ')} ${tail}`;
+}
 
 
 // ---------------------------------------------------------------------------
@@ -228,7 +236,7 @@ function BorderClearance({
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
                           {item.question}
                         </p>
-                        <p className="mt-1 text-[12px] font-mono font-semibold uppercase leading-relaxed text-[#222222]">
+                        <p className="mt-1 text-[13px] md:text-[12px] font-mono font-semibold uppercase tracking-[0.015em] leading-relaxed text-[#222222]">
                           {balanceText(item.instruction)}
                         </p>
                       </div>
@@ -239,7 +247,7 @@ function BorderClearance({
             </ol>
             {isError && (
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2">
-                <p className="text-[11px] font-mono font-semibold uppercase text-slate-700 leading-relaxed">
+                <p className="text-xs md:text-[11px] font-mono font-semibold uppercase tracking-[0.015em] text-slate-700 leading-relaxed">
                   PROTOCOL: STANDARD ENTRY. KEEP PASSPORT & ONWARD FLIGHT PROOF READY.
                 </p>
               </div>
@@ -250,7 +258,7 @@ function BorderClearance({
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 Source Signal
               </p>
-              <p className="mt-1 text-xs font-medium text-slate-700 leading-relaxed">
+              <p className="mt-1 text-sm md:text-xs tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
                 {balanceText(taxText)}
               </p>
             </div>
@@ -260,7 +268,7 @@ function BorderClearance({
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
                 Hardware Source
               </p>
-              <p className="mt-1 text-xs font-medium text-slate-700 leading-relaxed">
+              <p className="mt-1 text-sm md:text-xs tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
                 {balanceText(entryText)}
               </p>
             </div>
@@ -314,12 +322,14 @@ function OfflineAccessModal({
   isOpen, 
   onClose, 
   cityData, 
-  cleanSlug 
+  cleanSlug,
+  isChromeIOS,
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   cityData: CityPack; 
   cleanSlug: string | undefined;
+  isChromeIOS: boolean;
 }) {
   const [showWhyRequired, setShowWhyRequired] = useState(false);
   const posthog = usePostHog();
@@ -360,7 +370,13 @@ function OfflineAccessModal({
                     <span className="mt-0.5 inline-grid h-5 w-5 shrink-0 aspect-square place-items-center rounded-full bg-slate-900 text-[10px] leading-none font-black text-white">1</span>
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Open Share Menu</p>
-                      <p className="mt-1 leading-relaxed">Tap the <strong>Share icon</strong> (or more or three ...) in your browser address bar.</p>
+                      <p className="mt-1 leading-relaxed">
+                        {isChromeIOS ? (
+                          <>Chrome iOS: tap the <strong>Share icon at the top-right</strong> of the browser bar.</>
+                        ) : (
+                          <>Safari iOS: tap the <strong>Share icon at the bottom center</strong> of the browser bar.</>
+                        )}
+                      </p>
                     </div>
                   </div>
                 </li>
@@ -463,6 +479,13 @@ export default function CityGuideView() {
     error,
     refetch,
   } = useCityPack(cleanSlug ?? undefined);
+  const {
+    platform,
+    isInstalled: isPWAInstalled,
+    isInstallable,
+    hasActivePrompt,
+    installFieldPack,
+  } = usePWAInstall();
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
@@ -494,6 +517,70 @@ export default function CityGuideView() {
     () => Boolean(cityData && (isOffline || isLocalData)),
     [cityData, isOffline, isLocalData]
   );
+  const isPackInstalled = isPWAInstalled || isStandalone;
+  const isIOS = platform.os === 'ios';
+  const shouldShowInstallBar = !isStandalone || isPackInstalled;
+
+  const installButtonLabel = isPackInstalled
+    ? 'Pack Installed'
+    : isInstallable
+      ? 'Install Field Pack to Home Screen'
+      : isIOS
+        ? 'Add to Home Screen'
+        : 'Add to Your Device';
+
+  const installButtonSubLabel = isPackInstalled
+    ? 'Ready for offline launch'
+    : isInstallable
+      ? 'Live install path ready'
+      : isIOS
+        ? 'Use share flow to install'
+        : 'Setup offline access';
+
+  const handleInstallButtonClick = useCallback(async () => {
+    if (!cityData) return;
+    if (isPackInstalled) return;
+
+    if (platform.os === 'android' && isInstallable) {
+      captureEvent(posthog, 'pwa_install_prompt_triggered', {
+        city: cityData.name,
+        slug: cleanSlug,
+        platform_os: platform.os,
+        platform_browser: platform.browser,
+      });
+      const outcome = await installFieldPack();
+      captureEvent(posthog, 'pwa_install_prompt_outcome', {
+        city: cityData.name,
+        slug: cleanSlug,
+        outcome,
+        platform_os: platform.os,
+        platform_browser: platform.browser,
+      });
+      return;
+    }
+
+    captureEvent(posthog, 'pwa_install_instructions_viewed', {
+      city: cityData.name,
+      slug: cleanSlug,
+      network_status: navigator.onLine ? 'online' : 'offline',
+      device_type: isMobileDevice ? 'mobile' : 'desktop',
+      platform_os: platform.os,
+      platform_browser: platform.browser,
+      ios_chrome: platform.isChromeiOS,
+    });
+    setIsOfflineHelpOpen(true);
+  }, [
+    cityData,
+    cleanSlug,
+    installFieldPack,
+    isInstallable,
+    isMobileDevice,
+    isPackInstalled,
+    platform.browser,
+    platform.isChromeiOS,
+    platform.os,
+    posthog,
+  ]);
 
   // ---------------------------------------------------------------------------
   // 1️⃣ Standalone first launch: show banner & fire PostHog event
@@ -623,6 +710,7 @@ export default function CityGuideView() {
         onClose={() => setIsOfflineHelpOpen(false)} 
         cityData={cityData}
         cleanSlug={cleanSlug}
+        isChromeIOS={platform.isChromeiOS}
       />
 
       {showStandaloneBanner && (
@@ -658,7 +746,7 @@ export default function CityGuideView() {
             <h1 className="text-4xl font-black tracking-tighter uppercase leading-none cursor-pointer italic" onClick={() => { setDebugTapCount(p => p + 1); if (debugTapCount >= 4) { setShowDebug(true); setDebugTapCount(0); } }}>
               {cityData.name}
             </h1>
-            <p className="text-sm text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">{cityData.theme}</p>
+            <p className="text-base md:text-sm tracking-[0.01em] text-slate-600 mt-2 font-medium max-w-[240px] ml-auto leading-relaxed">{cityData.theme}</p>
             <div className="mt-6 flex items-center gap-4 flex-wrap justify-end">
               <div className="flex flex-col items-end">
                 <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
@@ -677,18 +765,18 @@ export default function CityGuideView() {
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {cityData.arrival && (
           <section className="space-y-4">
-            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">First 60 Minutes</h2>
+            <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">ARRIVAL</h2>
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
                 <Plane size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
               </div>
-              <div className="p-8 text-[#222222] font-medium leading-relaxed text-[15px]">{cityData.arrival.airportHack}</div>
+              <div className="p-8 text-[#222222] font-medium leading-relaxed text-base md:text-[15px] tracking-[0.01em]">{cityData.arrival.airportHack}</div>
               <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
                 <Wifi size={20} className="text-[#222222]" />
                 <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect</span>
               </div>
-              <div className="p-8 text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
+              <div className="p-8 text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">{cityData.arrival.eSimAdvice}</div>
             </div>
           </section>
         )}
@@ -696,7 +784,7 @@ export default function CityGuideView() {
         <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
     <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
-      Survival Dashboard
+      ENTRY INFO
     </h2>
     <SourceInfo 
       source="Global Intelligence Protocol" 
@@ -733,12 +821,12 @@ export default function CityGuideView() {
             <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Transit & Transportation</h2>
             <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
               <div className="flex items-center gap-3 mb-6"><div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Access & Fare Strategy</p></div>
-              <p className="text-[15px] font-medium text-[#222222] leading-relaxed">{cityData.transit_logic.payment_method}</p>
+              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">{cityData.transit_logic.payment_method}</p>
               <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2"><Phone size={14} className="text-slate-400" /><span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span></div>
                 <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">{cityData.transit_logic.primary_app}</span>
               </div>
-              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p><p className="text-[13px] font-bold text-slate-600 italic">"{cityData.transit_logic.etiquette}"</p></div>
+              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p><p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">"{cityData.transit_logic.etiquette}"</p></div>
             </div>
           </section>
         )}
@@ -757,12 +845,12 @@ export default function CityGuideView() {
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
             <div className="flex items-center gap-2 mb-2"><Globe size={14} className="text-slate-400" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exchange Rate</p></div>
             <div className="text-3xl font-black text-[#222222] tabular-nums">1 USD = {visaData?.destination?.exchange || CURRENCY_PROTOCOL[cityData.countryCode]?.rate || '---'}</div>
-            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[14px] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping || "Standard 10% is expected."}</div>
+            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping || "Standard 10% is expected."}</div>
           </div>
         </section>
       </main>
 
-      {!isStandalone && (
+      {shouldShowInstallBar && (
         <div className="fixed bottom-0 left-0 right-0 z-[100] pointer-events-none">
           <div 
             className="absolute inset-0 bg-[#F7F7F7]/60 backdrop-blur-xl border-t border-slate-200/50" 
@@ -771,27 +859,32 @@ export default function CityGuideView() {
           
           <div className="relative p-6 pb-10 max-w-md mx-auto pointer-events-auto">
             <button
-              onClick={() => {
-                captureEvent(posthog, 'pwa_install_instructions_viewed', {
-                  city: cityData.name,
-                  slug: cleanSlug,
-                  network_status: navigator.onLine ? 'online' : 'offline',
-                  device_type: isMobileDevice ? 'mobile' : 'desktop'
-                });
-                setIsOfflineHelpOpen(true);
-              }}
-              className="w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 active:scale-[0.97] transition-all border bg-[#222222] text-white border-black group"
+              onClick={handleInstallButtonClick}
+              disabled={isPackInstalled}
+              className={`w-full h-16 rounded-[2rem] shadow-2xl flex items-center justify-between px-8 transition-all border group ${
+                isPackInstalled
+                  ? 'bg-slate-500 text-white border-slate-500 cursor-not-allowed'
+                  : 'bg-[#222222] text-white border-black active:scale-[0.97]'
+              }`}
             >
               <div className="flex items-center gap-4">
                 <div className="p-2 rounded-xl transition-colors bg-white/10 text-white group-hover:bg-emerald-500/20 group-hover:text-emerald-400">
                   <Download size={20} strokeWidth={3} />
                 </div>
                 <div className="flex flex-col items-start text-left">
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">Add to Your Device</span>
-                  <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">Setup offline access</span>
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">{balanceText(installButtonLabel)}</span>
+                  <span className="text-[8px] font-bold opacity-60 uppercase tracking-widest">{balanceText(installButtonSubLabel)}</span>
                 </div>
               </div>
-              <div className={`h-1.5 w-1.5 rounded-full transition-colors ${offlineAvailable ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              <div
+                className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                  isPackInstalled
+                    ? 'bg-emerald-500'
+                    : hasActivePrompt
+                      ? 'bg-emerald-500 animate-pulse'
+                      : 'bg-slate-400'
+                }`}
+              />
             </button>
           </div>
         </div>

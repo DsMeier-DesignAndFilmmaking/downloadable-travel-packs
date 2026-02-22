@@ -229,6 +229,7 @@ export default function SystemBottomSheet({
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const priorFocusedElementRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
 
   const {
     snap,
@@ -314,9 +315,12 @@ export default function SystemBottomSheet({
   }, [dismiss, isOpen]);
 
   useEffect(() => {
-    if (isOpen) return;
-    const fallback = triggerRef?.current ?? priorFocusedElementRef.current;
-    fallback?.focus();
+    // Restore focus only after an actual close, not on initial mount.
+    if (wasOpenRef.current && !isOpen) {
+      const fallback = triggerRef?.current ?? priorFocusedElementRef.current;
+      fallback?.focus();
+    }
+    wasOpenRef.current = isOpen;
   }, [isOpen, triggerRef]);
 
   return (
