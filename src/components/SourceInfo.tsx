@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import { Info, ShieldCheck, Globe, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -27,6 +27,8 @@ export default function SourceInfo({
 }: SourceInfoProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [desktopPlacement, setDesktopPlacement] = useState<'above' | 'below'>('above');
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [desktopStyle, setDesktopStyle] = useState<CSSProperties | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -54,59 +56,82 @@ export default function SourceInfo({
   }, [isLive, isOpen, lastUpdated, source]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(min-width: 768px)');
+    const syncDesktop = () => setIsDesktop(media.matches);
+    syncDesktop();
+    media.addEventListener('change', syncDesktop);
+    return () => media.removeEventListener('change', syncDesktop);
+  }, []);
+
+  useEffect(() => {
     if (!isOpen) return;
     if (typeof window === 'undefined') return;
 
     const edgePadding = 12;
+    const gap = 10;
 
-    const updatePlacement = () => {
-      if (window.innerWidth < 768) return;
+    const updateDesktopPosition = () => {
+      if (!isDesktop) {
+        setDesktopStyle(undefined);
+        return;
+      }
       if (!triggerRef.current || !panelRef.current) return;
 
       const triggerRect = triggerRef.current.getBoundingClientRect();
       const panelRect = panelRef.current.getBoundingClientRect();
+      const panelWidth = panelRect.width || 340;
       const panelHeight = panelRect.height || 360;
+
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
       const spaceAbove = triggerRect.top - edgePadding;
-      const spaceBelow = window.innerHeight - triggerRect.bottom - edgePadding;
+      const spaceBelow = viewportHeight - triggerRect.bottom - edgePadding;
 
-      // If current rendered position is clipped, immediately invert placement.
-      if (panelRect.top < edgePadding && desktopPlacement === 'above') {
-        setDesktopPlacement('below');
-        return;
-      }
-      if (panelRect.bottom > window.innerHeight - edgePadding && desktopPlacement === 'below') {
-        setDesktopPlacement('above');
-        return;
+      let nextPlacement: 'above' | 'below' = 'below';
+      if (spaceBelow < panelHeight + gap && spaceAbove > spaceBelow) {
+        nextPlacement = 'above';
       }
 
-      // Otherwise choose best side by available space.
-      const required = panelHeight + 16;
-      if (spaceAbove >= required) {
-        setDesktopPlacement('above');
-        return;
-      }
-      if (spaceBelow >= required) {
-        setDesktopPlacement('below');
-        return;
-      }
+      const centeredLeft = triggerRect.left + triggerRect.width / 2 - panelWidth / 2;
+      const clampedLeft = Math.min(
+        Math.max(centeredLeft, edgePadding),
+        Math.max(edgePadding, viewportWidth - panelWidth - edgePadding),
+      );
 
-      setDesktopPlacement(spaceBelow > spaceAbove ? 'below' : 'above');
+      let top =
+        nextPlacement === 'below'
+          ? triggerRect.bottom + gap
+          : triggerRect.top - panelHeight - gap;
+
+      // Clamp to viewport to avoid any clipping even in very short windows.
+      top = Math.min(
+        Math.max(top, edgePadding),
+        Math.max(edgePadding, viewportHeight - panelHeight - edgePadding),
+      );
+
+      setDesktopPlacement(nextPlacement);
+      setDesktopStyle({
+        top,
+        left: clampedLeft,
+        maxHeight: viewportHeight - edgePadding * 2,
+      });
     };
 
     const rafId = window.requestAnimationFrame(() => {
-      updatePlacement();
-      // Second pass handles cases where first render animation changes final height.
-      window.requestAnimationFrame(updatePlacement);
+      updateDesktopPosition();
+      window.requestAnimationFrame(updateDesktopPosition);
     });
-    window.addEventListener('resize', updatePlacement);
-    window.addEventListener('scroll', updatePlacement, true);
+    window.addEventListener('resize', updateDesktopPosition);
+    window.addEventListener('scroll', updateDesktopPosition, true);
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', updatePlacement);
-      window.removeEventListener('scroll', updatePlacement, true);
+      window.removeEventListener('resize', updateDesktopPosition);
+      window.removeEventListener('scroll', updateDesktopPosition, true);
     };
-  }, [desktopPlacement, isOpen]);
+  }, [isDesktop, isOpen]);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -149,12 +174,12 @@ export default function SourceInfo({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.2 }}
+              style={isDesktop ? desktopStyle : undefined}
               className={`
                 fixed bottom-32 inset-x-6 mx-auto z-[100] w-auto max-w-[360px]
-                md:absolute md:left-1/2 md:-translate-x-1/2 md:inset-x-auto md:w-[340px]
-                md:max-h-[calc(100vh-1.5rem)] md:overflow-y-auto
+                md:inset-x-auto md:bottom-auto md:mx-0 md:w-[340px] md:max-w-[calc(100vw-1.5rem)] md:overflow-y-auto
                 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]
-                ${desktopPlacement === 'above' ? 'md:bottom-full md:mb-4' : 'md:top-full md:mt-4'}
+                ${isDesktop && !desktopStyle ? 'md:invisible' : ''}
               `}
             >
               <div className="absolute inset-0 pointer-events-none">
