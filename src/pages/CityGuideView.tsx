@@ -601,6 +601,18 @@ export default function CityGuideView() {
     () => Boolean(cityData && (isOffline || isLocalData)),
     [cityData, isOffline, isLocalData]
   );
+  const integritySource = useMemo(() => {
+    const candidate = visaData?.source;
+    return typeof candidate === 'string' && candidate.trim().length > 0
+      ? candidate
+      : 'Official Government Portals';
+  }, [visaData]);
+  const integrityLastVerified = useMemo(() => {
+    const candidate = visaData?.lastUpdated;
+    return typeof candidate === 'string' && candidate.trim().length > 0
+      ? candidate
+      : lastSynced;
+  }, [lastSynced, visaData]);
   const exchangeRateDisplay = useMemo(() => {
     const fallbackRate = CURRENCY_PROTOCOL[cityData?.countryCode ?? '']?.rate;
     return resolveUsdToLocalRate(
@@ -899,11 +911,12 @@ export default function CityGuideView() {
     <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em] flex items-center gap-2">
       ENTRY INFO
     </h2>
-    <SourceInfo 
-      source="Global Intelligence Protocol" 
-      lastUpdated={lastSynced} 
+    <SourceInfo
+      source={integritySource}
+      lastUpdated={integrityLastVerified}
+      isLive={!!visaData}
     />
-          </div>
+  </div>
           <div className="min-h-[140px]">
             <AnimatePresence mode="wait">
               <BorderClearance
