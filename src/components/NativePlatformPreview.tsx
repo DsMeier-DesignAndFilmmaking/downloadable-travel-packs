@@ -75,7 +75,7 @@ export default function NativePlatformPreview({ className = '' }: NativePlatform
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
           Platform Capability Preview
         </p>
-        <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-700">
           Native builds in progress for offline-first field workflows.
         </p>
 
