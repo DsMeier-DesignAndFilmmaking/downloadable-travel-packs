@@ -57,24 +57,47 @@ export default function SourceInfo({
     if (!isOpen) return;
     if (typeof window === 'undefined') return;
 
+    const edgePadding = 12;
+
     const updatePlacement = () => {
       if (window.innerWidth < 768) return;
       if (!triggerRef.current || !panelRef.current) return;
 
       const triggerRect = triggerRef.current.getBoundingClientRect();
-      const panelHeight = panelRef.current.offsetHeight || 360;
-      const spaceAbove = triggerRect.top;
-      const spaceBelow = window.innerHeight - triggerRect.bottom;
+      const panelRect = panelRef.current.getBoundingClientRect();
+      const panelHeight = panelRect.height || 360;
+      const spaceAbove = triggerRect.top - edgePadding;
+      const spaceBelow = window.innerHeight - triggerRect.bottom - edgePadding;
 
-      // Prefer top placement, but flip below if top space is insufficient.
-      if (spaceAbove < panelHeight + 20 && spaceBelow > spaceAbove) {
+      // If current rendered position is clipped, immediately invert placement.
+      if (panelRect.top < edgePadding && desktopPlacement === 'above') {
         setDesktopPlacement('below');
-      } else {
-        setDesktopPlacement('above');
+        return;
       }
+      if (panelRect.bottom > window.innerHeight - edgePadding && desktopPlacement === 'below') {
+        setDesktopPlacement('above');
+        return;
+      }
+
+      // Otherwise choose best side by available space.
+      const required = panelHeight + 16;
+      if (spaceAbove >= required) {
+        setDesktopPlacement('above');
+        return;
+      }
+      if (spaceBelow >= required) {
+        setDesktopPlacement('below');
+        return;
+      }
+
+      setDesktopPlacement(spaceBelow > spaceAbove ? 'below' : 'above');
     };
 
-    const rafId = window.requestAnimationFrame(updatePlacement);
+    const rafId = window.requestAnimationFrame(() => {
+      updatePlacement();
+      // Second pass handles cases where first render animation changes final height.
+      window.requestAnimationFrame(updatePlacement);
+    });
     window.addEventListener('resize', updatePlacement);
     window.addEventListener('scroll', updatePlacement, true);
 
@@ -83,7 +106,7 @@ export default function SourceInfo({
       window.removeEventListener('resize', updatePlacement);
       window.removeEventListener('scroll', updatePlacement, true);
     };
-  }, [isOpen]);
+  }, [desktopPlacement, isOpen]);
 
   return (
     <div ref={containerRef} className="relative inline-block">
@@ -126,12 +149,13 @@ export default function SourceInfo({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.2 }}
-              className="
+              className={`
                 fixed bottom-32 inset-x-6 mx-auto z-[100] w-auto max-w-[360px]
                 md:absolute md:left-1/2 md:-translate-x-1/2 md:inset-x-auto md:w-[340px]
+                md:max-h-[calc(100vh-1.5rem)] md:overflow-y-auto
                 overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]
                 ${desktopPlacement === 'above' ? 'md:bottom-full md:mb-4' : 'md:top-full md:mt-4'}
-              "
+              `}
             >
               <div className="absolute inset-0 pointer-events-none">
                 <div className="absolute -right-7 top-10 rotate-[-26deg] text-[52px] font-black tracking-[0.2em] text-slate-100/80">
