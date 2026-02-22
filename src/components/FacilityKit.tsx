@@ -15,7 +15,8 @@ export default function FacilityKit({ data }: { data: FacilityIntel }) {
   return (
     <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm relative overflow-hidden group">
       <div className="flex items-center gap-4 mb-6">
-      <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl transition-all duration-300">          <SquareUser size={22} strokeWidth={2.5} aria-hidden="true" />
+      <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl transition-all duration-300">          
+        <SquareUser size={22} strokeWidth={2.5} aria-hidden="true" />
         </div>
         <div>
           {/* ADA compliant headline - 14px */}

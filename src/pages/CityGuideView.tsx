@@ -198,7 +198,7 @@ function BorderClearance({
         className="relative overflow-hidden rounded-[2rem] border border-slate-200 border-t-4 border-t-slate-300 bg-white shadow-sm p-5"
       >
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-          Field Fixer
+        Checklist
         </p>
         <p className="mt-3 text-sm font-medium text-slate-600 animate-pulse">
           {balanceText('Loading live border instructions...')}
@@ -224,7 +224,7 @@ function BorderClearance({
 
       <div className="border-b border-slate-200 px-5 py-4">
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-          Field Fixer
+          Checklist
         </p>
         <p className="mt-1 text-sm font-semibold text-[#222222]">
           {requiresAction ? balanceText('Action required before terminal exit.') : balanceText('Border flow is clear and direct.')}
@@ -253,8 +253,8 @@ function BorderClearance({
                 isCleared ? 'opacity-40' : 'opacity-100'
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
                   <div className={`rounded-lg border p-2 ${iconClasses}`}>
                     <TopicIcon size={16} />
                   </div>
@@ -1282,15 +1282,22 @@ export default function CityGuideView() {
               </p>
             </div>
           </div>
+
+          {cityData.facility_intel && (
+            <div className="space-y-3">
+              
+              <FacilityKit data={cityData.facility_intel} />
+            </div>
+          )}
         </section>
 
         <section className="space-y-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Field Operations</h2>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">MONEY</h2>
 
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <Globe size={14} className="text-slate-400" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spending Shield / Quick Reference</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spending Quick References</p>
             </div>
             <p className="text-sm font-semibold text-slate-600 leading-relaxed">
               1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
@@ -1309,23 +1316,22 @@ export default function CityGuideView() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
-              {cityData.survival?.tipping || 'Standard 10% is expected.'}
+            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">Tip Culture</p>
+              <p className="mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
+                {cityData.survival?.tipping || 'Standard 10% is expected.'}
+              </p>
             </div>
           </div>
+          </section>
 
-          {cityData.facility_intel && (
-            <div className="space-y-3">
-              <h3 className="px-2 text-[11px] font-black text-slate-500 uppercase tracking-[0.24em]">Restroom Guide</h3>
-              <FacilityKit data={cityData.facility_intel} />
-            </div>
-          )}
-
+          <section className="space-y-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
           {cityData.transit_logic && (
             <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Mobility</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Transit</p>
               </div>
               <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
                 {balanceText(cityData.transit_logic.payment_method)}
