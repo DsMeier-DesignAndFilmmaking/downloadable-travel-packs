@@ -57,20 +57,59 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
     .replace(/[^a-zA-Z\s]/g, '')
     .trim();
   console.log('🧪 CLEANED QUERY:', `|${sanitized}|`, 'Length:', sanitized.length);
-  const q = encodeURIComponent(sanitized);
-  console.log('🔍 SANITIZED CITY QUERY:', q);
 
   const e = apiKey;
-  const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${q}&aqi=no`;
-  console.log('🔗 FINAL FETCH URL:', url);
-  const response = await fetch(url);
-  if (!response.ok) {
-    const errorBody = await response.json();
-    console.error('❌ WEATHER API REJECTED REQUEST:', errorBody);
-    throw new Error(`Weather API Error: ${errorBody.error.message}`);
+  type WeatherApiErrorBody = { error?: { code?: number; message?: string } };
+
+  const requestWeather = async (query: string): Promise<WeatherApiResponse> => {
+    const o = encodeURIComponent(`${query.split('-')[0].trim()},`);
+    console.log('🔍 SANITIZED CITY QUERY:', o);
+    const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${o}&aqi=no&_ts=${Date.now()}`;
+    console.log('🔗 FINAL FETCH URL:', url);
+    console.log('🌐 FETCHING FROM CLIENT IP:', url);
+
+    if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
+      throw new Error('Weather fetch must run in browser context');
+    }
+
+    const response = await window.fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+    });
+
+    if (!response.ok) {
+      let errorBody: WeatherApiErrorBody = {};
+      try {
+        errorBody = (await response.json()) as WeatherApiErrorBody;
+      } catch {
+        // Keep empty error object when parsing fails.
+      }
+
+      console.error('❌ WEATHER API REJECTED REQUEST:', errorBody);
+      const message = errorBody.error?.message ?? `HTTP ${response.status}`;
+      const error = new Error(`Weather API Error: ${message}`) as Error & { code?: number };
+      error.code = errorBody.error?.code;
+      throw error;
+    }
+
+    return (await response.json()) as WeatherApiResponse;
+  };
+
+  let data: WeatherApiResponse;
+  try {
+    data = await requestWeather(sanitized);
+  } catch (primaryError) {
+    const err = primaryError as Error & { code?: number };
+    if (err.code !== 1006 || sanitized.length < 2) {
+      throw primaryError;
+    }
+
+    const fallbackQuery = `${sanitized.slice(0, 2)} `;
+    console.warn('↩️ WEATHER FALLBACK QUERY:', `|${fallbackQuery}|`);
+    data = await requestWeather(fallbackQuery);
   }
 
-  const data = (await response.json()) as WeatherApiResponse;
   const temp = data.current?.feelslike_c;
   const condition = data.current?.condition?.text;
   const uv = data.current?.uv;
