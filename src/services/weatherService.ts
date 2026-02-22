@@ -50,65 +50,29 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
     throw new Error('Missing VITE_WEATHER_API_KEY');
   }
 
-  const sanitized = cityName
-    .toString()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z\s]/g, '')
-    .trim();
-  console.log('🧪 CLEANED QUERY:', `|${sanitized}|`, 'Length:', sanitized.length);
+  const sanitizedCity = cityName.split('-')[0].split(',')[0].replace(/[^a-zA-Z]/g, '').trim();
+  console.log('🎯 TARGET CITY:', sanitizedCity);
 
   const e = apiKey;
   type WeatherApiErrorBody = { error?: { code?: number; message?: string } };
-
-  const requestWeather = async (query: string): Promise<WeatherApiResponse> => {
-    const o = encodeURIComponent(`${query.split('-')[0].trim()},`);
-    console.log('🔍 SANITIZED CITY QUERY:', o);
-    const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${o}&aqi=no&_ts=${Date.now()}`;
-    console.log('🔗 FINAL FETCH URL:', url);
-    console.log('🌐 FETCHING FROM CLIENT IP:', url);
-
-    if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
-      throw new Error('Weather fetch must run in browser context');
+  const o = encodeURIComponent(sanitizedCity);
+  console.log('🔍 SANITIZED CITY QUERY:', o);
+  const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${o}&aqi=no`;
+  console.log('🔗 FINAL FETCH URL:', url);
+  const response = await fetch(url, { method: 'GET', mode: 'cors' });
+  if (!response.ok) {
+    let errorBody: WeatherApiErrorBody = {};
+    try {
+      errorBody = (await response.json()) as WeatherApiErrorBody;
+    } catch {
+      // Keep empty error object when parsing fails.
     }
 
-    const response = await window.fetch(url, {
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-cache',
-    });
-
-    if (!response.ok) {
-      let errorBody: WeatherApiErrorBody = {};
-      try {
-        errorBody = (await response.json()) as WeatherApiErrorBody;
-      } catch {
-        // Keep empty error object when parsing fails.
-      }
-
-      console.error('❌ WEATHER API REJECTED REQUEST:', errorBody);
-      const message = errorBody.error?.message ?? `HTTP ${response.status}`;
-      const error = new Error(`Weather API Error: ${message}`) as Error & { code?: number };
-      error.code = errorBody.error?.code;
-      throw error;
-    }
-
-    return (await response.json()) as WeatherApiResponse;
-  };
-
-  let data: WeatherApiResponse;
-  try {
-    data = await requestWeather(sanitized);
-  } catch (primaryError) {
-    const err = primaryError as Error & { code?: number };
-    if (err.code !== 1006 || sanitized.length < 2) {
-      throw primaryError;
-    }
-
-    const fallbackQuery = `${sanitized.slice(0, 2)} `;
-    console.warn('↩️ WEATHER FALLBACK QUERY:', `|${fallbackQuery}|`);
-    data = await requestWeather(fallbackQuery);
+    console.error('❌ WEATHER API REJECTED REQUEST:', errorBody);
+    const message = errorBody.error?.message ?? `HTTP ${response.status}`;
+    throw new Error(`Weather API Error: ${message}`);
   }
+  const data = (await response.json()) as WeatherApiResponse;
 
   const temp = data.current?.feelslike_c;
   const condition = data.current?.condition?.text;
@@ -119,7 +83,7 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   }
 
   return {
-    city: sanitized,
+    city: sanitizedCity,
     temp,
     condition,
     uv,
