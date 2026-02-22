@@ -347,7 +347,7 @@ function OfflineAccessModal({
         <div className="min-h-full px-4 py-6">
           <div className="mx-auto w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur">
-              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Add This Pack to Your Device</h2>
+              <h2 className="text-sm font-black uppercase tracking-wide text-[#222222]">Add Pack to Your Device</h2>
               <button
                 onClick={onClose}
                 className="rounded-lg border border-slate-200 p-2 text-slate-500 transition-colors active:scale-95"
@@ -457,6 +457,102 @@ const CURRENCY_PROTOCOL: Record<string, { code: string; rate: string }> = {
   TH: { code: 'THB', rate: '31.13' }, JP: { code: 'JPY', rate: '150.40' }, AE: { code: 'AED', rate: '3.67' }, GB: { code: 'GBP', rate: '0.87' }, FR: { code: 'EUR', rate: '0.94' }, IT: { code: 'EUR', rate: '0.94' }, ES: { code: 'EUR', rate: '0.94' }, DE: { code: 'EUR', rate: '0.94' }, MX: { code: 'MXN', rate: '17.05' }, US: { code: 'USD', rate: '1.00' },
 };
 
+function extractFirstNumber(value: string): number | null {
+  const match = value.match(/([0-9]+(?:[.,][0-9]+)?)/);
+  if (!match) return null;
+  const parsed = Number.parseFloat(match[1].replace(',', '.'));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function toTwoDecimals(value: number): string {
+  return value.toFixed(2);
+}
+
+function resolveCurrencyName(currencyCode: string | undefined): string | null {
+  if (!currencyCode || !/^[A-Z]{3}$/.test(currencyCode)) return null;
+
+  try {
+    if (typeof Intl !== 'undefined' && 'DisplayNames' in Intl) {
+      const display = new Intl.DisplayNames(['en'], { type: 'currency' });
+      const name = display.of(currencyCode);
+      if (name && name.toUpperCase() !== currencyCode) return name;
+    }
+  } catch {
+    // Ignore and fallback below.
+  }
+
+  const fallbackNames: Record<string, string> = {
+    USD: 'US Dollar',
+    EUR: 'Euro',
+    GBP: 'British Pound',
+    JPY: 'Japanese Yen',
+    THB: 'Thai Baht',
+    AED: 'UAE Dirham',
+    MXN: 'Mexican Peso',
+    KRW: 'South Korean Won',
+  };
+
+  return fallbackNames[currencyCode] ?? null;
+}
+
+/**
+ * Normalize upstream exchange values to a single UI contract:
+ * "1 USD = X DESTINATION_CURRENCY"
+ */
+function resolveUsdToLocalRate(
+  exchangeRaw: string | undefined,
+  destinationCurrencyCode: string | undefined,
+  fallbackRate: string | undefined,
+): string {
+  const fallbackNumeric = fallbackRate ? Number.parseFloat(fallbackRate) : NaN;
+  const fallback = Number.isFinite(fallbackNumeric) && fallbackNumeric > 0 ? fallbackNumeric : null;
+
+  if (!exchangeRaw || exchangeRaw.trim().length === 0) {
+    return fallback ? toTwoDecimals(fallback) : '---';
+  }
+
+  const raw = exchangeRaw.trim();
+  const rawUpper = raw.toUpperCase();
+  const destCode = destinationCurrencyCode?.toUpperCase().trim();
+
+  let candidate: number | null = null;
+
+  const usdToAny = rawUpper.match(/USD\s*=\s*([0-9]+(?:[.,][0-9]+)?)/);
+  if (usdToAny) {
+    candidate = Number.parseFloat(usdToAny[1].replace(',', '.'));
+  }
+
+  if (candidate == null && destCode) {
+    const localToUsd = rawUpper.match(new RegExp(`${destCode}\\s*=\\s*([0-9]+(?:[.,][0-9]+)?)\\s*USD`));
+    if (localToUsd) {
+      const localPerUsd = Number.parseFloat(localToUsd[1].replace(',', '.'));
+      if (Number.isFinite(localPerUsd) && localPerUsd > 0) {
+        candidate = 1 / localPerUsd;
+      }
+    }
+  }
+
+  if (candidate == null) {
+    candidate = extractFirstNumber(raw);
+  }
+
+  if (!candidate || !Number.isFinite(candidate) || candidate <= 0) {
+    return fallback ? toTwoDecimals(fallback) : '---';
+  }
+
+  // If upstream returns inverse (common for some destinations), flip when it matches known fallback direction better.
+  if (fallback) {
+    const inverse = 1 / candidate;
+    const directDistance = Math.abs(candidate - fallback);
+    const inverseDistance = Math.abs(inverse - fallback);
+    if (inverseDistance < directDistance) {
+      candidate = inverse;
+    }
+  }
+
+  return toTwoDecimals(candidate);
+}
+
 const DEFAULT_PASSPORT = 'US';
 const STANDALONE_FIRST_LAUNCH_KEY = 'travelpacks-standalone-first-launch';
 
@@ -517,9 +613,27 @@ export default function CityGuideView() {
     () => Boolean(cityData && (isOffline || isLocalData)),
     [cityData, isOffline, isLocalData]
   );
+  const exchangeRateDisplay = useMemo(() => {
+    const fallbackRate = CURRENCY_PROTOCOL[cityData?.countryCode ?? '']?.rate;
+    return resolveUsdToLocalRate(
+      visaData?.destination?.exchange,
+      visaData?.destination?.currency_code,
+      fallbackRate,
+    );
+  }, [cityData?.countryCode, visaData?.destination?.currency_code, visaData?.destination?.exchange]);
+  const currencyCodeDisplay = useMemo(() => {
+    const apiCode = visaData?.destination?.currency_code?.toUpperCase().trim();
+    if (apiCode && /^[A-Z]{3}$/.test(apiCode)) return apiCode;
+    return CURRENCY_PROTOCOL[cityData?.countryCode ?? '']?.code ?? '';
+  }, [cityData?.countryCode, visaData?.destination?.currency_code]);
+  const currencyNameDisplay = useMemo(
+    () => resolveCurrencyName(currencyCodeDisplay),
+    [currencyCodeDisplay],
+  );
   const isPackInstalled = isPWAInstalled || isStandalone;
   const isIOS = platform.os === 'ios';
-  const shouldShowInstallBar = !isStandalone || isPackInstalled;
+  // Hide the install bar only when the user is already in mobile standalone mode.
+  const shouldShowInstallBar = !(isStandalone && isMobileDevice);
 
   const installButtonLabel = isPackInstalled
     ? 'Pack Installed'
@@ -844,7 +958,15 @@ export default function CityGuideView() {
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Spending Shield</h2>
           <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
             <div className="flex items-center gap-2 mb-2"><Globe size={14} className="text-slate-400" /><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exchange Rate</p></div>
-            <div className="text-3xl font-black text-[#222222] tabular-nums">1 USD = {visaData?.destination?.exchange || CURRENCY_PROTOCOL[cityData.countryCode]?.rate || '---'}</div>
+            <div className="text-3xl font-black text-[#222222] tabular-nums">
+              1 USD = {exchangeRateDisplay}
+              {currencyCodeDisplay && (
+                <span className="ml-2 text-sm md:text-base font-bold text-slate-500">
+                  {currencyCodeDisplay}
+                  {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+                </span>
+              )}
+            </div>
             <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">{cityData.survival?.tipping || "Standard 10% is expected."}</div>
           </div>
         </section>
