@@ -50,13 +50,18 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
     throw new Error('Missing VITE_WEATHER_API_KEY');
   }
 
-  const q = cityName.split('-')[0].trim().toLowerCase();
-  const sanitizedName = encodeURIComponent(q);
-  console.log('🔍 SANITIZED CITY QUERY:', sanitizedName);
+  const sanitized = cityName
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z\s]/g, '')
+    .trim();
+  console.log('🧪 CLEANED QUERY:', `|${sanitized}|`, 'Length:', sanitized.length);
+  const q = encodeURIComponent(sanitized);
+  console.log('🔍 SANITIZED CITY QUERY:', q);
 
   const e = apiKey;
-  const o = sanitizedName;
-  const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${o}&aqi=no`;
+  const url = `https://api.weatherapi.com/v1/current.json?key=${e}&q=${q}&aqi=no`;
   console.log('🔗 FINAL FETCH URL:', url);
   const response = await fetch(url);
   if (!response.ok) {
@@ -75,7 +80,7 @@ export async function fetchCityWeather(cityName: string): Promise<CityWeather> {
   }
 
   return {
-    city: q,
+    city: sanitized,
     temp,
     condition,
     uv,

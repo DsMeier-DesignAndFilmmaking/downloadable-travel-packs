@@ -707,6 +707,7 @@ export default function CityGuideView() {
   const [climatePulseTempC, setClimatePulseTempC] = useState<number | null>(null);
   const [climatePulseCondition, setClimatePulseCondition] = useState<string>('');
   const [climatePulseUv, setClimatePulseUv] = useState<number | null>(null);
+  const [climatePulseHighUv, setClimatePulseHighUv] = useState(false);
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
@@ -769,27 +770,25 @@ export default function CityGuideView() {
     [quickFuelIntel],
   );
   const climatePulseIsRaining = /rain|storm/i.test(climatePulseCondition);
-  const climatePulseHighUv = climatePulseUv != null && climatePulseUv >= 8;
-  const climatePulseExtremeExposure = climatePulseTempC != null && climatePulseTempC > 38 && climatePulseHighUv;
-  const climatePulseUvPrimaryThreat = climatePulseHighUv && (climatePulseTempC == null || climatePulseTempC < 30);
-  const ClimatePulseIcon = climatePulseExtremeExposure
-    ? SunDim
-    : climatePulseUvPrimaryThreat
-      ? Sun
-      : climatePulseIsRaining
-        ? CloudRain
-        : Thermometer;
-  const climatePulseIconClass = climatePulseExtremeExposure
-    ? 'text-red-600 mb-4 animate-pulse'
-    : climatePulseUvPrimaryThreat
-      ? 'text-amber-600 mb-4'
-      : climatePulseIsRaining
-        ? 'text-blue-500 mb-4'
-        : climatePulseTempC != null && climatePulseTempC > 38
-          ? 'text-red-600 mb-4 animate-pulse'
-          : climatePulseTempC != null && climatePulseTempC > 30
-            ? 'text-orange-600 mb-4'
-            : 'text-red-500 mb-4';
+  const climatePulseVeryHot = climatePulseTempC != null && climatePulseTempC > 38;
+  const climatePulseExtremeExposure = climatePulseVeryHot && climatePulseHighUv;
+  const ClimatePulseIcon = climatePulseHighUv
+    ? climatePulseExtremeExposure
+      ? SunDim
+      : Sun
+    : climatePulseIsRaining
+      ? CloudRain
+      : Thermometer;
+  const climatePulseIconClass = `${climatePulseHighUv
+    ? climatePulseExtremeExposure
+      ? 'text-red-600'
+      : 'text-amber-600'
+    : climatePulseIsRaining
+      ? 'text-blue-500'
+      : climatePulseTempC != null && climatePulseTempC > 30
+        ? 'text-orange-600'
+        : 'text-red-500'
+    } mb-4${climatePulseVeryHot ? ' animate-pulse' : ''}`;
   const climatePulseSummary = useMemo(() => {
     const metrics: string[] = [];
     if (climatePulseTempC != null) metrics.push(`TEMP: ${Math.round(climatePulseTempC)}°C.`);
@@ -1001,7 +1000,8 @@ export default function CityGuideView() {
   }, [cityData?.countryCode, isOffline]);
 
   useEffect(() => {
-    const cityName = cityData?.name;
+    const rawCityName = cityData?.name?.toString() || '';
+    const cityName = rawCityName.split(',')[0].trim();
     if (!cityName) return;
     if (climatePulseSyncedCityRef.current === cityName) return;
 
@@ -1012,6 +1012,7 @@ export default function CityGuideView() {
     setClimatePulseTempC(null);
     setClimatePulseCondition('');
     setClimatePulseUv(null);
+    setClimatePulseHighUv(false);
 
     const syncClimate = async () => {
       try {
@@ -1021,6 +1022,8 @@ export default function CityGuideView() {
         setClimatePulseTempC(climate.temp);
         setClimatePulseCondition(climate.condition);
         setClimatePulseUv(climate.uv);
+        const isHighUv = climate.uv >= 8;
+        setClimatePulseHighUv(isHighUv);
         setClimatePulseAdvice(climate.advice);
         console.log('☀️ SUN SAFETY LOG:', {
           city: cityName,
@@ -1032,6 +1035,7 @@ export default function CityGuideView() {
         setClimatePulseTempC(null);
         setClimatePulseCondition('');
         setClimatePulseUv(null);
+        setClimatePulseHighUv(false);
         setClimatePulseAdvice(climateAdviceFallback);
         console.warn('Climate pulse fallback active:', err);
       }
