@@ -36,7 +36,6 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
-import CityPulseBlock from '@/components/CityPulseBlock';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 import { performGlobalReset } from '@/utils/appReset';
@@ -1299,6 +1298,7 @@ export default function CityGuideView() {
         {cityData.arrival && (
           <ArrivalIntelligence
             key={cleanSlug ?? cityData.slug}
+            citySlug={cleanSlug ?? cityData.slug}
             cityName={cityData.name}
             source={integritySource}
             lastUpdated={integrityLastVerified}
@@ -1321,13 +1321,6 @@ export default function CityGuideView() {
             onResetStatus={handleResetLandedStatus}
           />
         )}
-
-        <CityPulseBlock
-          key={cityData.slug}
-          citySlug={cleanSlug ?? cityData.slug}
-          cityName={cityData.name}
-          hasLanded={hasLanded}
-        />
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>

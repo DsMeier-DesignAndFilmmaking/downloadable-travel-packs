@@ -2,8 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Navigation, Plane, Wifi } from 'lucide-react';
 import type { ReactNode } from 'react';
 import SourceInfo from '@/components/SourceInfo';
+import CityPulseBlock from '@/components/CityPulseBlock';
 
 type ArrivalIntelligenceProps = {
+  citySlug: string;
   cityName: string;
   source: string;
   lastUpdated: string;
@@ -58,6 +60,7 @@ function InlineRow({
 }
 
 export default function ArrivalIntelligence({
+  citySlug,
   cityName,
   source,
   lastUpdated,
@@ -234,6 +237,8 @@ export default function ArrivalIntelligence({
                     />
                   </div>
                 </div>
+
+                <CityPulseBlock key={citySlug} citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
               </motion.div>
             )}
           </AnimatePresence>
