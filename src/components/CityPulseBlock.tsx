@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Clock3, Newspaper } from 'lucide-react';
+import { AlertTriangle, Clock3, Newspaper, RefreshCw } from 'lucide-react';
 import { fetchCityPulse, type PulseIntelligence } from '@/services/pulseService';
 
 type CityPulseBlockProps = {
@@ -14,10 +14,12 @@ type CachedPulse = {
 
 const PULSE_TTL_MS = 6 * 60 * 60 * 1000;
 const FALLBACK_TEXT = 'Pulse unavailable: Check local news for updates';
+const PARSE_ERROR_TEXT = 'Current pulse unavailable. Please check local news.';
 
-function toTimeAgo(isoTime: string): string {
+function toTimeAgo(isoTime?: string): string {
+  if (!isoTime) return 'Now';
   const published = new Date(isoTime).getTime();
-  if (!Number.isFinite(published)) return 'Just now';
+  if (!Number.isFinite(published)) return 'Now';
   const diffMs = Date.now() - published;
   if (diffMs < 60_000) return 'Now';
   const minutes = Math.floor(diffMs / 60_000);
@@ -36,43 +38,59 @@ function trimHeadline(value: string, max = 92): string {
 export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockProps) {
   const [pulseData, setPulseData] = useState<PulseIntelligence[] | null>(null);
   const [status, setStatus] = useState<'idle' | 'fetching' | 'ready' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const storageKey = useMemo(() => `city_pulse_${citySlug}`, [citySlug]);
+  const storageKey = useMemo(() => `pulse_data_${citySlug}`, [citySlug]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     setPulseData(null);
     setStatus('idle');
+    setErrorMessage(null);
 
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (!raw) return;
+
       const cached = JSON.parse(raw) as CachedPulse;
-      if (!cached?.timestamp || !cached?.data) {
+      if (!cached?.timestamp || !Array.isArray(cached?.data)) {
         window.localStorage.removeItem(storageKey);
         return;
       }
-      if (Date.now() - cached.timestamp > PULSE_TTL_MS) {
+
+      const isStale = Date.now() - cached.timestamp > PULSE_TTL_MS;
+      if (isStale) {
         window.localStorage.removeItem(storageKey);
         return;
       }
+
       setPulseData(cached.data);
       setStatus('ready');
     } catch {
       window.localStorage.removeItem(storageKey);
-      setStatus('idle');
+      setStatus('error');
+      setErrorMessage(PARSE_ERROR_TEXT);
     }
   }, [storageKey]);
 
   const handleFetchPulse = useCallback(async () => {
     setStatus('fetching');
+    setErrorMessage(null);
+
+    const previous = pulseData;
 
     try {
       const result = await fetchCityPulse(cityName);
       if (!result.length) {
-        setPulseData(null);
+        if (previous?.length) {
+          setPulseData(previous);
+          setStatus('ready');
+          setErrorMessage(FALLBACK_TEXT);
+          return;
+        }
         setStatus('error');
+        setErrorMessage(FALLBACK_TEXT);
         return;
       }
 
@@ -87,10 +105,22 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
       }
     } catch (error) {
-      console.warn('City pulse fetch failed:', error);
+      const message =
+        error instanceof Error && error.message.includes('CITY_PULSE_PARSE_ERROR')
+          ? PARSE_ERROR_TEXT
+          : FALLBACK_TEXT;
+
+      if (previous?.length) {
+        setPulseData(previous);
+        setStatus('ready');
+        setErrorMessage(message);
+        return;
+      }
+
       setStatus('error');
+      setErrorMessage(message);
     }
-  }, [cityName, storageKey]);
+  }, [cityName, pulseData, storageKey]);
 
   return (
     <section className="space-y-3">
@@ -130,7 +160,17 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
 
         {status === 'ready' && pulseData && (
           <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Intelligence Snippets</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Intelligence Snippets</p>
+              <button
+                type="button"
+                onClick={handleFetchPulse}
+                aria-label="Refresh city pulse"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
             <div className="divide-y divide-slate-100">
               {pulseData.map((snippet) => {
                 const headline = trimHeadline(snippet.title);
@@ -139,7 +179,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
 
                 return (
                   <a
-                    key={`${snippet.title}-${snippet.publishedAt}`}
+                    key={`${snippet.title}-${snippet.publishedAt ?? snippet.source}`}
                     href={snippet.url}
                     target="_blank"
                     rel="noreferrer"
@@ -155,17 +195,31 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
                     </div>
                     <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
                       <Clock3 size={11} />
-                      <span>{snippet.publishedAt ? toTimeAgo(snippet.publishedAt) : 'Now'}</span>
+                      <span>{toTimeAgo(snippet.publishedAt)}</span>
                     </div>
                   </a>
                 );
               })}
             </div>
+            {errorMessage && (
+              <p className="text-xs font-medium tracking-[0.01em] text-slate-500 leading-relaxed">{errorMessage}</p>
+            )}
           </div>
         )}
 
         {status === 'error' && (
-          <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">{FALLBACK_TEXT}</p>
+          <div className="space-y-3">
+            <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">
+              {errorMessage || FALLBACK_TEXT}
+            </p>
+            <button
+              type="button"
+              onClick={handleFetchPulse}
+              className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[11px] font-black uppercase tracking-[0.12em] text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              Retry Pulse
+            </button>
+          </div>
         )}
       </div>
     </section>

@@ -8,6 +8,13 @@ export interface PulseIntelligence {
   url?: string;
 }
 
+type AllOriginsResponse = {
+  contents?: string;
+  status?: {
+    http_code?: number;
+  };
+};
+
 type NewsApiArticle = {
   title?: string;
   description?: string;
@@ -67,19 +74,39 @@ async function fetchNewsApiPulse(cityName: string): Promise<PulseIntelligence[]>
   if (!apiKey) throw new Error('Missing VITE_NEWS_API_KEY');
 
   const q = encodeURIComponent(cityName);
-  const url = `https://newsapi.org/v2/everything?q=${q}&language=en&sortBy=publishedAt&pageSize=3`;
+  const newsApiUrl = `https://newsapi.org/v2/everything?q=${q}&language=en&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`;
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
 
-  const response = await fetch(url, {
-    method: 'GET',
-    mode: 'cors',
-    headers: { 'X-Api-Key': apiKey },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+  let response: Response;
+  try {
+    response = await fetch(proxyUrl, {
+      method: 'GET',
+      mode: 'cors',
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     throw new Error(`NewsAPI request failed (${response.status}) for ${cityName}`);
   }
 
-  const payload = (await response.json()) as NewsApiResponse;
+  const proxied = (await response.json()) as AllOriginsResponse;
+  if (!proxied.contents || typeof proxied.contents !== 'string') {
+    throw new Error('CITY_PULSE_PARSE_ERROR');
+  }
+
+  let payload: NewsApiResponse;
+  try {
+    payload = JSON.parse(proxied.contents) as NewsApiResponse;
+  } catch {
+    throw new Error('CITY_PULSE_PARSE_ERROR');
+  }
+
   const articles = payload.articles ?? [];
 
   return articles

@@ -1286,6 +1286,7 @@ export default function CityGuideView() {
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {cityData.arrival && (
           <ArrivalIntelligence
+            key={cleanSlug ?? cityData.slug}
             cityName={cityData.name}
             source={integritySource}
             lastUpdated={integrityLastVerified}
