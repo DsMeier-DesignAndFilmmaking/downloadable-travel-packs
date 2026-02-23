@@ -34,6 +34,7 @@ type CachedPulsePayload = {
 const SAFETY_KEYWORDS = ['strike', 'protest', 'warning', 'alert', 'closed', 'danger', 'delay', 'emergency'];
 const EVENT_KEYWORDS = ['festival', 'concert', 'match', 'parade', 'expo', 'fair', 'conference'];
 const GLOBAL_NOISE_KEYWORDS = ['global', 'world', 'international', 'geopolitics', 'markets'];
+const BLACKLIST_DOMAINS = ['birminghammail.co.uk', 'dailymail.co.uk', 'thesun.co.uk', 'mirror.co.uk', 'yahoo.com'];
 const PULSE_TIMEOUT_MS = 5000;
 const PULSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -84,6 +85,25 @@ function parseGNewsResponse(raw: unknown): GNewsResponse | null {
   return raw as GNewsResponse;
 }
 
+function getHostName(url: string | undefined): string {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function isBlacklistedSource(article: GNewsArticle): boolean {
+  const articleHost = getHostName(article.url);
+  const sourceHost = getHostName(article.source?.url);
+  const hosts = [articleHost, sourceHost].filter(Boolean);
+
+  return hosts.some((host) =>
+    BLACKLIST_DOMAINS.some((blacklistedDomain) => host === blacklistedDomain || host.endsWith(`.${blacklistedDomain}`)),
+  );
+}
+
 async function fetchJsonWithTimeout(url: string): Promise<unknown> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), PULSE_TIMEOUT_MS);
@@ -107,36 +127,28 @@ async function fetchJsonWithTimeout(url: string): Promise<unknown> {
 }
 
 /**
- * GNews supports direct CORS, but we keep a proxy fallback path for beta resilience.
- * Attempt order: direct -> corsproxy -> allorigins
+ * Dual-proxy fetch path with AllOrigins prioritized for GNews stability.
+ * Attempt order: allorigins -> corsproxy
  */
 async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
-  try {
-    const direct = await fetchJsonWithTimeout(url);
-    const parsedDirect = parseGNewsResponse(direct);
-    if (parsedDirect) return parsedDirect;
-  } catch {
-    // Direct failed; continue into proxy fallbacks.
-  }
-
-  const proxyOneUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  const proxyOneUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&timestamp=${Date.now()}`;
   try {
     const proxyOne = await fetchJsonWithTimeout(proxyOneUrl);
-    const parsedProxyOne = parseGNewsResponse(proxyOne);
+    if (!isRecord(proxyOne) || typeof proxyOne.contents !== 'string') {
+      throw new Error('CITY_PULSE_PARSE_ERROR');
+    }
+
+    const parsedContents = JSON.parse(proxyOne.contents) as unknown;
+    const parsedProxyOne = parseGNewsResponse(parsedContents);
     if (parsedProxyOne) return parsedProxyOne;
   } catch {
     console.warn('Proxy 1 Failed');
   }
 
-  const proxyTwoUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  const proxyTwoUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
   try {
     const proxyTwo = await fetchJsonWithTimeout(proxyTwoUrl);
-    if (!isRecord(proxyTwo) || typeof proxyTwo.contents !== 'string') {
-      throw new Error('CITY_PULSE_PARSE_ERROR');
-    }
-
-    const parsedContents = JSON.parse(proxyTwo.contents) as unknown;
-    const parsedProxyTwo = parseGNewsResponse(parsedContents);
+    const parsedProxyTwo = parseGNewsResponse(proxyTwo);
     if (parsedProxyTwo) return parsedProxyTwo;
   } catch {
     console.warn('Proxy 2 Failed');
@@ -192,12 +204,13 @@ async function fetchGNewsPulse(cityName: string): Promise<PulseIntelligence[]> {
   const sanitizedCity = cityName.trim();
   if (!sanitizedCity) return [];
 
-  const tacticalQuery = `"${sanitizedCity}" AND (traffic OR "local news" OR safety OR "transit alert")`;
+  const tacticalQuery = `qInTitle:"${sanitizedCity}" AND (traffic OR "transit alert" OR "local safety" OR "weather warning")`;
   const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(tacticalQuery)}&lang=en&max=3&apikey=${apiKey}`;
   const parsed = await fetchWithFallback(gnewsUrl);
   const articles = parsed?.articles ?? [];
 
   return articles
+    .filter((article) => !isBlacklistedSource(article))
     .filter((article) => hasLocalCitySignal(article, sanitizedCity))
     .map(toPulseIntelligence)
     .filter((item): item is PulseIntelligence => Boolean(item));

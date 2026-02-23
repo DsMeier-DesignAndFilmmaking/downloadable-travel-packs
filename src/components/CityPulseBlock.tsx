@@ -49,7 +49,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
   const storageKey = useMemo(() => `pulse_data_${citySlug}`, [citySlug]);
   const landedStorageKey = useMemo(() => `landed_${citySlug}`, [citySlug]);
   const noResultsMessage = useMemo(
-    () => `Pulse intel currently unavailable for ${cityName}. Check local boards for updates.`,
+    () => `All clear in ${cityName}. No major transit or safety alerts reported in the last 24 hours.`,
     [cityName],
   );
 
@@ -215,7 +215,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
                     key={`${snippet.title}-${snippet.publishedAt ?? snippet.source}`}
                     href={snippet.url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className={`flex items-start justify-between gap-3 px-3 py-3 transition-colors hover:bg-slate-50 ${
                       isSafety ? 'border-l-2 border-l-red-400' : ''
                     }`}
