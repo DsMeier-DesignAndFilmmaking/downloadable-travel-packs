@@ -35,8 +35,9 @@ import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
-import ArrivalSection from '@/components/ArrivalSection';
+import ArrivalIntelligence from '@/components/ArrivalIntelligence';
 import { updateThemeColor } from '@/utils/manifest-generator';
+import { getArrivalTacticalBySlug } from '@/data/cities';
 
 import { usePostHog } from '@posthog/react';
 
@@ -217,13 +218,14 @@ function BorderClearance({
         requiresAction ? 'border-t-amber-500 bg-amber-50/40' : 'border-t-emerald-500 bg-emerald-50/40'
       }`}
     >
-      {!isLive && (
-        <span className="absolute right-4 top-3 rounded-full border border-slate-300 bg-white/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600">
-          USING CACHED FIELD NOTES
-        </span>
-      )}
-
       <div className="border-b border-slate-200 px-5 py-4">
+        {!isLive && (
+          <div className="mb-3 flex justify-end">
+            <span className="rounded-full border border-slate-300 bg-white/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600">
+              USING CACHED FIELD NOTES
+            </span>
+          </div>
+        )}
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
           Checklist
         </p>
@@ -844,37 +846,27 @@ export default function CityGuideView() {
     [cityData?.currencyCode, currencyCodeDisplay, exchangeRateNumeric],
   );
   const landedStatusStorageKey = useMemo(
-    () => (cleanSlug ? `landed_status_${cleanSlug}` : null),
+    () => (cleanSlug ? `landed_${cleanSlug}` : null),
     [cleanSlug],
   );
-  const arrivalTacticalPath = useMemo(() => {
-    const fallbackConnectivityNote =
-      cityData?.arrival?.eSimHack ||
-      'Use airport WiFi to preload maps and transport options before leaving arrivals.';
-    const fallbackImmigration =
-      cityData?.arrival?.airportHack ||
-      'Follow official signage: eGates for eligible passports, manual desks for all others.';
-    const fallbackTransportTrain =
-      cityData?.arrival?.transitHack ||
-      'Use the main airport rail/transit link for the lowest-cost transfer.';
-
-    return {
-      connectivity: {
-        wifiSsid: cityData?.arrival?.tacticalPath?.connectivity?.wifiSsid || 'Airport Free WiFi',
-        wifiPassword: cityData?.arrival?.tacticalPath?.connectivity?.wifiPassword || 'Portal login',
-        note: cityData?.arrival?.tacticalPath?.connectivity?.note || fallbackConnectivityNote,
-      },
-      immigration: {
-        strategy: cityData?.arrival?.tacticalPath?.immigration?.strategy || fallbackImmigration,
-      },
-      transport: {
-        taxiEstimate:
-          cityData?.arrival?.tacticalPath?.transport?.taxiEstimate ||
-          'Check official taxi board at arrivals for the current city-center fare.',
-        trainEstimate: cityData?.arrival?.tacticalPath?.transport?.trainEstimate || fallbackTransportTrain,
-      },
-    };
-  }, [cityData]);
+  const arrivalTacticalIntel = useMemo(
+    () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
+    [cleanSlug],
+  );
+  const preLandStrategy = useMemo(() => {
+    return (
+      arrivalTacticalIntel?.preLand.strategy ||
+      'Confirm entry requirements and keep passport validity, destination address, and onward proof ready before landing.'
+    );
+  }, [arrivalTacticalIntel]);
+  const preLandLaneSelection = useMemo(() => {
+    if (arrivalTacticalIntel?.preLand.laneSelection) return arrivalTacticalIntel.preLand.laneSelection;
+    const primaryRule = visaData?.visa_rules?.primary_rule?.name;
+    if (primaryRule && /standard|exempt/i.test(primaryRule)) {
+      return 'Use standard immigration lanes unless airport signage explicitly routes your passport to eGate lanes.';
+    }
+    return 'Use official airport lane signage: eGates only if eligible, otherwise staffed immigration desks.';
+  }, [arrivalTacticalIntel, visaData?.visa_rules?.primary_rule?.name]);
   const primaryEmergencyItems = useMemo(
     () => (cityData ? getPrimaryEmergencyItems(cityData.emergency) : []),
     [cityData],
@@ -1282,7 +1274,7 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {cityData.arrival && (
-          <ArrivalSection
+          <ArrivalIntelligence
             cityName={cityData.name}
             source={integritySource}
             lastUpdated={integrityLastVerified}
@@ -1290,7 +1282,14 @@ export default function CityGuideView() {
             hasLanded={hasLanded}
             isLandedHydrated={isLandedHydrated}
             digitalEntry={cityData.survival?.digitalEntry}
-            tacticalPath={arrivalTacticalPath}
+            preLandStrategy={preLandStrategy}
+            laneSelection={preLandLaneSelection}
+            wifiSsid={arrivalTacticalIntel?.postLand.connectivity.wifiSsid}
+            wifiPassword={arrivalTacticalIntel?.postLand.connectivity.wifiPassword}
+            officialTransport={arrivalTacticalIntel?.postLand.officialTransport}
+            currencySimLocations={arrivalTacticalIntel?.postLand.currencySimLocations}
+            taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
+            trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
             onMarkLanded={handleMarkLanded}
             onResetStatus={handleResetLandedStatus}
             visaEntryNode={

@@ -350,3 +350,157 @@ export function getCityBySlug(slug: string): City | undefined {
 export function getCitySlugs(): string[] {
   return cities.map((c) => c.slug)
 }
+
+export interface ArrivalTacticalIntel {
+  preLand: {
+    strategy: string
+    laneSelection: string
+  }
+  postLand: {
+    connectivity: {
+      wifiSsid: string
+      wifiPassword: string
+    }
+    officialTransport: string
+    currencySimLocations: string
+    taxiEstimate: string
+    trainEstimate: string
+  }
+}
+
+export const arrivalTacticalBySlug: Record<string, ArrivalTacticalIntel> = {
+  'bangkok-thailand': {
+    preLand: {
+      strategy: 'Confirm visa exemption window and keep onward proof visible before deplaning.',
+      laneSelection: 'Follow Foreign Passport lanes; use biometric/eGate only when your passport class is marked eligible.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'AOT Free WiFi', wifiPassword: 'OTP via SMS' },
+      officialTransport: 'Airport Rail Link + BTS/MRT is the primary official low-risk path.',
+      currencySimLocations: 'SIM desks and exchange booths are in arrivals before public exit doors.',
+      taxiEstimate: 'Taxi to central districts: ~350-550 THB + tolls.',
+      trainEstimate: 'Airport Rail Link + local transfer: ~45-80 THB.',
+    },
+  },
+  'paris-france': {
+    preLand: {
+      strategy: 'Verify ETIAS/visa status and keep destination address ready for border questioning.',
+      laneSelection: 'Use PARAFE eGates if eligible; otherwise proceed to staffed Non-EU passport control.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'WIFI-AIRPORT', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'RER B is the official rail spine to central Paris; airport taxi queue is regulated.',
+      currencySimLocations: 'Orange/Free kiosks and official exchange counters are inside arrivals halls.',
+      taxiEstimate: 'Official taxi to central Paris: ~55-65 EUR flat-zone.',
+      trainEstimate: 'RER B to city center: ~11.80 EUR.',
+    },
+  },
+  'london-uk': {
+    preLand: {
+      strategy: 'Confirm entry clearance and prepare accommodation proof before queueing.',
+      laneSelection: 'Use ePassport gates when eligible; otherwise go to staffed Border Force lanes.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'Heathrow Free Wi-Fi', wifiPassword: 'Email sign-in' },
+      officialTransport: 'Elizabeth Line / Heathrow Express is the official rail path; licensed black cabs use fixed metering.',
+      currencySimLocations: 'SIM shops and ATM/exchange points are immediately after arrivals customs.',
+      taxiEstimate: 'Taxi to central London: ~65-110 GBP.',
+      trainEstimate: 'Rail to central zones: ~13-25 GBP.',
+    },
+  },
+  'tokyo-japan': {
+    preLand: {
+      strategy: 'Validate arrival card details and keep customs QR/entry docs open before immigration.',
+      laneSelection: 'Use automated gates only for approved categories; most visitors should follow staffed inspection counters.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'Haneda_Free_WiFi', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'Airport rail (Keisei/Monorail/JR) is the official and fastest transfer path.',
+      currencySimLocations: 'Currency ATMs and SIM counters are clustered around arrivals exits.',
+      taxiEstimate: 'Taxi to central Tokyo: ~7000-9000 JPY.',
+      trainEstimate: 'Rail options to center: ~500-3000 JPY.',
+    },
+  },
+  'new-york-us': {
+    preLand: {
+      strategy: 'Confirm ESTA/visa details and keep U.S. address + return flight proof ready.',
+      laneSelection: 'Use Global Entry or MPC when available; others should remain in standard CBP lanes.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'Free JFK WiFi', wifiPassword: 'Ad portal (no password)' },
+      officialTransport: 'AirTrain + LIRR/subway is the official public route; licensed taxi rank is terminal-controlled.',
+      currencySimLocations: 'SIM kiosks and ATM/currency points are in arrivals concourses.',
+      taxiEstimate: 'Taxi to Manhattan: ~70-95 USD with fees/tolls.',
+      trainEstimate: 'AirTrain + rail/subway: ~13-20 USD.',
+    },
+  },
+  'rome-italy': {
+    preLand: {
+      strategy: 'Re-check visa-free duration and keep hotel address visible before passport control.',
+      laneSelection: 'EU/EEA lanes for eligible passports; all others should use staffed non-EU counters.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'Airport Free WiFi', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'Leonardo Express is the official direct rail route from FCO to Termini.',
+      currencySimLocations: 'SIM kiosks and bank exchange counters are inside arrivals before public pickup zones.',
+      taxiEstimate: 'Official taxi to central Rome: ~55 EUR fixed fare.',
+      trainEstimate: 'Leonardo Express: ~14 EUR.',
+    },
+  },
+  'barcelona-spain': {
+    preLand: {
+      strategy: 'Confirm Schengen stay window and keep return itinerary available.',
+      laneSelection: 'Use Smart Border gates when your passport class is supported; otherwise follow staffed lanes.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'Airport_Free_WiFi_AENA', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'R2 Nord and Aerobus are official city links from BCN.',
+      currencySimLocations: 'SIM and exchange counters are grouped in terminal arrivals corridors.',
+      taxiEstimate: 'Taxi to central Barcelona: ~35-45 EUR.',
+      trainEstimate: 'R2 Nord: ~4.90 EUR, Aerobus: ~6.75 EUR.',
+    },
+  },
+  'dubai-uae': {
+    preLand: {
+      strategy: 'Validate entry status and keep hotel booking + onward details ready for control checks.',
+      laneSelection: 'Use Smart Gates if eligible; others should use staffed passport/visa validation desks.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'DXB Free WiFi', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'RTA Metro Red Line and regulated taxi queue are the official terminal exits.',
+      currencySimLocations: 'du/Etisalat SIM counters and exchange booths sit directly in arrivals.',
+      taxiEstimate: 'Taxi to central districts: ~70-110 AED.',
+      trainEstimate: 'Metro to core zones: ~6-12 AED.',
+    },
+  },
+  'seoul-south-korea': {
+    preLand: {
+      strategy: 'Confirm K-ETA/visa conditions and keep destination info ready before immigration.',
+      laneSelection: 'Use Smart Entry gates when available; otherwise use staffed inspection lanes.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'AirportWiFi', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'AREX rail and licensed taxi ranks are the official transfer channels.',
+      currencySimLocations: 'SIM desks and currency counters are positioned around arrivals exits.',
+      taxiEstimate: 'Taxi to central Seoul: ~55000-75000 KRW.',
+      trainEstimate: 'AREX to Seoul Station: ~4450-9500 KRW.',
+    },
+  },
+  'mexico-city-mexico': {
+    preLand: {
+      strategy: 'Confirm visa/entry conditions and keep immigration address + onward ticket info ready.',
+      laneSelection: 'Most travelers use staffed immigration lanes; use eGates only when explicitly directed.',
+    },
+    postLand: {
+      connectivity: { wifiSsid: 'MEX-Internet', wifiPassword: 'Portal login (no password)' },
+      officialTransport: 'Authorized taxi stands and official ride-app pickup zones are the safest exits.',
+      currencySimLocations: 'Telcel SIM counters and exchange/ATM points are in arrivals corridors.',
+      taxiEstimate: 'Authorized taxi/ride app to city center: ~300-450 MXN.',
+      trainEstimate: 'Metro + bus route: ~10-20 MXN with transfer overhead.',
+    },
+  },
+}
+
+export function getArrivalTacticalBySlug(slug: string): ArrivalTacticalIntel | undefined {
+  return arrivalTacticalBySlug[slug]
+}

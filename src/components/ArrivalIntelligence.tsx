@@ -2,9 +2,8 @@ import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Navigation, Plane, Wifi } from 'lucide-react';
 import SourceInfo from '@/components/SourceInfo';
-import type { CityPackArrivalTacticalPath } from '@/types/cityPack';
 
-type ArrivalSectionProps = {
+type ArrivalIntelligenceProps = {
   cityName: string;
   source: string;
   lastUpdated: string;
@@ -12,7 +11,14 @@ type ArrivalSectionProps = {
   hasLanded: boolean;
   isLandedHydrated: boolean;
   digitalEntry?: string;
-  tacticalPath: CityPackArrivalTacticalPath;
+  preLandStrategy?: string;
+  laneSelection?: string;
+  wifiSsid?: string;
+  wifiPassword?: string;
+  officialTransport?: string;
+  currencySimLocations?: string;
+  taxiEstimate?: string;
+  trainEstimate?: string;
   visaEntryNode: ReactNode;
   onMarkLanded: () => void;
   onResetStatus: () => void;
@@ -25,7 +31,7 @@ function balanceText(text: string): string {
   return `${words.slice(0, -2).join(' ')} ${tail}`;
 }
 
-export default function ArrivalSection({
+export default function ArrivalIntelligence({
   cityName,
   source,
   lastUpdated,
@@ -33,12 +39,34 @@ export default function ArrivalSection({
   hasLanded,
   isLandedHydrated,
   digitalEntry,
-  tacticalPath,
+  preLandStrategy,
+  laneSelection,
+  wifiSsid,
+  wifiPassword,
+  officialTransport,
+  currencySimLocations,
+  taxiEstimate,
+  trainEstimate,
   visaEntryNode,
   onMarkLanded,
   onResetStatus,
-}: ArrivalSectionProps) {
+}: ArrivalIntelligenceProps) {
   const digitalEntryText = digitalEntry?.trim() || 'No digital arrival card required for this route.';
+  const strategyText =
+    preLandStrategy?.trim() ||
+    'Confirm entry requirements and keep passport, address, and onward proof ready before immigration.';
+  const laneText =
+    laneSelection?.trim() ||
+    'Follow official airport signage: eGate only if eligible, otherwise use staffed immigration lanes.';
+
+  const wifiSsidText = wifiSsid?.trim() || 'Airport Free WiFi';
+  const wifiPasswordText = wifiPassword?.trim() || 'Portal login';
+  const officialTransportText =
+    officialTransport?.trim() || 'Use official airport rail/bus links or licensed taxi queue only.';
+  const currencySimText =
+    currencySimLocations?.trim() || 'Use official SIM and currency counters in arrivals halls.';
+  const taxiEstimateText = taxiEstimate?.trim() || 'Taxi cost varies by traffic and terminal queue.';
+  const trainEstimateText = trainEstimate?.trim() || 'Rail/bus cost varies by destination zone.';
 
   return (
     <section className="space-y-6">
@@ -54,7 +82,7 @@ export default function ArrivalSection({
         </div>
 
         <div className="px-8 py-6 border-b border-slate-100">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Visa & Entry Intelligence</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Entry Strategy & Visa Confirmation</p>
           <div className="mt-4 min-h-[140px]">{visaEntryNode}</div>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Digital Entry</p>
@@ -80,24 +108,27 @@ export default function ArrivalSection({
               </motion.div>
             ) : !hasLanded ? (
               <motion.div
-                key="arrival-pre-landing"
+                key="arrival-pre-land"
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
+                className="space-y-4"
               >
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Pre-Land Strategy</p>
+                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                    {balanceText(strategyText)}
+                  </p>
+                  <p className="mt-2 text-xs md:text-sm tracking-[0.01em] font-semibold text-slate-600 leading-relaxed">
+                    {balanceText(`Lane Selection: ${laneText}`)}
+                  </p>
+                </div>
+
                 <motion.button
                   type="button"
                   onClick={onMarkLanded}
                   whileTap={{ scale: 0.98 }}
-                  animate={{
-                    boxShadow: [
-                      '0 0 0 0 rgba(16, 185, 129, 0.35)',
-                      '0 0 0 10px rgba(16, 185, 129, 0)',
-                      '0 0 0 0 rgba(16, 185, 129, 0)',
-                    ],
-                  }}
-                  transition={{ duration: 2, repeat: Infinity, repeatType: 'loop' }}
                   className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
                 >
                   {balanceText(`🛬 I've Landed in ${cityName}!`)}
@@ -105,7 +136,7 @@ export default function ArrivalSection({
               </motion.div>
             ) : (
               <motion.div
-                key="arrival-tactical-path"
+                key="arrival-post-land"
                 initial={{ opacity: 0, y: -14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -113,45 +144,45 @@ export default function ArrivalSection({
                 className="space-y-4"
               >
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                  Tactical Path
+                  Post-Land Tactical Path
                 </p>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="flex items-center gap-2">
                     <Wifi size={16} className="text-blue-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 1: Connectivity</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Immediate Survival: Connectivity</p>
                   </div>
                   <p className="mt-2 text-base md:text-lg tracking-[0.01em] font-black text-[#222222]">
-                    {balanceText(`SSID: ${tacticalPath.connectivity.wifiSsid}`)}
+                    {balanceText(`SSID: ${wifiSsidText}`)}
                   </p>
                   <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-slate-700">
-                    {balanceText(`Password: ${tacticalPath.connectivity.wifiPassword}`)}
-                  </p>
-                  <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
-                    {balanceText(tacticalPath.connectivity.note)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className="text-emerald-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 2: Immigration Strategy</p>
-                  </div>
-                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                    {balanceText(tacticalPath.immigration.strategy)}
+                    {balanceText(`Password: ${wifiPasswordText}`)}
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5">
                   <div className="flex items-center gap-2">
                     <Navigation size={16} className="text-amber-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 3: Transport Intel</p>
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Immediate Survival: Official Transport</p>
                   </div>
-                  <p className="mt-2 text-base md:text-lg tracking-[0.01em] font-black text-[#222222] leading-relaxed">
-                    {balanceText(tacticalPath.transport.taxiEstimate)}
+                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                    {balanceText(officialTransportText)}
                   </p>
                   <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-slate-700 leading-relaxed">
-                    {balanceText(tacticalPath.transport.trainEstimate)}
+                    {balanceText(taxiEstimateText)}
+                  </p>
+                  <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-semibold text-slate-600 leading-relaxed">
+                    {balanceText(trainEstimateText)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle size={16} className="text-emerald-600" />
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Currency / SIM Locations</p>
+                  </div>
+                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                    {balanceText(currencySimText)}
                   </p>
                 </div>
               </motion.div>
