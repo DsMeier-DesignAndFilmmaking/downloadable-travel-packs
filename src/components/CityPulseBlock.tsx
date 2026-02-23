@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Clock3, Newspaper, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertTriangle, Clock3, Newspaper, RefreshCw, ShieldCheck } from 'lucide-react';
 import { fetchCityPulse, type PulseIntelligence } from '@/services/pulseService';
 
 type CityPulseBlockProps = {
@@ -127,24 +128,24 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
 
   return (
     <section className="space-y-3">
-      <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">City Pulse</h2>
+      <h2 className="px-2 text-[12px] font-black text-cyan-100 uppercase tracking-[0.3em]">City Pulse</h2>
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+      <div className="relative overflow-hidden rounded-2xl border border-cyan-200/20 bg-[linear-gradient(160deg,rgba(15,23,42,0.92),rgba(30,41,59,0.78))] p-5 shadow-[0_20px_40px_rgba(2,6,23,0.35)]">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.2),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.2),transparent_45%)]" />
+        <div className="relative z-10">
         {isLoading && (
           <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Live City Pulse</p>
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#222222] px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white/90"
-            >
-              Synchronizing...
-            </button>
-            <p className="text-sm font-medium text-slate-600">Scanning local signals...</p>
-            <div className="space-y-2">
-              <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
-              <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200" />
-              <div className="h-3 w-9/12 animate-pulse rounded bg-slate-200" />
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">Live City Pulse</p>
+            <div className="grid place-items-center py-2">
+              <div className="relative h-20 w-20">
+                <span className="radar-ring absolute inset-0 rounded-full border border-cyan-300/55" />
+                <span className="radar-ring radar-ring-delay absolute inset-2 rounded-full border border-purple-300/45" />
+                <span className="absolute inset-[34%] rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.9)]" />
+              </div>
+            </div>
+            <p className="text-sm font-semibold tracking-[0.02em] text-cyan-50">Scanning local signals...</p>
+            <div className="h-2.5 overflow-hidden rounded-full border border-cyan-200/25 bg-white/10">
+              <div className="decrypt-bar h-full rounded-full bg-gradient-to-r from-cyan-300 via-sky-300 to-fuchsia-400" />
             </div>
           </div>
         )}
@@ -152,67 +153,89 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
         {!isLoading && pulseData && pulseData.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Intelligence Snippets</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">Intelligence Snippets</p>
               <button
                 type="button"
                 onClick={handleFetchPulse}
                 aria-label="Refresh city pulse"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200/30 bg-white/10 text-cyan-100 transition-colors hover:bg-white/20"
               >
                 <RefreshCw size={13} />
               </button>
             </div>
-            <div className="divide-y divide-slate-100">
-              {pulseData.map((snippet) => {
+            <div className="space-y-2">
+              {pulseData.map((snippet, index) => {
                 const headline = trimHeadline(snippet.title);
                 const isSafety = snippet.urgency || snippet.type === 'safety';
                 const Icon = isSafety ? AlertTriangle : Newspaper;
 
                 return (
-                  <a
+                  <motion.a
                     key={`${snippet.title}-${snippet.publishedAt ?? snippet.source}`}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: index * 0.06 }}
                     href={snippet.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-start justify-between gap-3 px-3 py-3 transition-colors hover:bg-slate-50 ${
-                      isSafety ? 'border-l-2 border-l-red-400' : ''
+                    className={`flex items-start justify-between gap-3 rounded-xl border px-3 py-3 bg-white/10 backdrop-blur-md transition-colors hover:bg-white/20 ${
+                      isSafety
+                        ? 'border-red-300/35 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
+                        : 'border-cyan-200/30 shadow-[0_0_15px_rgba(34,211,238,0.35)]'
                     }`}
                   >
                     <div className="flex min-w-0 items-start gap-2">
-                      <Icon size={14} className={`mt-0.5 shrink-0 ${isSafety ? 'text-red-600' : 'text-slate-500'}`} />
-                      <p className={`min-w-0 text-sm font-bold leading-relaxed ${isSafety ? 'text-red-700' : 'text-slate-800'}`}>
-                        {headline}
-                      </p>
+                      <Icon size={14} className={`mt-0.5 shrink-0 ${isSafety ? 'text-red-300' : 'text-cyan-200'}`} />
+                      <div className="min-w-0">
+                        <p className={`min-w-0 text-sm font-black leading-relaxed ${isSafety ? 'text-red-100' : 'text-white'}`}>
+                          {headline}
+                        </p>
+                        <span className="mt-2 inline-flex rounded border border-cyan-200/25 bg-slate-950/50 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-100/75">
+                          {`src:${(snippet.source || 'feed').slice(0, 18)}`}
+                        </span>
+                      </div>
                     </div>
-                    <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                    <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-100/70">
                       <Clock3 size={11} />
                       <span>{toTimeAgo(snippet.publishedAt)}</span>
                     </div>
-                  </a>
+                  </motion.a>
                 );
               })}
             </div>
             {errorMessage && (
-              <p className="text-xs font-medium tracking-[0.01em] text-slate-500 leading-relaxed">{errorMessage}</p>
+              <p className="text-xs font-medium tracking-[0.01em] text-cyan-100/70 leading-relaxed">{errorMessage}</p>
             )}
           </div>
         )}
 
         {!isLoading && (!pulseData || pulseData.length === 0) && (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">
-              {errorMessage || noResultsMessage}
-            </p>
-            <button
-              type="button"
-              onClick={handleFetchPulse}
-              aria-label="Refresh city pulse"
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
-            >
-              <RefreshCw size={13} />
-            </button>
+          <div className="rounded-2xl border border-emerald-300/30 bg-emerald-500/10 p-4 shadow-[0_0_20px_rgba(16,185,129,0.25)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="relative mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-400/20">
+                  <span className="cyber-border-pulse absolute inset-0 rounded-full border border-emerald-200/50" />
+                  <ShieldCheck size={18} className="text-emerald-200" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100/90">System Status: Nominal</p>
+                  <p className="mt-1 text-sm tracking-[0.01em] font-medium text-emerald-50 leading-relaxed">
+                    {errorMessage || noResultsMessage}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleFetchPulse}
+                aria-label="Refresh city pulse"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-emerald-200/40 bg-emerald-400/10 text-emerald-100 transition-colors hover:bg-emerald-300/20"
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
           </div>
         )}
+        </div>
       </div>
     </section>
   );

@@ -27,3 +27,60 @@ html {
   .scam-ticker {
     animation: scam-ticker 25s linear infinite;
   }
+
+  @keyframes radar-ping {
+    0% {
+      transform: scale(0.55);
+      opacity: 0.8;
+    }
+    70% {
+      transform: scale(1.05);
+      opacity: 0.15;
+    }
+    100% {
+      transform: scale(1.18);
+      opacity: 0;
+    }
+  }
+
+  @keyframes decrypt-scan {
+    0% { width: 18%; }
+    9% { width: 42%; }
+    17% { width: 28%; }
+    26% { width: 64%; }
+    39% { width: 36%; }
+    51% { width: 72%; }
+    63% { width: 48%; }
+    78% { width: 86%; }
+    91% { width: 62%; }
+    100% { width: 96%; }
+  }
+
+  @keyframes cyber-pulse {
+    0%, 100% {
+      opacity: 0.35;
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.015);
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+    }
+  }
+
+  .radar-ring {
+    animation: radar-ping 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .radar-ring-delay {
+    animation-delay: 0.6s;
+  }
+
+  .decrypt-bar {
+    animation: decrypt-scan 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+
+  .cyber-border-pulse {
+    animation: cyber-pulse 2.2s ease-in-out infinite;
+  }
