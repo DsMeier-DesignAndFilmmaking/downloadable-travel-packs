@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Navigation, Plane, Wifi } from 'lucide-react';
+import type { ReactNode } from 'react';
 import SourceInfo from '@/components/SourceInfo';
 
 type ArrivalIntelligenceProps = {
@@ -10,6 +10,9 @@ type ArrivalIntelligenceProps = {
   isLive: boolean;
   hasLanded: boolean;
   isLandedHydrated: boolean;
+  visaStatus: string;
+  visaLoading: boolean;
+  visaError?: string | null;
   digitalEntry?: string;
   preLandStrategy?: string;
   laneSelection?: string;
@@ -19,7 +22,6 @@ type ArrivalIntelligenceProps = {
   currencySimLocations?: string;
   taxiEstimate?: string;
   trainEstimate?: string;
-  visaEntryNode: ReactNode;
   onMarkLanded: () => void;
   onResetStatus: () => void;
 };
@@ -31,6 +33,30 @@ function balanceText(text: string): string {
   return `${words.slice(0, -2).join(' ')} ${tail}`;
 }
 
+function InlineRow({
+  icon,
+  label,
+  value,
+  bordered = true,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  bordered?: boolean;
+}) {
+  return (
+    <div className={`flex items-start gap-2 py-2 ${bordered ? 'border-b border-neutral-100' : ''}`}>
+      <div className="mt-0.5 shrink-0">{icon}</div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
+        <p className="mt-0.5 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+          {balanceText(value)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function ArrivalIntelligence({
   cityName,
   source,
@@ -38,6 +64,9 @@ export default function ArrivalIntelligence({
   isLive,
   hasLanded,
   isLandedHydrated,
+  visaStatus,
+  visaLoading,
+  visaError,
   digitalEntry,
   preLandStrategy,
   laneSelection,
@@ -47,17 +76,22 @@ export default function ArrivalIntelligence({
   currencySimLocations,
   taxiEstimate,
   trainEstimate,
-  visaEntryNode,
   onMarkLanded,
   onResetStatus,
 }: ArrivalIntelligenceProps) {
-  const digitalEntryText = digitalEntry?.trim() || 'No digital arrival card required for this route.';
   const strategyText =
     preLandStrategy?.trim() ||
-    'Confirm entry requirements and keep passport, address, and onward proof ready before immigration.';
+    'Confirm entry requirements and keep passport validity, destination address, and onward proof ready before landing.';
   const laneText =
     laneSelection?.trim() ||
-    'Follow official airport signage: eGate only if eligible, otherwise use staffed immigration lanes.';
+    'Use official airport lane signage: eGates only if eligible, otherwise staffed immigration desks.';
+  const digitalEntryText = digitalEntry?.trim() || 'No digital arrival card required for this route.';
+
+  const visaStatusText = visaLoading
+    ? 'Syncing live visa status...'
+    : visaError
+      ? 'Live visa feed unavailable. Using cached entry notes.'
+      : visaStatus;
 
   const wifiSsidText = wifiSsid?.trim() || 'Airport Free WiFi';
   const wifiPasswordText = wifiPassword?.trim() || 'Portal login';
@@ -69,38 +103,28 @@ export default function ArrivalIntelligence({
   const trainEstimateText = trainEstimate?.trim() || 'Rail/bus cost varies by destination zone.';
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Arrival Intelligence</h2>
+        <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Arrival</h2>
         <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
+      <div className="rounded-[2rem] border border-neutral-200 bg-slate-50 p-4 md:p-5">
+        <div className="mb-4 flex items-center gap-3 px-1">
           <Plane size={20} className="text-[#222222]" />
-          <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Arrival Intelligence</span>
+          <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Protocols & Strategies</span>
         </div>
 
-        <div className="px-8 py-6 border-b border-slate-100">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Entry Strategy & Visa Confirmation</p>
-          <div className="mt-4 min-h-[140px]">{visaEntryNode}</div>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Digital Entry</p>
-            <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-              {balanceText(digitalEntryText)}
-            </p>
-          </div>
-        </div>
-
-        <div className="px-8 py-6">
+        <div className="space-y-3">
           <AnimatePresence mode="wait" initial={false}>
             {!isLandedHydrated ? (
               <motion.div
                 key="arrival-loading"
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
+                exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2 }}
+                className="rounded-xl border border-neutral-200 bg-white p-4"
               >
                 <p className="text-sm font-medium text-slate-500 animate-pulse">
                   {balanceText('Syncing arrival status for this city pack...')}
@@ -113,84 +137,109 @@ export default function ArrivalIntelligence({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="space-y-4"
+                className="space-y-3"
               >
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Pre-Land Strategy</p>
-                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                    {balanceText(strategyText)}
-                  </p>
-                  <p className="mt-2 text-xs md:text-sm tracking-[0.01em] font-semibold text-slate-600 leading-relaxed">
-                    {balanceText(`Lane Selection: ${laneText}`)}
-                  </p>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Visa Status"
+                      value={visaStatusText}
+                    />
+                    <InlineRow
+                      icon={<Navigation size={14} className="text-amber-600" />}
+                      label="Lane Advice"
+                      value={laneText}
+                    />
+                    <InlineRow
+                      icon={<Plane size={14} className="text-slate-600" />}
+                      label="Entry Strategy"
+                      value={strategyText}
+                    />
+                    <InlineRow
+                      icon={<Wifi size={14} className="text-blue-600" />}
+                      label="Digital Entry"
+                      value={digitalEntryText}
+                      bordered={false}
+                    />
+                  </div>
                 </div>
 
                 <motion.button
                   type="button"
                   onClick={onMarkLanded}
                   whileTap={{ scale: 0.98 }}
-                  className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
+                  className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white"
                 >
-                  {balanceText(`🛬 I've Landed in ${cityName}!`)}
+                  {balanceText(`I've Landed in ${cityName}!`)}
                 </motion.button>
               </motion.div>
             ) : (
               <motion.div
                 key="arrival-post-land"
-                initial={{ opacity: 0, y: -14 }}
+                initial={{ opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                className="space-y-4"
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3"
               >
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                  Post-Land Tactical Path
-                </p>
-
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="flex items-center gap-2">
-                    <Wifi size={16} className="text-blue-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Immediate Survival: Connectivity</p>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Connectivity</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<Wifi size={14} className="text-blue-600" />}
+                      label="WiFi SSID"
+                      value={wifiSsidText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Password"
+                      value={wifiPasswordText}
+                      bordered={false}
+                    />
                   </div>
-                  <p className="mt-2 text-base md:text-lg tracking-[0.01em] font-black text-[#222222]">
-                    {balanceText(`SSID: ${wifiSsidText}`)}
-                  </p>
-                  <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-slate-700">
-                    {balanceText(`Password: ${wifiPasswordText}`)}
-                  </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="flex items-center gap-2">
-                    <Navigation size={16} className="text-amber-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Immediate Survival: Official Transport</p>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Transit from Airport</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<Navigation size={14} className="text-amber-600" />}
+                      label="Official Route"
+                      value={officialTransportText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Taxi Estimate"
+                      value={taxiEstimateText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Train Estimate"
+                      value={trainEstimateText}
+                      bordered={false}
+                    />
                   </div>
-                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                    {balanceText(officialTransportText)}
-                  </p>
-                  <p className="mt-1 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-slate-700 leading-relaxed">
-                    {balanceText(taxiEstimateText)}
-                  </p>
-                  <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-semibold text-slate-600 leading-relaxed">
-                    {balanceText(trainEstimateText)}
-                  </p>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={16} className="text-emerald-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Currency / SIM Locations</p>
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next Steps</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="SIM / ATM Locations"
+                      value={currencySimText}
+                      bordered={false}
+                    />
                   </div>
-                  <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                    {balanceText(currencySimText)}
-                  </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div className="border-t border-slate-100 px-8 py-4">
+        <div className="mt-3 border-t border-slate-100 px-1 pt-3">
           <button
             type="button"
             onClick={onResetStatus}

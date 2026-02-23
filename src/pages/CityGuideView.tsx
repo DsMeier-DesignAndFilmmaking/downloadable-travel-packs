@@ -21,7 +21,7 @@ import {
   Banknote,
   CheckCircle,
 } from 'lucide-react';
-import { motion, type Variants, AnimatePresence } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -36,6 +36,7 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
+import CityPulseBlock from '@/components/CityPulseBlock';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 
@@ -93,7 +94,7 @@ async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<vo
 // ---------------------------------------------------------------------------
 
 
-function BorderClearance({
+export function BorderClearance({
   visaData,
   loading = false,
   error = null,
@@ -414,14 +415,14 @@ function OfflineAccessModal({
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-800">Critical</p>
                 <p className="mt-1 text-sm leading-relaxed text-amber-900">
-                  The first home-screen launch finalizes offline setup. After this, the city pack can open without internet.
+                  Once the icon is added to your home screen, you must first launch ONLINE to <strong>finalize OFFLINE setup</strong>. After this, the city pack can open without internet.
                 </p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">If It Fails</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  If that first home-screen launch happens offline, the city pack may not load correctly. Go back online to relaunch the pack from your home screen icon.
+                  If that first home-screen launch happens offline, the city pack may not load correctly. <strong>Go back online to relaunch the pack</strong> from your home screen icon.
                 </p>
               </div>
 
@@ -867,6 +868,16 @@ export default function CityGuideView() {
     }
     return 'Use official airport lane signage: eGates only if eligible, otherwise staffed immigration desks.';
   }, [arrivalTacticalIntel, visaData?.visa_rules?.primary_rule?.name]);
+  const arrivalVisaStatus = useMemo(() => {
+    if (isApiLoading) return 'Syncing live visa status...';
+    if (visaData?.visa_rules?.primary_rule) {
+      const ruleName = visaData.visa_rules.primary_rule.name || 'Standard Entry';
+      const duration = visaData.visa_rules.primary_rule.duration || 'Duration varies';
+      return `${ruleName} (${duration})`;
+    }
+    if (visaFetchError) return 'Live visa feed unavailable. Cached entry guidance in use.';
+    return 'Standard Entry Protocol applies.';
+  }, [isApiLoading, visaData?.visa_rules?.primary_rule, visaFetchError]);
   const primaryEmergencyItems = useMemo(
     () => (cityData ? getPrimaryEmergencyItems(cityData.emergency) : []),
     [cityData],
@@ -875,7 +886,7 @@ export default function CityGuideView() {
   const isIOS = platform.os === 'ios';
   const shouldOfferInstall = !(isStandalone && isMobileDevice) && !isPackInstalled;
 
-  const installButtonSubLabel = isInstallable ? 'Live install path ready' : isIOS ? 'Use share flow to install' : 'Setup offline access';
+  const installButtonSubLabel = isInstallable ? 'Live install path ready' : isIOS ? 'Install to your home screen for instant access' : 'Setup offline access';
 
   const handleInstallButtonClick = useCallback(async () => {
     if (!cityData) return;
@@ -1281,6 +1292,9 @@ export default function CityGuideView() {
             isLive={!!visaData}
             hasLanded={hasLanded}
             isLandedHydrated={isLandedHydrated}
+            visaStatus={arrivalVisaStatus}
+            visaLoading={isApiLoading}
+            visaError={visaFetchError}
             digitalEntry={cityData.survival?.digitalEntry}
             preLandStrategy={preLandStrategy}
             laneSelection={preLandLaneSelection}
@@ -1292,23 +1306,10 @@ export default function CityGuideView() {
             trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
             onMarkLanded={handleMarkLanded}
             onResetStatus={handleResetLandedStatus}
-            visaEntryNode={
-              <AnimatePresence mode="wait">
-                <BorderClearance
-                  visaData={visaData}
-                  loading={isApiLoading}
-                  error={visaFetchError}
-                  digitalEntry={cityData.survival?.digitalEntry}
-                  touristTax={cityData.survival?.touristTax}
-                  isLive={!!visaData}
-                  visaStatus={visaData?.visa_rules?.primary_rule
-                    ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                    : 'Standard Entry Protocol applies.'}
-                />
-              </AnimatePresence>
-            }
           />
         )}
+
+        <CityPulseBlock citySlug={cleanSlug ?? cityData.slug} cityName={cityData.name} />
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
