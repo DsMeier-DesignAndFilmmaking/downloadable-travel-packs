@@ -18,6 +18,10 @@ function isCityPack(value: unknown): value is CityPack {
   const survival = o.survival as Record<string, unknown> | null;
   const arrival = o.arrival as Record<string, unknown> | null;
   const coordinates = o.coordinates as Record<string, unknown> | null;
+  const tacticalPath = arrival?.tacticalPath as Record<string, unknown> | undefined;
+  const tacticalConnectivity = tacticalPath?.connectivity as Record<string, unknown> | undefined;
+  const tacticalImmigration = tacticalPath?.immigration as Record<string, unknown> | undefined;
+  const tacticalTransport = tacticalPath?.transport as Record<string, unknown> | undefined;
   return (
     typeof o.slug === 'string' &&
     typeof o.theme === 'string' &&
@@ -43,6 +47,21 @@ function isCityPack(value: unknown): value is CityPack {
     typeof arrival.eSimHack === 'string' &&
     typeof arrival.transitHack === 'string' &&
     Array.isArray(arrival.essentialApps) &&
+    (
+      tacticalPath == null ||
+      (
+        typeof tacticalPath === 'object' &&
+        tacticalConnectivity != null &&
+        typeof tacticalConnectivity.wifiSsid === 'string' &&
+        typeof tacticalConnectivity.wifiPassword === 'string' &&
+        typeof tacticalConnectivity.note === 'string' &&
+        tacticalImmigration != null &&
+        typeof tacticalImmigration.strategy === 'string' &&
+        tacticalTransport != null &&
+        typeof tacticalTransport.taxiEstimate === 'string' &&
+        typeof tacticalTransport.trainEstimate === 'string'
+      )
+    ) &&
     Array.isArray(o.neighborhoods) &&
     typeof o.survival_kit === 'object' &&
     o.survival_kit !== null

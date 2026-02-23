@@ -43,7 +43,7 @@ export default function SpontaneityEnginePromo() {
               </h2>
 
               <p className="text-[13px] md:text-[15px] text-slate-300 font-light leading-relaxed max-w-full md:max-w-[340px]">
-                Pairing <span className="text-[#818CF8] font-medium">real-time data</span> with insider local knowledge to guide you effortlessly through&nbsp;any&nbsp;city.
+              Sync with the <span className="text-[#818CF8] font-medium">city’s live rhythm</span> and unearth local secrets for those unplanned detours that become your&nbsp;best&nbsp;stories.
               </p>
             </div>
 

@@ -35,6 +35,7 @@ import { isClimateSafetyWarning } from '@/constants/weatherAdvice';
 import DebugBanner from '@/components/DebugBanner';
 import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
+import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import { updateThemeColor } from '@/utils/manifest-generator';
@@ -711,6 +712,10 @@ export default function CityGuideView() {
   const [climatePulseUv, setClimatePulseUv] = useState<number | null>(null);
   const [climatePulseHighUv, setClimatePulseHighUv] = useState(false);
   const [climatePulseSafetyWarning, setClimatePulseSafetyWarning] = useState(false);
+  const [showSunAlert, setShowSunAlert] = useState(false);
+  const [hasSeenAlert, setHasSeenAlert] = useState(false);
+  const [hasLanded, setHasLanded] = useState(false);
+  const [isLandedHydrated, setIsLandedHydrated] = useState(false);
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
@@ -840,6 +845,52 @@ export default function CityGuideView() {
     },
     [cityData?.currencyCode, currencyCodeDisplay, exchangeRateNumeric],
   );
+  const landedStatusStorageKey = useMemo(
+    () => (cleanSlug ? `landed_status_${cleanSlug}` : null),
+    [cleanSlug],
+  );
+  const visaIntelSummary = useMemo(() => {
+    if (visaData?.visa_rules?.primary_rule) {
+      const ruleName = visaData.visa_rules.primary_rule.name || 'Standard entry';
+      const duration = visaData.visa_rules.primary_rule.duration || 'Duration varies';
+      return `${ruleName} (${duration}). Confirm your documents before joining immigration lines.`;
+    }
+    if (visaFetchError) {
+      return 'Live visa feed unavailable. Using cached entry guidance for this city pack.';
+    }
+    if (isApiLoading) {
+      return 'Live visa intelligence is syncing now. Keep your passport and onward proof ready.';
+    }
+    return 'Standard entry guidance active. Re-check passport validity and arrival form details before landing.';
+  }, [isApiLoading, visaData, visaFetchError]);
+  const arrivalTacticalPath = useMemo(() => {
+    const fallbackConnectivityNote =
+      cityData?.arrival?.eSimHack ||
+      'Use airport WiFi to preload maps and transport options before leaving arrivals.';
+    const fallbackImmigration =
+      cityData?.arrival?.airportHack ||
+      'Follow official signage: eGates for eligible passports, manual desks for all others.';
+    const fallbackTransportTrain =
+      cityData?.arrival?.transitHack ||
+      'Use the main airport rail/transit link for the lowest-cost transfer.';
+
+    return {
+      connectivity: {
+        wifiSsid: cityData?.arrival?.tacticalPath?.connectivity?.wifiSsid || 'Airport Free WiFi',
+        wifiPassword: cityData?.arrival?.tacticalPath?.connectivity?.wifiPassword || 'Portal login',
+        note: cityData?.arrival?.tacticalPath?.connectivity?.note || fallbackConnectivityNote,
+      },
+      immigration: {
+        strategy: cityData?.arrival?.tacticalPath?.immigration?.strategy || fallbackImmigration,
+      },
+      transport: {
+        taxiEstimate:
+          cityData?.arrival?.tacticalPath?.transport?.taxiEstimate ||
+          'Check official taxi board at arrivals for the current city-center fare.',
+        trainEstimate: cityData?.arrival?.tacticalPath?.transport?.trainEstimate || fallbackTransportTrain,
+      },
+    };
+  }, [cityData]);
   const primaryEmergencyItems = useMemo(
     () => (cityData ? getPrimaryEmergencyItems(cityData.emergency) : []),
     [cityData],
@@ -898,7 +949,33 @@ export default function CityGuideView() {
   useEffect(() => {
     setShowInstallBanner(false);
     setDismissedInstallBanner(false);
+    setShowSunAlert(false);
+    setHasSeenAlert(false);
+    setHasLanded(false);
+    setIsLandedHydrated(false);
   }, [cleanSlug]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !landedStatusStorageKey) {
+      setHasLanded(false);
+      setIsLandedHydrated(true);
+      return;
+    }
+
+    setIsLandedHydrated(false);
+    const savedStatus = window.localStorage.getItem(landedStatusStorageKey);
+    setHasLanded(savedStatus === '1');
+    setIsLandedHydrated(true);
+  }, [landedStatusStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !landedStatusStorageKey || !isLandedHydrated) return;
+    if (hasLanded) {
+      window.localStorage.setItem(landedStatusStorageKey, '1');
+      return;
+    }
+    window.localStorage.removeItem(landedStatusStorageKey);
+  }, [hasLanded, isLandedHydrated, landedStatusStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1051,6 +1128,10 @@ export default function CityGuideView() {
         setClimatePulseHighUv(isHighUv);
         setClimatePulseSafetyWarning(isClimateSafetyWarning(climate.temp, climate.condition, climate.uv));
         setClimatePulseAdvice(climate.advice);
+        if (climate.uv >= 11 && !hasSeenAlert) {
+          setShowSunAlert(true);
+          setHasSeenAlert(true);
+        }
         console.log('☀️ SUN SAFETY LOG:', {
           city: cityName,
           uvLevel: climate.uv,
@@ -1073,7 +1154,7 @@ export default function CityGuideView() {
     return () => {
       cancelled = true;
     };
-  }, [cityData?.coordinates]);
+  }, [cityData?.coordinates, hasSeenAlert]);
 
   useEffect(() => {
     if (!cityData || !quickFuelIntel) return;
@@ -1230,18 +1311,125 @@ export default function CityGuideView() {
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
                 <Plane size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Land & clear</span>
+                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Visa & Arrival Flow</span>
               </div>
-              <div className="p-8 text-[#222222] font-medium leading-relaxed text-base md:text-[15px] tracking-[0.01em]">
-                {balanceText(cityData.arrival.airportHack)}
-              </div>
-              <div className="flex items-center gap-3 px-8 py-5 border-t border-slate-100 bg-slate-50/50">
-                <Wifi size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Connect Locally</span>
-              </div>
-              <div className="p-8 text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                {balanceText(cityData.arrival.eSimAdvice)}
-              </div>
+
+              <AnimatePresence mode="wait" initial={false}>
+                {!isLandedHydrated ? (
+                  <motion.div
+                    key="arrival-state-loading"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="p-8"
+                  >
+                    <p className="text-sm font-medium text-slate-500 animate-pulse">
+                      {balanceText('Syncing arrival state for this city pack...')}
+                    </p>
+                  </motion.div>
+                ) : !hasLanded ? (
+                  <motion.div
+                    key="arrival-prep-phase"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    className="p-8"
+                  >
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        Strategic Prep
+                      </p>
+                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                        {balanceText(visaIntelSummary)}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                        Pre-Landing To-Do
+                      </p>
+                      <ul className="mt-3 space-y-2">
+                        <li className="flex items-start gap-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-slate-700">
+                          <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                          <span>{balanceText('Check passport validity and keep your destination address ready for immigration.')}</span>
+                        </li>
+                        <li className="flex items-start gap-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-slate-700">
+                          <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-600" />
+                          <span>{balanceText('Verify ETA or digital arrival confirmation before leaving the terminal queue zone.')}</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <motion.button
+                      type="button"
+                      onClick={() => setHasLanded(true)}
+                      whileTap={{ scale: 0.98 }}
+                      animate={{
+                        boxShadow: [
+                          '0 0 0 0 rgba(16, 185, 129, 0.35)',
+                          '0 0 0 10px rgba(16, 185, 129, 0)',
+                          '0 0 0 0 rgba(16, 185, 129, 0)',
+                        ],
+                      }}
+                      transition={{ duration: 2, repeat: Infinity, repeatType: 'loop' }}
+                      className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
+                    >
+                      {balanceText(`🛬 I've Landed in ${cityData.name}!`)}
+                    </motion.button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="arrival-tactical-phase"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    className="p-8 space-y-4"
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                      Step-by-Step Departure Guide
+                    </p>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <div className="flex items-center gap-2">
+                        <Wifi size={16} className="text-blue-600" />
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 1: Connectivity</p>
+                      </div>
+                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222]">
+                        {balanceText(`SSID: ${arrivalTacticalPath.connectivity.wifiSsid} | Password: ${arrivalTacticalPath.connectivity.wifiPassword}`)}
+                      </p>
+                      <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
+                        {balanceText(arrivalTacticalPath.connectivity.note)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle size={16} className="text-emerald-600" />
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 2: Immigration Strategy</p>
+                      </div>
+                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                        {balanceText(arrivalTacticalPath.immigration.strategy)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                      <div className="flex items-center gap-2">
+                        <Navigation size={16} className="text-amber-600" />
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 3: Transport Intel</p>
+                      </div>
+                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
+                        {balanceText(arrivalTacticalPath.transport.taxiEstimate)}
+                      </p>
+                      <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
+                        {balanceText(arrivalTacticalPath.transport.trainEstimate)}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
         </section>
@@ -1401,6 +1589,8 @@ export default function CityGuideView() {
           </div>
         </section>
       </footer>
+
+      <SunSafetyAlert isOpen={showSunAlert} uv={climatePulseUv} onClose={() => setShowSunAlert(false)} />
 
     </motion.div>
   );

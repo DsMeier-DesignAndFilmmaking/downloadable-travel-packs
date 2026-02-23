@@ -58,7 +58,21 @@
           "Bolt",
           "Google Maps",
           "Google Translate"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "AOT Free WiFi",
+            "wifiPassword": "OTP via SMS",
+            "note": "Free airport WiFi opens after a browser login page. Keep eSIM fallback ready."
+          },
+          "immigration": {
+            "strategy": "Use biometric/eGate lanes if eligible; most visitors should follow the manual foreign passport queue signs."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to city center: 350-550 THB (plus tolls).",
+            "trainEstimate": "Airport Rail Link + BTS: ~45-80 THB total to central zones."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -148,7 +162,21 @@
           "Bonjour RATP",
           "Google Maps",
           "Lime"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "WIFI-AIRPORT",
+            "wifiPassword": "No password (portal login)",
+            "note": "Airport WiFi is stable enough for maps and train booking before SIM activation."
+          },
+          "immigration": {
+            "strategy": "Eligible passports can use PARAFE eGates. Others should stay in staffed passport control lanes."
+          },
+          "transport": {
+            "taxiEstimate": "Official taxi to city center: ~55-65 EUR flat-zone pricing.",
+            "trainEstimate": "RER B to central Paris: ~11.80 EUR, fastest in normal conditions."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -238,7 +266,21 @@
           "Google Maps",
           "TfL Go",
           "Uber"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "Heathrow Free Wi-Fi",
+            "wifiPassword": "No password (email sign-in)",
+            "note": "Use WiFi to preload TfL/Citymapper before exiting the terminal."
+          },
+          "immigration": {
+            "strategy": "Use ePassport gates if eligible; otherwise proceed to manual Border Force desks."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to central London: ~65-110 GBP depending on airport and traffic.",
+            "trainEstimate": "Elizabeth Line/Heathrow Express options: ~13-25 GBP to central areas."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -337,7 +379,21 @@
           "Japan Travel by Navitime",
           "Suica/Pasmo",
           "Google Translate"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "Haneda_Free_WiFi",
+            "wifiPassword": "No password (portal login)",
+            "note": "Use airport WiFi to activate Mobile Suica and rail routing apps immediately."
+          },
+          "immigration": {
+            "strategy": "Follow automated immigration flow where available; otherwise use staffed arrival inspection counters."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to central Tokyo: ~7000-9000 JPY from major airports.",
+            "trainEstimate": "Airport rail options: ~500-3000 JPY depending on line and destination."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -426,7 +482,21 @@
           "MTA",
           "Uber",
           "Lyft"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "Free JFK WiFi",
+            "wifiPassword": "No password (ad portal)",
+            "note": "Open maps and ride apps before leaving customs to avoid curbside delays."
+          },
+          "immigration": {
+            "strategy": "Use Global Entry or Mobile Passport Control where eligible; otherwise join standard CBP lanes."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to Manhattan: ~70-95 USD including tolls and fees.",
+            "trainEstimate": "AirTrain + LIRR/subway: ~13-20 USD depending on route."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -516,7 +586,21 @@
           "ATAC",
           "Google Maps",
           "FreeNow"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "Airport Free WiFi",
+            "wifiPassword": "No password (portal login)",
+            "note": "Use WiFi to confirm train platforms and digital tickets before terminal exit."
+          },
+          "immigration": {
+            "strategy": "EU/EEA passports can use eGates where posted; others proceed to staffed immigration lanes."
+          },
+          "transport": {
+            "taxiEstimate": "FCO official taxi to central Rome: ~55 EUR fixed fare zone.",
+            "trainEstimate": "Leonardo Express to Termini: ~14 EUR."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -605,7 +689,21 @@
           "Citymapper",
           "Google Maps",
           "Cabify"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "Airport_Free_WiFi_AENA",
+            "wifiPassword": "No password (portal login)",
+            "note": "Use airport WiFi to load TMB routing and purchase transport options before departure."
+          },
+          "immigration": {
+            "strategy": "Smart border eGates for eligible passports; manual lanes for all others."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to city center: ~35-45 EUR depending on traffic.",
+            "trainEstimate": "R2 Nord commuter rail: ~4.90 EUR, Aerobus: ~6.75 EUR."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -694,7 +792,21 @@
           "RTA Dubai",
           "Google Maps",
           "Talabat"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "DXB Free WiFi",
+            "wifiPassword": "No password (portal login)",
+            "note": "Connect before leaving arrivals to top up Nol balance and preload transit directions."
+          },
+          "immigration": {
+            "strategy": "Use Smart Gates if eligible. Otherwise follow staffed passport control and visa validation desks."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to central zones: ~70-110 AED depending on destination.",
+            "trainEstimate": "Metro Red Line from DXB: ~6-12 AED for most central stops."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -784,7 +896,21 @@
           "Naver Map",
           "Google Maps",
           "Papago"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "AirportWiFi",
+            "wifiPassword": "No password (portal login)",
+            "note": "Use airport WiFi to activate Kakao/Naver maps and transit cards before exit."
+          },
+          "immigration": {
+            "strategy": "Use Smart Entry/eGates when available; otherwise proceed to staffed immigration counters."
+          },
+          "transport": {
+            "taxiEstimate": "Taxi to central Seoul: ~55000-75000 KRW.",
+            "trainEstimate": "AREX to Seoul Station: ~4450-9500 KRW depending on service type."
+          }
+        }
       },
       "neighborhoods": [
         {
@@ -886,7 +1012,21 @@
           "Google Maps",
           "WhatsApp",
           "Rappi"
-        ]
+        ],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "MEX-Internet",
+            "wifiPassword": "No password (portal login)",
+            "note": "Use airport WiFi to confirm official ride pickup zone before walking outside."
+          },
+          "immigration": {
+            "strategy": "Most travelers use manual immigration desks; eGates may appear for select nationalities and lanes."
+          },
+          "transport": {
+            "taxiEstimate": "Authorized taxi/ride app to city center: ~300-450 MXN.",
+            "trainEstimate": "Metro + bus path: ~10-20 MXN with more transfer time."
+          }
+        }
       },
       "neighborhoods": [
         {

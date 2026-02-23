@@ -43,12 +43,34 @@ export interface CityPackFuel {
 }
 
 /** Arrival: eSIM, airport, eSIM hack, transit hack, essential apps. */
+export interface CityPackArrivalTacticalConnectivity {
+  wifiSsid: string
+  wifiPassword: string
+  note: string
+}
+
+export interface CityPackArrivalTacticalImmigration {
+  strategy: string
+}
+
+export interface CityPackArrivalTacticalTransport {
+  taxiEstimate: string
+  trainEstimate: string
+}
+
+export interface CityPackArrivalTacticalPath {
+  connectivity: CityPackArrivalTacticalConnectivity
+  immigration: CityPackArrivalTacticalImmigration
+  transport: CityPackArrivalTacticalTransport
+}
+
 export interface CityPackArrival {
   eSimAdvice: string
   eSimHack: string
   airportHack: string
   transitHack: string
   essentialApps: string[]
+  tacticalPath?: CityPackArrivalTacticalPath
 }
 
 /** 2026 Movement Intelligence: The "How-To" of the city. */
