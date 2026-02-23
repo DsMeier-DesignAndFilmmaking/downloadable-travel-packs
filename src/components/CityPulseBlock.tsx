@@ -128,7 +128,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
       const message =
         error instanceof Error && error.message.includes('CITY_PULSE_PARSE_ERROR')
           ? PARSE_ERROR_TEXT
-          : DELAYED_TEXT;
+          : noResultsMessage;
 
       if (previous?.length) {
         setPulseData(previous);
@@ -182,7 +182,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
             >
               Synchronizing...
             </button>
-            <p className="text-sm font-medium text-slate-600">Scanning city vitals...</p>
+            <p className="text-sm font-medium text-slate-600">Decrypting local signals...</p>
             <div className="space-y-2">
               <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
               <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200" />
@@ -241,16 +241,17 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         )}
 
         {status === 'error' && (
-          <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">
-              {errorMessage || DELAYED_TEXT}
+              {errorMessage || noResultsMessage}
             </p>
             <button
               type="button"
               onClick={handleFetchPulse}
-              className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 px-4 text-[11px] font-black uppercase tracking-[0.12em] text-slate-700 transition-colors hover:bg-slate-50"
+              aria-label="Refresh city pulse"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50"
             >
-              Retry Pulse
+              <RefreshCw size={13} />
             </button>
           </div>
         )}

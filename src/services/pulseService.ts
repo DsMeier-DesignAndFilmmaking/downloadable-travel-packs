@@ -142,7 +142,7 @@ async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
     const parsedProxyOne = parseGNewsResponse(parsedContents);
     if (parsedProxyOne) return parsedProxyOne;
   } catch {
-    console.warn('Proxy 1 Failed');
+    console.warn('Route 1 throttled, trying secure bypass...');
   }
 
   const proxyTwoUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
@@ -151,7 +151,7 @@ async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
     const parsedProxyTwo = parseGNewsResponse(proxyTwo);
     if (parsedProxyTwo) return parsedProxyTwo;
   } catch {
-    console.warn('Proxy 2 Failed');
+    console.warn('Secure bypass unavailable.');
   }
 
   return null;
@@ -204,7 +204,7 @@ async function fetchGNewsPulse(cityName: string): Promise<PulseIntelligence[]> {
   const sanitizedCity = cityName.trim();
   if (!sanitizedCity) return [];
 
-  const tacticalQuery = `qInTitle:"${sanitizedCity}" AND (traffic OR "transit alert" OR "local safety" OR "weather warning")`;
+  const tacticalQuery = `"${sanitizedCity}" AND (traffic OR "transit alert" OR safety)`;
   const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(tacticalQuery)}&lang=en&max=3&apikey=${apiKey}`;
   const parsed = await fetchWithFallback(gnewsUrl);
   const articles = parsed?.articles ?? [];
