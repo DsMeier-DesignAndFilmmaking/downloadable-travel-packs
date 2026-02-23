@@ -39,6 +39,7 @@ import ArrivalIntelligence from '@/components/ArrivalIntelligence';
 import CityPulseBlock from '@/components/CityPulseBlock';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
+import { performGlobalReset } from '@/utils/appReset';
 
 import { usePostHog } from '@posthog/react';
 
@@ -945,6 +946,17 @@ export default function CityGuideView() {
     window.localStorage.removeItem(landedStatusStorageKey);
   }, [landedStatusStorageKey]);
 
+  const handleGlobalReset = useCallback(async () => {
+    if (typeof window === 'undefined') return;
+
+    const confirmed = window.confirm(
+      "Resetting will clear your 'Landed' status and refresh all city data. Continue?",
+    );
+    if (!confirmed) return;
+
+    await performGlobalReset();
+  }, []);
+
   useEffect(() => {
     setShowInstallBanner(false);
     setDismissedInstallBanner(false);
@@ -1465,6 +1477,18 @@ export default function CityGuideView() {
               </div>
             ))}
           </div>
+        </section>
+        <section className="pt-8 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Beta Support</p>
+          <button
+            type="button"
+            onClick={() => {
+              void handleGlobalReset();
+            }}
+            className="mt-2 text-xs font-medium text-slate-400 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-500"
+          >
+            Reset App Cache
+          </button>
         </section>
       </footer>
 
