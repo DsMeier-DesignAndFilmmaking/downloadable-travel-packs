@@ -1,3 +1,5 @@
+import { cities as staticCities } from '@/data/cities';
+
 export interface PulseIntelligence {
   type: 'safety' | 'news' | 'event';
   title: string;
@@ -8,12 +10,7 @@ export interface PulseIntelligence {
   url?: string;
 }
 
-type AllOriginsResponse = {
-  contents?: string;
-  status?: {
-    http_code?: number;
-  };
-};
+type UnknownRecord = Record<string, unknown>;
 
 type NewsApiArticle = {
   title?: string;
@@ -27,9 +24,16 @@ type NewsApiResponse = {
   articles?: NewsApiArticle[];
 };
 
+type CachedPulsePayload = {
+  data: PulseIntelligence[];
+  timestamp: number;
+};
+
 const SAFETY_KEYWORDS = ['strike', 'protest', 'warning', 'alert', 'closed', 'danger', 'delay', 'emergency'];
 const EVENT_KEYWORDS = ['festival', 'concert', 'match', 'parade', 'expo', 'fair', 'conference'];
 const GLOBAL_NOISE_KEYWORDS = ['global', 'world', 'international', 'geopolitics', 'markets'];
+const PULSE_TIMEOUT_MS = 5000;
+const PULSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function hasLocalCitySignal(article: NewsApiArticle, cityName: string): boolean {
   const title = article.title?.toLowerCase() ?? '';
@@ -53,9 +57,9 @@ function toPulseIntelligence(article: NewsApiArticle): PulseIntelligence | null 
   if (!article.title) return null;
   const title = article.title.trim();
   const description = article.description?.trim() || 'No description provided.';
-  const titleLower = title.toLowerCase();
-  const isSafety = SAFETY_KEYWORDS.some((keyword) => titleLower.includes(keyword));
-  const isEvent = !isSafety && EVENT_KEYWORDS.some((keyword) => titleLower.includes(keyword));
+  const searchable = `${title} ${description}`.toLowerCase();
+  const isSafety = SAFETY_KEYWORDS.some((keyword) => searchable.includes(keyword));
+  const isEvent = !isSafety && EVENT_KEYWORDS.some((keyword) => searchable.includes(keyword));
 
   return {
     type: isSafety ? 'safety' : isEvent ? 'event' : 'news',
@@ -68,21 +72,22 @@ function toPulseIntelligence(article: NewsApiArticle): PulseIntelligence | null 
   };
 }
 
-async function fetchNewsApiPulse(cityName: string): Promise<PulseIntelligence[]> {
-  // MVP note: VITE_NEWS_API_KEY is client-exposed in this serverless frontend pattern.
-  const apiKey = import.meta.env.VITE_NEWS_API_KEY?.trim();
-  if (!apiKey) throw new Error('Missing VITE_NEWS_API_KEY');
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === 'object' && value !== null;
+}
 
-  const q = encodeURIComponent(cityName);
-  const newsApiUrl = `https://newsapi.org/v2/everything?q=${q}&language=en&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`;
-  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(newsApiUrl)}`;
+function parseNewsApiResponse(raw: unknown): NewsApiResponse | null {
+  if (!isRecord(raw) || !Array.isArray(raw.articles)) return null;
+  return raw as NewsApiResponse;
+}
 
+async function fetchJsonWithTimeout(url: string): Promise<unknown> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), PULSE_TIMEOUT_MS);
 
   let response: Response;
   try {
-    response = await fetch(proxyUrl, {
+    response = await fetch(url, {
       method: 'GET',
       mode: 'cors',
       signal: controller.signal,
@@ -92,25 +97,100 @@ async function fetchNewsApiPulse(cityName: string): Promise<PulseIntelligence[]>
   }
 
   if (!response.ok) {
-    throw new Error(`NewsAPI request failed (${response.status}) for ${cityName}`);
+    throw new Error(`CITY_PULSE_HTTP_${response.status}`);
   }
 
-  const proxied = (await response.json()) as AllOriginsResponse;
-  if (!proxied.contents || typeof proxied.contents !== 'string') {
-    throw new Error('CITY_PULSE_PARSE_ERROR');
-  }
+  return (await response.json()) as unknown;
+}
 
-  let payload: NewsApiResponse;
+/**
+ * Robust dual-proxy fetch path for NewsAPI payloads.
+ * Attempt 1: corsproxy.io
+ * Attempt 2: allorigins with { contents: "{...}" } parsing
+ * Final: null so UI/service callers can gracefully fallback.
+ */
+async function fetchWithFallback(url: string): Promise<NewsApiResponse | null> {
+  const encodedUrl = encodeURIComponent(url);
+  const primaryUrl = `https://corsproxy.io/?${encodedUrl}`;
+
   try {
-    payload = JSON.parse(proxied.contents) as NewsApiResponse;
+    const payload = await fetchJsonWithTimeout(primaryUrl);
+    const parsed = parseNewsApiResponse(payload);
+    if (parsed) return parsed;
   } catch {
-    throw new Error('CITY_PULSE_PARSE_ERROR');
+    console.warn('Proxy 1 Failed');
   }
 
-  const articles = payload.articles ?? [];
+  const fallbackUrl = `https://api.allorigins.win/get?url=${encodedUrl}`;
+  try {
+    const fallbackPayload = await fetchJsonWithTimeout(fallbackUrl);
+    if (!isRecord(fallbackPayload) || typeof fallbackPayload.contents !== 'string') {
+      throw new Error('CITY_PULSE_PARSE_ERROR');
+    }
+    const decoded = JSON.parse(fallbackPayload.contents) as unknown;
+    const parsed = parseNewsApiResponse(decoded);
+    if (parsed) return parsed;
+  } catch {
+    console.warn('Proxy 2 Failed');
+  }
+
+  return null;
+}
+
+function getPulseCacheKey(slug: string): string {
+  return `pulse_data_${slug}`;
+}
+
+function readFreshPulseCache(slug?: string): PulseIntelligence[] | null {
+  if (!slug || typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(getPulseCacheKey(slug));
+    if (!raw) return null;
+
+    const cached = JSON.parse(raw) as CachedPulsePayload;
+    if (!cached || !Array.isArray(cached.data) || typeof cached.timestamp !== 'number') {
+      window.localStorage.removeItem(getPulseCacheKey(slug));
+      return null;
+    }
+
+    if (Date.now() - cached.timestamp > PULSE_CACHE_TTL_MS) {
+      window.localStorage.removeItem(getPulseCacheKey(slug));
+      return null;
+    }
+
+    return cached.data;
+  } catch {
+    window.localStorage.removeItem(getPulseCacheKey(slug));
+    return null;
+  }
+}
+
+function writePulseCache(slug: string | undefined, data: PulseIntelligence[]): void {
+  if (!slug || typeof window === 'undefined' || data.length === 0) return;
+
+  const payload: CachedPulsePayload = {
+    data,
+    timestamp: Date.now(),
+  };
+  window.localStorage.setItem(getPulseCacheKey(slug), JSON.stringify(payload));
+}
+
+async function fetchNewsApiPulse(cityName: string): Promise<PulseIntelligence[]> {
+  // MVP note: VITE_NEWS_API_KEY is client-exposed in this serverless frontend pattern.
+  const apiKey = import.meta.env.VITE_NEWS_API_KEY?.trim();
+  if (!apiKey) return [];
+
+  const sanitizedCity = cityName.trim();
+  if (!sanitizedCity) return [];
+
+  const q = encodeURIComponent(sanitizedCity);
+  const newsApiUrl = `https://newsapi.org/v2/everything?q=${q}&language=en&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`;
+  const payload = await fetchWithFallback(newsApiUrl);
+  const articles = payload?.articles ?? [];
 
   return articles
-    .filter((article) => hasLocalCitySignal(article, cityName))
+    .filter((article) => hasLocalCitySignal(article, sanitizedCity))
     .map(toPulseIntelligence)
     .filter((item): item is PulseIntelligence => Boolean(item));
 }
@@ -125,7 +205,10 @@ function dedupeByTitle(items: PulseIntelligence[]): PulseIntelligence[] {
   });
 }
 
-export async function fetchCityPulse(cityName: string): Promise<PulseIntelligence[]> {
+export async function fetchCityPulse(cityName: string, slug?: string): Promise<PulseIntelligence[]> {
+  const cachedData = readFreshPulseCache(slug);
+  if (cachedData?.length) return cachedData;
+
   // Scalable wrapper: add more providers (PredictHQ / safety feeds) here via allSettled.
   const providers: Array<() => Promise<PulseIntelligence[]>> = [
     () => fetchNewsApiPulse(cityName),
@@ -139,5 +222,73 @@ export async function fetchCityPulse(cityName: string): Promise<PulseIntelligenc
     merged.push(...result.value);
   }
 
-  return dedupeByTitle(merged);
+  const deduped = dedupeByTitle(merged);
+  writePulseCache(slug, deduped);
+  return deduped;
+}
+
+function toTitleCase(input: string): string {
+  return input
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function buildOfflineIntel(citySlug: string, cityName: string): PulseIntelligence[] {
+  const staticCity = staticCities.find((entry) => entry.slug === citySlug);
+  const friendlyCity = toTitleCase(cityName || citySlug.replace(/-/g, ' '));
+
+  if (!staticCity) {
+    return [
+      {
+        type: 'safety',
+        title: `${friendlyCity}: Offline Safety Intel`,
+        description: 'Live feed delayed. Use official transit and keep valuables secured in dense arrival zones.',
+        source: 'Offline Intel',
+        urgency: true,
+      },
+      {
+        type: 'news',
+        title: `${friendlyCity}: Local Mobility Baseline`,
+        description: 'Default to official rail/bus routes and licensed taxi stands until signal improves.',
+        source: 'Offline Intel',
+        urgency: false,
+      },
+    ];
+  }
+
+  return [
+    {
+      type: 'safety',
+      title: `${friendlyCity}: Safety Baseline`,
+      description: staticCity.scams[0] || staticCity.emergency.notes || 'Monitor crowded transit points and keep valuables secure.',
+      source: 'Offline Intel',
+      urgency: true,
+    },
+    {
+      type: 'event',
+      title: `${friendlyCity}: Transit Snapshot`,
+      description: staticCity.transit.app || staticCity.transit.payment || 'Use official public transport and verified ride options.',
+      source: 'Offline Intel',
+      urgency: false,
+    },
+    {
+      type: 'news',
+      title: `${friendlyCity}: Utility Snapshot`,
+      description: staticCity.frictionPoints.water || staticCity.frictionPoints.toilets || 'Keep backup utility supplies while offline.',
+      source: 'Offline Intel',
+      urgency: false,
+    },
+  ];
+}
+
+export async function fetchCityPulseForSlug(citySlug: string, cityName: string): Promise<PulseIntelligence[]> {
+  try {
+    const live = await fetchCityPulse(cityName, citySlug);
+    if (live.length > 0) return live;
+    return buildOfflineIntel(citySlug, cityName);
+  } catch {
+    return buildOfflineIntel(citySlug, cityName);
+  }
 }

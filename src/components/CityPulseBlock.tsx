@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Clock3, Newspaper, RefreshCw } from 'lucide-react';
-import { fetchCityPulse, type PulseIntelligence } from '@/services/pulseService';
+import { fetchCityPulseForSlug, type PulseIntelligence } from '@/services/pulseService';
 
 type CityPulseBlockProps = {
   citySlug: string;
@@ -13,7 +13,7 @@ type CachedPulse = {
 };
 
 const PULSE_TTL_MS = 6 * 60 * 60 * 1000;
-const FALLBACK_TEXT = 'Pulse unavailable: Check local news for updates';
+const DELAYED_TEXT = 'Live feed delayed. Tap to retry or check back later.';
 const PARSE_ERROR_TEXT = 'Current pulse unavailable. Please check local news.';
 
 function toTimeAgo(isoTime?: string): string {
@@ -33,6 +33,11 @@ function toTimeAgo(isoTime?: string): string {
 function trimHeadline(value: string, max = 92): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 1).trimEnd()}…`;
+}
+
+function isOfflineIntelDataset(items: PulseIntelligence[]): boolean {
+  if (!items.length) return false;
+  return items.every((item) => item.source === 'Offline Intel');
 }
 
 export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockProps) {
@@ -67,6 +72,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
 
       setPulseData(cached.data);
       setStatus('ready');
+      setErrorMessage(isOfflineIntelDataset(cached.data) ? DELAYED_TEXT : null);
     } catch {
       window.localStorage.removeItem(storageKey);
       setStatus('error');
@@ -81,21 +87,22 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
     const previous = pulseData;
 
     try {
-      const result = await fetchCityPulse(cityName);
+      const result = await fetchCityPulseForSlug(citySlug, cityName);
       if (!result.length) {
         if (previous?.length) {
           setPulseData(previous);
           setStatus('ready');
-          setErrorMessage(FALLBACK_TEXT);
+          setErrorMessage(DELAYED_TEXT);
           return;
         }
         setStatus('error');
-        setErrorMessage(FALLBACK_TEXT);
+        setErrorMessage(DELAYED_TEXT);
         return;
       }
 
       setPulseData(result);
       setStatus('ready');
+      setErrorMessage(isOfflineIntelDataset(result) ? DELAYED_TEXT : null);
 
       if (typeof window !== 'undefined') {
         const payload: CachedPulse = {
@@ -108,7 +115,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
       const message =
         error instanceof Error && error.message.includes('CITY_PULSE_PARSE_ERROR')
           ? PARSE_ERROR_TEXT
-          : FALLBACK_TEXT;
+          : DELAYED_TEXT;
 
       if (previous?.length) {
         setPulseData(previous);
@@ -120,7 +127,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
       setStatus('error');
       setErrorMessage(message);
     }
-  }, [cityName, pulseData, storageKey]);
+  }, [cityName, citySlug, pulseData, storageKey]);
 
   return (
     <section className="space-y-3">
@@ -149,6 +156,13 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         {status === 'fetching' && (
           <div className="space-y-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Live City Pulse</p>
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#222222] px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white/90"
+            >
+              Synchronizing...
+            </button>
             <p className="text-sm font-medium text-slate-600">Scanning city vitals...</p>
             <div className="space-y-2">
               <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
@@ -210,7 +224,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         {status === 'error' && (
           <div className="space-y-3">
             <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">
-              {errorMessage || FALLBACK_TEXT}
+              {errorMessage || DELAYED_TEXT}
             </p>
             <button
               type="button"
