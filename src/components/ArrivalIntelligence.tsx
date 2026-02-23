@@ -239,15 +239,17 @@ export default function ArrivalIntelligence({
           </AnimatePresence>
         </div>
 
-        <div className="mt-3 border-t border-slate-100 px-1 pt-3">
-          <button
-            type="button"
-            onClick={onResetStatus}
-            className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 underline underline-offset-2"
-          >
-            Reset Status
-          </button>
-        </div>
+        {hasLanded && (
+          <div className="mt-3 border-t border-slate-100 px-1 pt-3">
+            <button
+              type="button"
+              onClick={onResetStatus}
+              className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 underline underline-offset-2"
+            >
+              Reset Status
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

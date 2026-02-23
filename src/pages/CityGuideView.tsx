@@ -975,7 +975,7 @@ export default function CityGuideView() {
 
     setIsLandedHydrated(false);
     const savedStatus = window.localStorage.getItem(landedStatusStorageKey);
-    setHasLanded(savedStatus === '1');
+    setHasLanded(savedStatus === '1' || savedStatus === 'true');
     setIsLandedHydrated(true);
   }, [landedStatusStorageKey]);
 

@@ -23,7 +23,7 @@ export default function SpontaneityEnginePromo() {
   {/* The Visual Badge */}
   <div className="bg-[#F59E0B] px-3 py-1 rounded-md shadow-[0_2px_8px_rgba(245,158,11,0.2)] flex items-center gap-2 shrink-0">
     <span className="text-[9px] font-[1000] text-black uppercase tracking-[0.1em] italic leading-none">
-      Premiere Feature
+    Premium Feature
     </span>
     <div className="h-1 w-1 rounded-full bg-black/40 animate-pulse" />
   </div>
