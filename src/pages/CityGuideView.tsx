@@ -6,8 +6,6 @@ import {
   Download,
   Zap,
   ChevronLeft,
-  Plane,
-  Wifi,
   Activity,
   X,
   Droplets,
@@ -33,11 +31,11 @@ import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import { fetchCityWeather, climateAdviceFallback } from '@/services/weatherService';
 import { isClimateSafetyWarning } from '@/constants/weatherAdvice';
 import DebugBanner from '@/components/DebugBanner';
-import SourceInfo from '@/components/SourceInfo';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
+import ArrivalSection from '@/components/ArrivalSection';
 import { updateThemeColor } from '@/utils/manifest-generator';
 
 import { usePostHog } from '@posthog/react';
@@ -849,20 +847,6 @@ export default function CityGuideView() {
     () => (cleanSlug ? `landed_status_${cleanSlug}` : null),
     [cleanSlug],
   );
-  const visaIntelSummary = useMemo(() => {
-    if (visaData?.visa_rules?.primary_rule) {
-      const ruleName = visaData.visa_rules.primary_rule.name || 'Standard entry';
-      const duration = visaData.visa_rules.primary_rule.duration || 'Duration varies';
-      return `${ruleName} (${duration}). Confirm your documents before joining immigration lines.`;
-    }
-    if (visaFetchError) {
-      return 'Live visa feed unavailable. Using cached entry guidance for this city pack.';
-    }
-    if (isApiLoading) {
-      return 'Live visa intelligence is syncing now. Keep your passport and onward proof ready.';
-    }
-    return 'Standard entry guidance active. Re-check passport validity and arrival form details before landing.';
-  }, [isApiLoading, visaData, visaFetchError]);
   const arrivalTacticalPath = useMemo(() => {
     const fallbackConnectivityNote =
       cityData?.arrival?.eSimHack ||
@@ -945,6 +929,18 @@ export default function CityGuideView() {
     platform.os,
     posthog,
   ]);
+
+  const handleMarkLanded = useCallback(() => {
+    setHasLanded(true);
+    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
+    window.localStorage.setItem(landedStatusStorageKey, '1');
+  }, [landedStatusStorageKey]);
+
+  const handleResetLandedStatus = useCallback(() => {
+    setHasLanded(false);
+    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
+    window.localStorage.removeItem(landedStatusStorageKey);
+  }, [landedStatusStorageKey]);
 
   useEffect(() => {
     setShowInstallBanner(false);
@@ -1286,155 +1282,34 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {cityData.arrival && (
-          <section className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
-              <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
-                <Plane size={20} className="text-[#222222]" />
-                <span className="font-black text-[#222222] text-xs uppercase tracking-widest">Visa & Arrival Flow</span>
-              </div>
-
-              <AnimatePresence mode="wait" initial={false}>
-                {!isLandedHydrated ? (
-                  <motion.div
-                    key="arrival-state-loading"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                    className="p-8"
-                  >
-                    <p className="text-sm font-medium text-slate-500 animate-pulse">
-                      {balanceText('Syncing arrival state for this city pack...')}
-                    </p>
-                  </motion.div>
-                ) : !hasLanded ? (
-                  <motion.div
-                    key="arrival-prep-phase"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                    className="p-8"
-                  >
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Strategic Prep
-                      </p>
-                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                        {balanceText(visaIntelSummary)}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                        Pre-Landing To-Do
-                      </p>
-                      <ul className="mt-3 space-y-2">
-                        <li className="flex items-start gap-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-slate-700">
-                          <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-                          <span>{balanceText('Check passport validity and keep your destination address ready for immigration.')}</span>
-                        </li>
-                        <li className="flex items-start gap-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-slate-700">
-                          <CheckCircle size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-                          <span>{balanceText('Verify ETA or digital arrival confirmation before leaving the terminal queue zone.')}</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <motion.button
-                      type="button"
-                      onClick={() => setHasLanded(true)}
-                      whileTap={{ scale: 0.98 }}
-                      animate={{
-                        boxShadow: [
-                          '0 0 0 0 rgba(16, 185, 129, 0.35)',
-                          '0 0 0 10px rgba(16, 185, 129, 0)',
-                          '0 0 0 0 rgba(16, 185, 129, 0)',
-                        ],
-                      }}
-                      transition={{ duration: 2, repeat: Infinity, repeatType: 'loop' }}
-                      className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
-                    >
-                      {balanceText(`🛬 I've Landed in ${cityData.name}!`)}
-                    </motion.button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="arrival-tactical-phase"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                    className="p-8 space-y-4"
-                  >
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                      Step-by-Step Departure Guide
-                    </p>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                      <div className="flex items-center gap-2">
-                        <Wifi size={16} className="text-blue-600" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 1: Connectivity</p>
-                      </div>
-                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222]">
-                        {balanceText(`SSID: ${arrivalTacticalPath.connectivity.wifiSsid} | Password: ${arrivalTacticalPath.connectivity.wifiPassword}`)}
-                      </p>
-                      <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
-                        {balanceText(arrivalTacticalPath.connectivity.note)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle size={16} className="text-emerald-600" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 2: Immigration Strategy</p>
-                      </div>
-                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                        {balanceText(arrivalTacticalPath.immigration.strategy)}
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                      <div className="flex items-center gap-2">
-                        <Navigation size={16} className="text-amber-600" />
-                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">Step 3: Transport Intel</p>
-                      </div>
-                      <p className="mt-2 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-                        {balanceText(arrivalTacticalPath.transport.taxiEstimate)}
-                      </p>
-                      <p className="mt-1 text-xs md:text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
-                        {balanceText(arrivalTacticalPath.transport.trainEstimate)}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
+          <ArrivalSection
+            cityName={cityData.name}
+            source={integritySource}
+            lastUpdated={integrityLastVerified}
+            isLive={!!visaData}
+            hasLanded={hasLanded}
+            isLandedHydrated={isLandedHydrated}
+            digitalEntry={cityData.survival?.digitalEntry}
+            tacticalPath={arrivalTacticalPath}
+            onMarkLanded={handleMarkLanded}
+            onResetStatus={handleResetLandedStatus}
+            visaEntryNode={
+              <AnimatePresence mode="wait">
+                <BorderClearance
+                  visaData={visaData}
+                  loading={isApiLoading}
+                  error={visaFetchError}
+                  digitalEntry={cityData.survival?.digitalEntry}
+                  touristTax={cityData.survival?.touristTax}
+                  isLive={!!visaData}
+                  visaStatus={visaData?.visa_rules?.primary_rule
+                    ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
+                    : 'Standard Entry Protocol applies.'}
+                />
               </AnimatePresence>
-            </div>
-          </section>
+            }
+          />
         )}
-
-        <section className="space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Active Arrival Intelligence</h2>
-            <SourceInfo source={integritySource} lastUpdated={integrityLastVerified} isLive={!!visaData} />
-          </div>
-
-          <div className="min-h-[140px]">
-            <AnimatePresence mode="wait">
-              <BorderClearance
-                visaData={visaData}
-                loading={isApiLoading}
-                error={visaFetchError}
-                digitalEntry={cityData.survival?.digitalEntry}
-                touristTax={cityData.survival?.touristTax}
-                isLive={!!visaData}
-                visaStatus={visaData?.visa_rules?.primary_rule
-                  ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                  : 'Standard Entry Protocol applies.'}
-              />
-            </AnimatePresence>
-          </div>
-        </section>
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
