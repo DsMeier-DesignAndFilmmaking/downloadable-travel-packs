@@ -1285,29 +1285,8 @@ export default function CityGuideView() {
       </header>
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
-        <section className="space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Active Arrival Intelligence</h2>
-            <SourceInfo source={integritySource} lastUpdated={integrityLastVerified} isLive={!!visaData} />
-          </div>
-
-          <div className="min-h-[140px]">
-            <AnimatePresence mode="wait">
-              <BorderClearance
-                visaData={visaData}
-                loading={isApiLoading}
-                error={visaFetchError}
-                digitalEntry={cityData.survival?.digitalEntry}
-                touristTax={cityData.survival?.touristTax}
-                isLive={!!visaData}
-                visaStatus={visaData?.visa_rules?.primary_rule
-                  ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
-                  : 'Standard Entry Protocol applies.'}
-              />
-            </AnimatePresence>
-          </div>
-
-          {cityData.arrival && (
+        {cityData.arrival && (
+          <section className="space-y-6">
             <div className="bg-white border border-slate-200 rounded-[2.5rem] shadow-sm overflow-hidden">
               <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50/50">
                 <Plane size={20} className="text-[#222222]" />
@@ -1431,7 +1410,30 @@ export default function CityGuideView() {
                 )}
               </AnimatePresence>
             </div>
-          )}
+          </section>
+        )}
+
+        <section className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Active Arrival Intelligence</h2>
+            <SourceInfo source={integritySource} lastUpdated={integrityLastVerified} isLive={!!visaData} />
+          </div>
+
+          <div className="min-h-[140px]">
+            <AnimatePresence mode="wait">
+              <BorderClearance
+                visaData={visaData}
+                loading={isApiLoading}
+                error={visaFetchError}
+                digitalEntry={cityData.survival?.digitalEntry}
+                touristTax={cityData.survival?.touristTax}
+                isLive={!!visaData}
+                visaStatus={visaData?.visa_rules?.primary_rule
+                  ? `${visaData.visa_rules.primary_rule.name} - ${visaData.visa_rules.primary_rule.duration || 'N/A'}`
+                  : 'Standard Entry Protocol applies.'}
+              />
+            </AnimatePresence>
+          </div>
         </section>
 
         <section className="space-y-6">
