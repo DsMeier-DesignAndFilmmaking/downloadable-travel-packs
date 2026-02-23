@@ -44,8 +44,14 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
   const [pulseData, setPulseData] = useState<PulseIntelligence[] | null>(null);
   const [status, setStatus] = useState<'idle' | 'fetching' | 'ready' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [shouldAutoReveal, setShouldAutoReveal] = useState(false);
 
   const storageKey = useMemo(() => `pulse_data_${citySlug}`, [citySlug]);
+  const landedStorageKey = useMemo(() => `landed_${citySlug}`, [citySlug]);
+  const noResultsMessage = useMemo(
+    () => `Pulse intel currently unavailable for ${cityName}. Check local boards for updates.`,
+    [cityName],
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -56,29 +62,36 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
 
     try {
       const raw = window.localStorage.getItem(storageKey);
-      if (!raw) return;
+      if (!raw) {
+        setShouldAutoReveal(window.localStorage.getItem(landedStorageKey) === '1');
+        return;
+      }
 
       const cached = JSON.parse(raw) as CachedPulse;
       if (!cached?.timestamp || !Array.isArray(cached?.data)) {
         window.localStorage.removeItem(storageKey);
+        setShouldAutoReveal(window.localStorage.getItem(landedStorageKey) === '1');
         return;
       }
 
       const isStale = Date.now() - cached.timestamp > PULSE_TTL_MS;
       if (isStale) {
         window.localStorage.removeItem(storageKey);
+        setShouldAutoReveal(window.localStorage.getItem(landedStorageKey) === '1');
         return;
       }
 
       setPulseData(cached.data);
       setStatus('ready');
       setErrorMessage(isOfflineIntelDataset(cached.data) ? DELAYED_TEXT : null);
+      setShouldAutoReveal(false);
     } catch {
       window.localStorage.removeItem(storageKey);
       setStatus('error');
       setErrorMessage(PARSE_ERROR_TEXT);
+      setShouldAutoReveal(false);
     }
-  }, [storageKey]);
+  }, [landedStorageKey, storageKey]);
 
   const handleFetchPulse = useCallback(async () => {
     setStatus('fetching');
@@ -92,11 +105,11 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         if (previous?.length) {
           setPulseData(previous);
           setStatus('ready');
-          setErrorMessage(DELAYED_TEXT);
+          setErrorMessage(noResultsMessage);
           return;
         }
         setStatus('error');
-        setErrorMessage(DELAYED_TEXT);
+        setErrorMessage(noResultsMessage);
         return;
       }
 
@@ -127,7 +140,13 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
       setStatus('error');
       setErrorMessage(message);
     }
-  }, [cityName, citySlug, pulseData, storageKey]);
+  }, [cityName, citySlug, noResultsMessage, pulseData, storageKey]);
+
+  useEffect(() => {
+    if (!shouldAutoReveal || status !== 'idle') return;
+    void handleFetchPulse();
+    setShouldAutoReveal(false);
+  }, [handleFetchPulse, shouldAutoReveal, status]);
 
   return (
     <section className="space-y-3">

@@ -8,20 +8,22 @@ export interface PulseIntelligence {
   urgency: boolean;
   publishedAt?: string;
   url?: string;
+  image?: string;
 }
 
 type UnknownRecord = Record<string, unknown>;
 
-type NewsApiArticle = {
+type GNewsArticle = {
   title?: string;
   description?: string;
   url?: string;
   publishedAt?: string;
-  source?: { name?: string };
+  image?: string;
+  source?: { name?: string; url?: string };
 };
 
-type NewsApiResponse = {
-  articles?: NewsApiArticle[];
+type GNewsResponse = {
+  articles?: GNewsArticle[];
 };
 
 type CachedPulsePayload = {
@@ -35,7 +37,7 @@ const GLOBAL_NOISE_KEYWORDS = ['global', 'world', 'international', 'geopolitics'
 const PULSE_TIMEOUT_MS = 5000;
 const PULSE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
-function hasLocalCitySignal(article: NewsApiArticle, cityName: string): boolean {
+function hasLocalCitySignal(article: GNewsArticle, cityName: string): boolean {
   const title = article.title?.toLowerCase() ?? '';
   const description = article.description?.toLowerCase() ?? '';
   const text = `${title} ${description}`.trim();
@@ -53,7 +55,7 @@ function hasLocalCitySignal(article: NewsApiArticle, cityName: string): boolean 
   return includesCity;
 }
 
-function toPulseIntelligence(article: NewsApiArticle): PulseIntelligence | null {
+function toPulseIntelligence(article: GNewsArticle): PulseIntelligence | null {
   if (!article.title) return null;
   const title = article.title.trim();
   const description = article.description?.trim() || 'No description provided.';
@@ -69,6 +71,7 @@ function toPulseIntelligence(article: NewsApiArticle): PulseIntelligence | null 
     urgency: isSafety,
     publishedAt: article.publishedAt,
     url: article.url,
+    image: article.image,
   };
 }
 
@@ -76,9 +79,9 @@ function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === 'object' && value !== null;
 }
 
-function parseNewsApiResponse(raw: unknown): NewsApiResponse | null {
+function parseGNewsResponse(raw: unknown): GNewsResponse | null {
   if (!isRecord(raw) || !Array.isArray(raw.articles)) return null;
-  return raw as NewsApiResponse;
+  return raw as GNewsResponse;
 }
 
 async function fetchJsonWithTimeout(url: string): Promise<unknown> {
@@ -104,32 +107,37 @@ async function fetchJsonWithTimeout(url: string): Promise<unknown> {
 }
 
 /**
- * Robust dual-proxy fetch path for NewsAPI payloads.
- * Attempt 1: corsproxy.io
- * Attempt 2: allorigins with { contents: "{...}" } parsing
- * Final: null so UI/service callers can gracefully fallback.
+ * GNews supports direct CORS, but we keep a proxy fallback path for beta resilience.
+ * Attempt order: direct -> corsproxy -> allorigins
  */
-async function fetchWithFallback(url: string): Promise<NewsApiResponse | null> {
-  const encodedUrl = encodeURIComponent(url);
-  const primaryUrl = `https://corsproxy.io/?${encodedUrl}`;
-
+async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
   try {
-    const payload = await fetchJsonWithTimeout(primaryUrl);
-    const parsed = parseNewsApiResponse(payload);
-    if (parsed) return parsed;
+    const direct = await fetchJsonWithTimeout(url);
+    const parsedDirect = parseGNewsResponse(direct);
+    if (parsedDirect) return parsedDirect;
+  } catch {
+    // Direct failed; continue into proxy fallbacks.
+  }
+
+  const proxyOneUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  try {
+    const proxyOne = await fetchJsonWithTimeout(proxyOneUrl);
+    const parsedProxyOne = parseGNewsResponse(proxyOne);
+    if (parsedProxyOne) return parsedProxyOne;
   } catch {
     console.warn('Proxy 1 Failed');
   }
 
-  const fallbackUrl = `https://api.allorigins.win/get?url=${encodedUrl}`;
+  const proxyTwoUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
   try {
-    const fallbackPayload = await fetchJsonWithTimeout(fallbackUrl);
-    if (!isRecord(fallbackPayload) || typeof fallbackPayload.contents !== 'string') {
+    const proxyTwo = await fetchJsonWithTimeout(proxyTwoUrl);
+    if (!isRecord(proxyTwo) || typeof proxyTwo.contents !== 'string') {
       throw new Error('CITY_PULSE_PARSE_ERROR');
     }
-    const decoded = JSON.parse(fallbackPayload.contents) as unknown;
-    const parsed = parseNewsApiResponse(decoded);
-    if (parsed) return parsed;
+
+    const parsedContents = JSON.parse(proxyTwo.contents) as unknown;
+    const parsedProxyTwo = parseGNewsResponse(parsedContents);
+    if (parsedProxyTwo) return parsedProxyTwo;
   } catch {
     console.warn('Proxy 2 Failed');
   }
@@ -176,18 +184,18 @@ function writePulseCache(slug: string | undefined, data: PulseIntelligence[]): v
   window.localStorage.setItem(getPulseCacheKey(slug), JSON.stringify(payload));
 }
 
-async function fetchNewsApiPulse(cityName: string): Promise<PulseIntelligence[]> {
-  // MVP note: VITE_NEWS_API_KEY is client-exposed in this serverless frontend pattern.
-  const apiKey = import.meta.env.VITE_NEWS_API_KEY?.trim();
+async function fetchGNewsPulse(cityName: string): Promise<PulseIntelligence[]> {
+  // MVP note: VITE_GNEWS_API_KEY is client-exposed in this serverless frontend pattern.
+  const apiKey = import.meta.env.VITE_GNEWS_API_KEY?.trim();
   if (!apiKey) return [];
 
   const sanitizedCity = cityName.trim();
   if (!sanitizedCity) return [];
 
-  const q = encodeURIComponent(sanitizedCity);
-  const newsApiUrl = `https://newsapi.org/v2/everything?q=${q}&language=en&sortBy=publishedAt&pageSize=3&apiKey=${apiKey}`;
-  const payload = await fetchWithFallback(newsApiUrl);
-  const articles = payload?.articles ?? [];
+  const tacticalQuery = `"${sanitizedCity}" AND (traffic OR "local news" OR safety OR "transit alert")`;
+  const gnewsUrl = `https://gnews.io/api/v4/search?q=${encodeURIComponent(tacticalQuery)}&lang=en&max=3&apikey=${apiKey}`;
+  const parsed = await fetchWithFallback(gnewsUrl);
+  const articles = parsed?.articles ?? [];
 
   return articles
     .filter((article) => hasLocalCitySignal(article, sanitizedCity))
@@ -211,7 +219,7 @@ export async function fetchCityPulse(cityName: string, slug?: string): Promise<P
 
   // Scalable wrapper: add more providers (PredictHQ / safety feeds) here via allSettled.
   const providers: Array<() => Promise<PulseIntelligence[]>> = [
-    () => fetchNewsApiPulse(cityName),
+    () => fetchGNewsPulse(cityName),
   ];
 
   const settled = await Promise.allSettled(providers.map((provider) => provider()));
@@ -286,8 +294,8 @@ function buildOfflineIntel(citySlug: string, cityName: string): PulseIntelligenc
 export async function fetchCityPulseForSlug(citySlug: string, cityName: string): Promise<PulseIntelligence[]> {
   try {
     const live = await fetchCityPulse(cityName, citySlug);
-    if (live.length > 0) return live;
-    return buildOfflineIntel(citySlug, cityName);
+    if (live.length === 0) return [];
+    return live;
   } catch {
     return buildOfflineIntel(citySlug, cityName);
   }

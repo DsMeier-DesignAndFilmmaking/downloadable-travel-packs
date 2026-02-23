@@ -1310,7 +1310,7 @@ export default function CityGuideView() {
           />
         )}
 
-        <CityPulseBlock citySlug={cleanSlug ?? cityData.slug} cityName={cityData.name} />
+        <CityPulseBlock key={cityData.slug} citySlug={cleanSlug ?? cityData.slug} cityName={cityData.name} />
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
