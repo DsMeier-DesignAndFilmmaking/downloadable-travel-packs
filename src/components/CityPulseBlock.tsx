@@ -137,9 +137,12 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
           <div className="space-y-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">Live City Pulse</p>
             <div className="grid place-items-center py-2">
-              <div className="relative h-20 w-20">
+              <div className="relative h-20 w-20 overflow-hidden rounded-full border border-cyan-300/35 bg-slate-900/40">
                 <span className="radar-ring absolute inset-0 rounded-full border border-cyan-300/55" />
                 <span className="radar-ring radar-ring-delay absolute inset-2 rounded-full border border-purple-300/45" />
+                <span className="radar-sweep-arm absolute left-1/2 top-1/2 h-[44%] w-[2px]">
+                  <span className="radar-sweep-line block h-full w-full rounded-full bg-gradient-to-t from-cyan-300/0 via-cyan-200 to-cyan-300" />
+                </span>
                 <span className="absolute inset-[34%] rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.9)]" />
               </div>
             </div>
@@ -178,10 +181,10 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
                     href={snippet.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-start justify-between gap-3 rounded-xl border px-3 py-3 bg-white/10 backdrop-blur-md transition-colors hover:bg-white/20 ${
+                    className={`flex items-start justify-between gap-3 rounded-xl border border-white/20 border-l-4 px-3 py-3 bg-white/10 backdrop-blur-md transition-colors hover:bg-white/20 ${
                       isSafety
-                        ? 'border-red-300/35 shadow-[0_0_15px_rgba(239,68,68,0.4)]'
-                        : 'border-cyan-200/30 shadow-[0_0_15px_rgba(34,211,238,0.35)]'
+                        ? 'border-l-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
+                        : 'border-l-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                     }`}
                   >
                     <div className="flex min-w-0 items-start gap-2">
@@ -218,7 +221,7 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
                   <ShieldCheck size={18} className="text-emerald-200" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100/90">System Status: Nominal</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-100/90">SYSTEM STATUS: NOMINAL</p>
                   <p className="mt-1 text-sm tracking-[0.01em] font-medium text-emerald-50 leading-relaxed">
                     {errorMessage || noResultsMessage}
                   </p>

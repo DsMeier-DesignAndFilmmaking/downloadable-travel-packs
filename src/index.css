@@ -43,6 +43,20 @@ html {
     }
   }
 
+  @keyframes radar-sweep {
+    0% {
+      transform: translate(-50%, -100%) rotate(-140deg);
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -100%) rotate(220deg);
+      opacity: 0.5;
+    }
+  }
+
   @keyframes decrypt-scan {
     0% { width: 18%; }
     9% { width: 42%; }
@@ -75,6 +89,11 @@ html {
 
   .radar-ring-delay {
     animation-delay: 0.6s;
+  }
+
+  .radar-sweep-arm {
+    transform-origin: 50% 100%;
+    animation: radar-sweep 2.3s linear infinite;
   }
 
   .decrypt-bar {
