@@ -937,7 +937,7 @@ export default function CityGuideView() {
   const handleMarkLanded = useCallback(() => {
     setHasLanded(true);
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.setItem(landedStatusStorageKey, '1');
+    window.localStorage.setItem(landedStatusStorageKey, 'true');
   }, [landedStatusStorageKey]);
 
   const handleResetLandedStatus = useCallback(() => {
@@ -982,7 +982,7 @@ export default function CityGuideView() {
   useEffect(() => {
     if (typeof window === 'undefined' || !landedStatusStorageKey || !isLandedHydrated) return;
     if (hasLanded) {
-      window.localStorage.setItem(landedStatusStorageKey, '1');
+      window.localStorage.setItem(landedStatusStorageKey, 'true');
       return;
     }
     window.localStorage.removeItem(landedStatusStorageKey);
@@ -1322,7 +1322,12 @@ export default function CityGuideView() {
           />
         )}
 
-        <CityPulseBlock key={cityData.slug} citySlug={cleanSlug ?? cityData.slug} cityName={cityData.name} />
+        <CityPulseBlock
+          key={cityData.slug}
+          citySlug={cleanSlug ?? cityData.slug}
+          cityName={cityData.name}
+          hasLanded={hasLanded}
+        />
 
         <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>

@@ -127,8 +127,7 @@ async function fetchJsonWithTimeout(url: string): Promise<unknown> {
 }
 
 /**
- * Dual-proxy fetch path with AllOrigins prioritized for GNews stability.
- * Attempt order: allorigins -> corsproxy
+ * Ghost Protocol fetch path with AllOrigins as the sole upstream route.
  */
 async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
   const proxyOneUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}&timestamp=${Date.now()}`;
@@ -142,16 +141,7 @@ async function fetchWithFallback(url: string): Promise<GNewsResponse | null> {
     const parsedProxyOne = parseGNewsResponse(parsedContents);
     if (parsedProxyOne) return parsedProxyOne;
   } catch {
-    console.warn('Route 1 throttled, trying secure bypass...');
-  }
-
-  const proxyTwoUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-  try {
-    const proxyTwo = await fetchJsonWithTimeout(proxyTwoUrl);
-    const parsedProxyTwo = parseGNewsResponse(proxyTwo);
-    if (parsedProxyTwo) return parsedProxyTwo;
-  } catch {
-    console.warn('Secure bypass unavailable.');
+    console.warn('Route 1 throttled.');
   }
 
   return null;

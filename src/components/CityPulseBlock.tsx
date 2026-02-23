@@ -5,6 +5,7 @@ import { fetchCityPulse, type PulseIntelligence } from '@/services/pulseService'
 type CityPulseBlockProps = {
   citySlug: string;
   cityName: string;
+  hasLanded: boolean;
 };
 
 type CachedPulse = {
@@ -38,84 +39,30 @@ function isOfflineIntelDataset(items: PulseIntelligence[]): boolean {
   return items.every((item) => item.source === 'Offline Intel');
 }
 
-export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockProps) {
-  const [hasLanded, setHasLanded] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPulseBlockProps) {
   const [pulseData, setPulseData] = useState<PulseIntelligence[] | null>(null);
-  const [status, setStatus] = useState<'idle' | 'fetching' | 'ready' | 'error'>('idle');
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const storageKey = useMemo(() => `pulse_data_${citySlug}`, [citySlug]);
-  const landedStorageKey = useMemo(() => `landed_${citySlug}`, [citySlug]);
   const noResultsMessage = useMemo(
     () => `All clear in ${cityName}. No major transit or safety alerts reported in the last 24 hours.`,
     [cityName],
   );
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    setHasLanded(false);
-    setIsHydrated(false);
-    setStatus('idle');
-    setErrorMessage(null);
-    setPulseData(null);
-
-    try {
-      const savedLanded = window.localStorage.getItem(landedStorageKey);
-      const landed = savedLanded === 'true' || savedLanded === '1';
-      setHasLanded(landed);
-
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw || !landed) {
-        setIsHydrated(true);
-        return;
-      }
-
-      const cached = JSON.parse(raw) as CachedPulse;
-      if (!cached?.timestamp || !Array.isArray(cached?.data)) {
-        window.localStorage.removeItem(storageKey);
-        setIsHydrated(true);
-        return;
-      }
-
-      const isStale = Date.now() - cached.timestamp > PULSE_TTL_MS;
-      if (isStale) {
-        window.localStorage.removeItem(storageKey);
-        setIsHydrated(true);
-        return;
-      }
-
-      setPulseData(cached.data);
-      setStatus('ready');
-      setErrorMessage(isOfflineIntelDataset(cached.data) ? noResultsMessage : null);
-    } catch {
-      setHasLanded(false);
-      setPulseData(null);
-      window.localStorage.removeItem(storageKey);
-      window.localStorage.removeItem(landedStorageKey);
-      setStatus('idle');
-      setErrorMessage(null);
-    } finally {
-      setIsHydrated(true);
-    }
-  }, [landedStorageKey, noResultsMessage, storageKey]);
-
-  const handleFetchPulse = useCallback(async () => {
-    setStatus('fetching');
+  const handleFetchPulse = useCallback(async (): Promise<void> => {
+    setIsLoading(true);
     setErrorMessage(null);
 
     try {
       const result = await fetchCityPulse(cityName, citySlug);
       if (!result.length) {
-        setPulseData(null);
-        setStatus('error');
+        setPulseData([]);
         setErrorMessage(noResultsMessage);
         return;
       }
 
       setPulseData(result);
-      setStatus('ready');
       setErrorMessage(isOfflineIntelDataset(result) ? noResultsMessage : null);
 
       if (typeof window !== 'undefined') {
@@ -126,55 +73,64 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
         window.localStorage.setItem(storageKey, JSON.stringify(payload));
       }
     } catch {
-      setPulseData(null);
-      setStatus('error');
+      setPulseData([]);
       setErrorMessage(noResultsMessage);
+    } finally {
+      setIsLoading(false);
     }
   }, [cityName, citySlug, noResultsMessage, storageKey]);
 
   useEffect(() => {
-    if (!isHydrated || !hasLanded || status !== 'idle') return;
-    void handleFetchPulse();
-  }, [handleFetchPulse, hasLanded, isHydrated, status]);
-
-  const handleMarkLanded = useCallback(() => {
-    setHasLanded(true);
-    setStatus('idle');
+    setPulseData(null);
     setErrorMessage(null);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(landedStorageKey, 'true');
+    setIsLoading(false);
+
+    if (!hasLanded) return;
+
+    try {
+      if (typeof window === 'undefined') {
+        void handleFetchPulse();
+        return;
+      }
+
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) {
+        void handleFetchPulse();
+        return;
+      }
+
+      const cached = JSON.parse(raw) as CachedPulse;
+      if (!cached?.timestamp || !Array.isArray(cached?.data)) {
+        window.localStorage.removeItem(storageKey);
+        void handleFetchPulse();
+        return;
+      }
+
+      const isStale = Date.now() - cached.timestamp > PULSE_TTL_MS;
+      if (isStale) {
+        window.localStorage.removeItem(storageKey);
+        void handleFetchPulse();
+        return;
+      }
+
+      setPulseData(cached.data);
+      setErrorMessage(isOfflineIntelDataset(cached.data) ? noResultsMessage : null);
+    } catch {
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(storageKey);
+      }
+      void handleFetchPulse();
     }
-    void handleFetchPulse();
-  }, [handleFetchPulse, landedStorageKey]);
+  }, [handleFetchPulse, hasLanded, noResultsMessage, storageKey]);
+
+  if (!hasLanded) return null;
 
   return (
     <section className="space-y-3">
       <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">City Pulse</h2>
 
       <div className="rounded-xl border border-neutral-200 bg-white p-5">
-        {!isHydrated && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Live City Pulse</p>
-            <div className="space-y-2">
-              <div className="h-3 w-full animate-pulse rounded bg-slate-200" />
-              <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200" />
-            </div>
-          </div>
-        )}
-
-        {isHydrated && !hasLanded && (
-          <div>
-            <button
-              type="button"
-              onClick={handleMarkLanded}
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-[0.98]"
-            >
-              {`I've Landed in ${cityName}`}
-            </button>
-          </div>
-        )}
-
-        {isHydrated && hasLanded && status === 'fetching' && (
+        {isLoading && (
           <div className="space-y-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Live City Pulse</p>
             <button
@@ -193,7 +149,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
           </div>
         )}
 
-        {isHydrated && hasLanded && status === 'ready' && pulseData && (
+        {!isLoading && pulseData && pulseData.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Intelligence Snippets</p>
@@ -242,7 +198,7 @@ export default function CityPulseBlock({ citySlug, cityName }: CityPulseBlockPro
           </div>
         )}
 
-        {isHydrated && hasLanded && status === 'error' && (
+        {!isLoading && (!pulseData || pulseData.length === 0) && (
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm tracking-[0.01em] font-medium text-slate-500 leading-relaxed">
               {errorMessage || noResultsMessage}
