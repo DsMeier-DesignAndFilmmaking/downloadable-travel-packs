@@ -108,7 +108,7 @@ export default function ArrivalIntelligence({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Arrival</h2>
+        <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Arrival & Orientation</h2>
         <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
       </div>
 

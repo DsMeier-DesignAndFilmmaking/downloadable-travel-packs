@@ -25,6 +25,7 @@ import { motion, type Variants } from 'framer-motion';
 import type { CityPack } from '@/types/cityPack';
 import { useCityPack } from '@/hooks/useCityPack';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useArrivalLiveData } from '@/hooks/useArrivalLiveData';
 import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
@@ -36,6 +37,11 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
+import BorderStatusCard from '@/components/arrival/BorderStatusCard';
+import First60ProtocolCard from '@/components/arrival/First60ProtocolCard';
+import TransportMatrixCard from '@/components/arrival/TransportMatrixCard';
+import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
+import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import SpontaneityEnginePromo from '@/components/SpontaneityEnginePromo';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
@@ -695,6 +701,7 @@ export default function CityGuideView() {
     hasActivePrompt,
     installFieldPack,
   } = usePWAInstall();
+  const arrivalLiveData = useArrivalLiveData();
 
   const [offlineAvailable, setOfflineAvailable] = useState<boolean>(false);
   const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
@@ -1297,30 +1304,37 @@ export default function CityGuideView() {
 
       <main className="px-6 space-y-10 max-w-2xl mx-auto">
         {cityData.arrival && (
-          <ArrivalIntelligence
-            key={cleanSlug ?? cityData.slug}
-            citySlug={cleanSlug ?? cityData.slug}
-            cityName={cityData.name}
-            source={integritySource}
-            lastUpdated={integrityLastVerified}
-            isLive={!!visaData}
-            hasLanded={hasLanded}
-            isLandedHydrated={isLandedHydrated}
-            visaStatus={arrivalVisaStatus}
-            visaLoading={isApiLoading}
-            visaError={visaFetchError}
-            digitalEntry={cityData.survival?.digitalEntry}
-            preLandStrategy={preLandStrategy}
-            laneSelection={preLandLaneSelection}
-            wifiSsid={arrivalTacticalIntel?.postLand.connectivity.wifiSsid}
-            wifiPassword={arrivalTacticalIntel?.postLand.connectivity.wifiPassword}
-            officialTransport={arrivalTacticalIntel?.postLand.officialTransport}
-            currencySimLocations={arrivalTacticalIntel?.postLand.currencySimLocations}
-            taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
-            trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
-            onMarkLanded={handleMarkLanded}
-            onResetStatus={handleResetLandedStatus}
-          />
+          <div className="space-y-4">
+            <BorderStatusCard borderStatus={cityData.arrival?.borderStatus} liveData={arrivalLiveData} />
+            <ArrivalIntelligence
+              key={cleanSlug ?? cityData.slug}
+              citySlug={cleanSlug ?? cityData.slug}
+              cityName={cityData.name}
+              source={integritySource}
+              lastUpdated={integrityLastVerified}
+              isLive={!!visaData}
+              hasLanded={hasLanded}
+              isLandedHydrated={isLandedHydrated}
+              visaStatus={arrivalVisaStatus}
+              visaLoading={isApiLoading}
+              visaError={visaFetchError}
+              digitalEntry={cityData.survival?.digitalEntry}
+              preLandStrategy={preLandStrategy}
+              laneSelection={preLandLaneSelection}
+              wifiSsid={arrivalTacticalIntel?.postLand.connectivity.wifiSsid}
+              wifiPassword={arrivalTacticalIntel?.postLand.connectivity.wifiPassword}
+              officialTransport={arrivalTacticalIntel?.postLand.officialTransport}
+              currencySimLocations={arrivalTacticalIntel?.postLand.currencySimLocations}
+              taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
+              trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
+              onMarkLanded={handleMarkLanded}
+              onResetStatus={handleResetLandedStatus}
+            />
+            <TransportMatrixCard transportMatrix={cityData.arrival?.transportMatrix} />
+            <First60ProtocolCard first60Protocol={cityData.arrival?.first60Protocol} />
+            <ArrivalMistakesCard arrivalMistakes={cityData.arrival?.arrivalMistakes} />
+            <SystemHealthCard systemHealth={cityData.arrival?.systemHealth} liveData={arrivalLiveData} />
+          </div>
         )}
 
         <section className="space-y-6">

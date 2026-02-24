@@ -72,6 +72,40 @@
             "taxiEstimate": "Taxi to city center: 350-550 THB (plus tolls).",
             "trainEstimate": "Airport Rail Link + BTS: ~45-80 THB total to central zones."
           }
+        },
+        "borderStatus": {
+          "live": true,
+          "source": "visa-requirement.p.rapidapi.com",
+          "last_checked": null,
+          "summary_note": "Visa rules dynamically verified based on selected passport.",
+          "offline_fallback": "Showing last verified visa rules. Confirm with embassy if travel is time-sensitive."
+        },
+        "first60Protocol": [
+          "Activate SIM before leaving arrivals.",
+          "Withdraw 1,000–3,000 THB in small bills.",
+          "Screenshot hotel address in Thai.",
+          "Choose transport before exiting airport.",
+          "Ignore freelance driver offers."
+        ],
+        "arrivalMistakes": [
+          "Exchanging large amounts at airport counters.",
+          "Leaving without SIM or offline map access.",
+          "Accepting fixed-price taxi offers.",
+          "Forgetting toll fees are separate from taxi meter."
+        ],
+        "transportMatrix": {
+          "cheapest": "Airport Rail Link + BTS (45–80 THB).",
+          "fastest_traffic": "Rail Link avoids surface congestion.",
+          "door_to_door": "Taxi or Grab (350–550 THB + tolls).",
+          "comfort_luggage": "Grab Car for direct drop-off."
+        },
+        "systemHealth": {
+          "transit": "Operational",
+          "security": "Low advisory level",
+          "weather": "No major disruptions",
+          "air_quality_note": "Seasonal pollution Dec–Mar",
+          "dynamic_ready": true,
+          "offline_message": "Live system data unavailable. Showing last verified status."
         }
       },
       "neighborhoods": [

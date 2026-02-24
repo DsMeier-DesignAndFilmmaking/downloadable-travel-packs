@@ -64,6 +64,33 @@ export interface CityPackArrivalTacticalPath {
   transport: CityPackArrivalTacticalTransport
 }
 
+/** Premium arrival: border/visa status (optional). */
+export interface CityPackArrivalBorderStatus {
+  live?: boolean
+  source?: string
+  last_checked?: string | null
+  summary_note?: string
+  offline_fallback?: string
+}
+
+/** Premium arrival: transport matrix (optional). */
+export interface CityPackArrivalTransportMatrix {
+  cheapest?: string
+  fastest_traffic?: string
+  door_to_door?: string
+  comfort_luggage?: string
+}
+
+/** Premium arrival: system health (optional). */
+export interface CityPackArrivalSystemHealth {
+  transit?: string
+  security?: string
+  weather?: string
+  air_quality_note?: string
+  dynamic_ready?: boolean
+  offline_message?: string
+}
+
 export interface CityPackArrival {
   eSimAdvice: string
   eSimHack: string
@@ -71,6 +98,11 @@ export interface CityPackArrival {
   transitHack: string
   essentialApps: string[]
   tacticalPath?: CityPackArrivalTacticalPath
+  borderStatus?: CityPackArrivalBorderStatus
+  first60Protocol?: string[]
+  arrivalMistakes?: string[]
+  transportMatrix?: CityPackArrivalTransportMatrix
+  systemHealth?: CityPackArrivalSystemHealth
 }
 
 /** 2026 Movement Intelligence: The "How-To" of the city. */
