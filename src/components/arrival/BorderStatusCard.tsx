@@ -1,37 +1,61 @@
 /**
- * BorderStatusCard — premium arrival block for visa/border verification status.
- * Renders only when borderStatus is provided; no API or manifest logic.
+ * BorderStatusCard — presentational visa/border status. No fetching, no API, no persistence.
  */
 
-import type { ArrivalLiveData } from '@/hooks/useArrivalLiveData';
-
-export interface BorderStatus {
-  live?: boolean;
-  source?: string;
-  last_checked?: string | null;
-  summary_note?: string;
-  offline_fallback?: string;
-}
-
 export interface BorderStatusCardProps {
-  borderStatus?: BorderStatus | null;
-  liveData?: ArrivalLiveData | null;
+  /** Main visa status line (e.g. from API or fallback). */
+  visaText?: string | null;
+  /** Whether data is live (green badge) or offline (amber badge). */
+  live?: boolean;
+  /** Data source label (e.g. API name). */
+  source?: string | null;
+  /** Last checked timestamp; shown in metadata when present. */
+  lastChecked?: string | null;
+  /** Optional summary note. */
+  summaryNote?: string | null;
+  /** Shown in amber box when !live. */
+  offlineFallback?: string | null;
 }
 
-export default function BorderStatusCard({ borderStatus, liveData }: BorderStatusCardProps) {
-  if (borderStatus == null || typeof borderStatus !== 'object') {
-    return null;
-  }
-  void liveData; // Reserved for future live API integration
+export default function BorderStatusCard({
+  visaText,
+  live = false,
+  source,
+  lastChecked,
+  summaryNote,
+  offlineFallback,
+}: BorderStatusCardProps) {
+  const showVisaText = typeof visaText === 'string' && visaText.trim() !== '';
+  const showSource = typeof source === 'string' && source.trim() !== '';
+  const showLastChecked = typeof lastChecked === 'string' && lastChecked.trim() !== '';
+  const showSummaryNote = typeof summaryNote === 'string' && summaryNote.trim() !== '';
+  const showOfflineFallback =
+    !live && typeof offlineFallback === 'string' && offlineFallback.trim() !== '';
 
-  const summaryNote = borderStatus.summary_note?.trim();
-  const offlineFallback = borderStatus.offline_fallback?.trim();
-  const lastChecked = borderStatus.last_checked?.trim() || null;
   const hasContent =
-    Boolean(summaryNote) ||
-    borderStatus.live === true ||
-    Boolean(lastChecked) ||
-    Boolean(offlineFallback);
+    showVisaText ||
+    showSummaryNote ||
+    showSource ||
+    showLastChecked ||
+    showOfflineFallback;
+
+  const formattedLastChecked = showLastChecked
+    ? (() => {
+        try {
+          const date = new Date(lastChecked as string);
+          if (isNaN(date.getTime())) return lastChecked;
+          return date.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        } catch {
+          return lastChecked;
+        }
+      })()
+    : null;
 
   if (!hasContent) {
     return null;
@@ -39,31 +63,50 @@ export default function BorderStatusCard({ borderStatus, liveData }: BorderStatu
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-        Border & Visa Status
-      </p>
-      <div className="mt-3 space-y-2">
-        {summaryNote ? (
-          <p className="text-sm font-medium text-[#222222] leading-relaxed tracking-[0.01em]">
-            {summaryNote}
-          </p>
-        ) : null}
-        {borderStatus.live === true ? (
-          <p className="text-sm font-semibold text-emerald-600">
-            Live Visa Verification Enabled
-          </p>
-        ) : null}
-        {lastChecked ? (
-          <p className="text-xs text-slate-500">
-            Last checked: {lastChecked}
-          </p>
-        ) : null}
-        {offlineFallback ? (
-          <p className="text-xs text-amber-700/90 italic">
-            {offlineFallback}
-          </p>
-        ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          Visa Status
+        </p>
+        <span
+          className={
+            live
+              ? 'rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700'
+              : 'rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700'
+          }
+        >
+          {live ? 'Live' : 'Offline'}
+        </span>
       </div>
+
+      {showVisaText && (
+        <p className="mt-3 text-sm font-bold text-[#222222] leading-relaxed tracking-[0.01em]">
+          {visaText!.trim()}
+        </p>
+      )}
+
+      {showSummaryNote && (
+        <p className="mt-2 text-sm font-medium text-[#222222] leading-relaxed tracking-[0.01em]">
+          {summaryNote!.trim()}
+        </p>
+      )}
+
+   {(showSource || showLastChecked) && (
+        <div className="mt-2 text-xs text-slate-500">
+          <span>
+            {showSource && `Data source: ${source!.trim()}`}
+            {showSource && showLastChecked && ' • '}
+            {showLastChecked && `Last verified ${formattedLastChecked}`}
+          </span>
+        </div>
+      )}
+
+      {showOfflineFallback && (
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2">
+          <p className="text-xs text-amber-800/90 italic leading-relaxed">
+            {offlineFallback!.trim()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

@@ -37,6 +37,7 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
+import BorderStatusCard from '@/components/arrival/BorderStatusCard';
 import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
 import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard';
@@ -1304,6 +1305,14 @@ export default function CityGuideView() {
         {cityData.arrival && (
           <section id="arrival" className="scroll-mt-6 pb-2 md:pb-4">
             <div className="space-y-4 pt-2">
+              <BorderStatusCard
+                visaText={arrivalVisaStatus}
+                live={!!visaData}
+                source={cityData.arrival?.borderStatus?.source ?? integritySource}
+                lastChecked={cityData.arrival?.borderStatus?.last_checked ?? integrityLastVerified}
+                summaryNote={cityData.arrival?.borderStatus?.summary_note}
+                offlineFallback={cityData.arrival?.borderStatus?.offline_fallback}
+              />
               <ArrivalIntelligence
                 key={cleanSlug ?? cityData.slug}
                 citySlug={cleanSlug ?? cityData.slug}

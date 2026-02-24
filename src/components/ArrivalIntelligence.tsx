@@ -95,6 +95,7 @@ export default function ArrivalIntelligence({
     : visaError
       ? 'Live visa feed unavailable. Using cached entry notes.'
       : visaStatus;
+  void visaStatusText; // Reserved for BorderStatusCard / future use
 
   const wifiSsidText = wifiSsid?.trim() || 'Airport Free WiFi';
   const wifiPasswordText = wifiPassword?.trim() || 'Portal login';
@@ -109,13 +110,19 @@ export default function ArrivalIntelligence({
     <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
         <h2 className="text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Arrival & Orientation</h2>
-        <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
       </div>
 
       <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/20 bg-[linear-gradient(160deg,rgba(15,23,42,0.94),rgba(30,41,59,0.82))] p-4 md:p-5 shadow-[0_24px_50px_rgba(2,6,23,0.35)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_5%,rgba(34,211,238,0.2),transparent_38%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.2),transparent_45%)]" />
         <div className="relative z-10">
         <div className="space-y-3">
+          <div className="mb-4 flex items-center gap-3 px-1">
+            <Plane size={20} className="text-cyan-100" />
+            <span className="font-black text-cyan-100 text-xs uppercase tracking-widest">
+              {hasLanded ? 'Airport Exit & Ground Orientation' : 'Entry & Immigration'}
+            </span>
+            <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
+          </div>
           <AnimatePresence mode="wait" initial={false}>
             {!isLandedHydrated ? (
               <motion.div
@@ -201,18 +208,10 @@ export default function ArrivalIntelligence({
                 transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
                 className="space-y-3"
               >
-                <div className="mb-4 flex items-center gap-3 px-1">
-                  <Plane size={20} className="text-cyan-100" />
-                  <span className="font-black text-cyan-100 text-xs uppercase tracking-widest">Protocols & Strategies</span>
-                </div>
 
                 <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  
                   <div className="mt-3 space-y-0.5">
-                    <InlineRow
-                      icon={<CheckCircle size={14} className="text-emerald-600" />}
-                      label="Visa Status"
-                      value={visaStatusText}
-                    />
                     <InlineRow
                       icon={<Navigation size={14} className="text-amber-600" />}
                       label="Lane Advice"
@@ -240,7 +239,7 @@ export default function ArrivalIntelligence({
                     whileTap={{ scale: 0.98 }}
                     className="relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] backdrop-blur-md"
                   >
-                    {balanceText(`I've Landed in ${cityName}`)}
+                    {balanceText(`I've Cleared Customs!`)}
                   </motion.button>
                 </div>
               </motion.div>
