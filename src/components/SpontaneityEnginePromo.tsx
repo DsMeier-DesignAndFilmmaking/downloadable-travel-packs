@@ -31,7 +31,7 @@ export default function SpontaneityEnginePromo() {
   {/* The Customer-Facing Message */}
   <div className="flex items-center gap-2">
     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-      <span className="text-[#818CF8]">Currently in the Lab</span>
+      <span className="text-[#818CF8]">COMING SOON</span>
     </span>
   </div>
 </div>
@@ -43,7 +43,7 @@ export default function SpontaneityEnginePromo() {
               </h2>
 
               <p className="text-[13px] md:text-[15px] text-slate-300 font-light leading-relaxed max-w-full md:max-w-[340px]">
-              Sync with the <span className="text-[#818CF8] font-medium">city’s live rhythm</span> and unearth local secrets for those unplanned detours that become your&nbsp;best&nbsp;stories.
+              Sync with the <span className="text-[#818CF8] font-medium">city’s live rhythm</span> and discover local secrets for those unplanned detours that become your&nbsp;best&nbsp;stories.
               </p>
             </div>
 

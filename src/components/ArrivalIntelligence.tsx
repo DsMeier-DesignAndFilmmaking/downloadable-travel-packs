@@ -179,7 +179,7 @@ export default function ArrivalIntelligence({
                       whileTap={{ scale: 0.98 }}
                       className="relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] backdrop-blur-md"
                     >
-                      {balanceText(`I've Landed in ${cityName}!`)}
+                      {balanceText(`I've Landed in ${cityName}`)}
                     </motion.button>
                   </motion.div>
                 )}

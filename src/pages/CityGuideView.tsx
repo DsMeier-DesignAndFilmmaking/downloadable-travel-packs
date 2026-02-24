@@ -36,6 +36,7 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
+import SpontaneityEnginePromo from '@/components/SpontaneityEnginePromo';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 import { performGlobalReset } from '@/utils/appReset';
@@ -1460,6 +1461,10 @@ export default function CityGuideView() {
               </div>
             </div>
           )}
+        </section>
+
+        <section className="pt-8 pb-4">
+          <SpontaneityEnginePromo />
         </section>
       </main>
 
