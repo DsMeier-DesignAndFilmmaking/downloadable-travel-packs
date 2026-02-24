@@ -115,145 +115,137 @@ export default function ArrivalIntelligence({
       <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/20 bg-[linear-gradient(160deg,rgba(15,23,42,0.94),rgba(30,41,59,0.82))] p-4 md:p-5 shadow-[0_24px_50px_rgba(2,6,23,0.35)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_5%,rgba(34,211,238,0.2),transparent_38%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.2),transparent_45%)]" />
         <div className="relative z-10">
-        <div className="mb-4 flex items-center gap-3 px-1">
-          <Plane size={20} className="text-cyan-100" />
-          <span className="font-black text-cyan-100 text-xs uppercase tracking-widest">Protocols & Strategies</span>
-        </div>
-
         <div className="space-y-3">
-          {!isLandedHydrated ? (
-            <motion.div
-              key="arrival-loading"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2 }}
-              className="rounded-xl border border-neutral-200 bg-white p-4"
-            >
-              <p className="text-sm font-medium text-slate-500 animate-pulse">
-                {balanceText('Syncing arrival status for this city pack...')}
-              </p>
-            </motion.div>
-          ) : (
-            <>
-              <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                <div className="mt-3 space-y-0.5">
-                  <InlineRow
-                    icon={<CheckCircle size={14} className="text-emerald-600" />}
-                    label="Visa Status"
-                    value={visaStatusText}
-                  />
-                  <InlineRow
-                    icon={<Navigation size={14} className="text-amber-600" />}
-                    label="Lane Advice"
-                    value={laneText}
-                  />
-                  <InlineRow
-                    icon={<Plane size={14} className="text-slate-600" />}
-                    label="Entry Strategy"
-                    value={strategyText}
-                  />
-                  <InlineRow
-                    icon={<Wifi size={14} className="text-blue-600" />}
-                    label="Digital Entry"
-                    value={digitalEntryText}
-                    bordered={false}
-                  />
+          <AnimatePresence mode="wait" initial={false}>
+            {!isLandedHydrated ? (
+              <motion.div
+                key="arrival-loading"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="rounded-xl border border-neutral-200 bg-white p-4"
+              >
+                <p className="text-sm font-medium text-slate-500 animate-pulse">
+                  {balanceText('Syncing arrival status for this city pack...')}
+                </p>
+              </motion.div>
+            ) : hasLanded ? (
+              <motion.div
+                key="post-landing"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md"
+              >
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Connectivity</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<Wifi size={14} className="text-blue-600" />}
+                      label="WiFi SSID"
+                      value={wifiSsidText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Password"
+                      value={wifiPasswordText}
+                      bordered={false}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <AnimatePresence initial={false}>
-                {!hasLanded && (
-                  <motion.div
-                    key="landed-button"
-                    initial={{ opacity: 1, y: 0, height: 'auto' }}
-                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                    exit={{ opacity: 0, y: -8, height: 0 }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative overflow-hidden"
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Transit from Airport</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<Navigation size={14} className="text-amber-600" />}
+                      label="Official Route"
+                      value={officialTransportText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Taxi Estimate"
+                      value={taxiEstimateText}
+                    />
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Train Estimate"
+                      value={trainEstimateText}
+                      bordered={false}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next Steps</p>
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="SIM / ATM Locations"
+                      value={currencySimText}
+                      bordered={false}
+                    />
+                  </div>
+                </div>
+
+                <CityPulseBlock key={citySlug} citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="pre-landing"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-3"
+              >
+                <div className="mb-4 flex items-center gap-3 px-1">
+                  <Plane size={20} className="text-cyan-100" />
+                  <span className="font-black text-cyan-100 text-xs uppercase tracking-widest">Protocols & Strategies</span>
+                </div>
+
+                <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                  <div className="mt-3 space-y-0.5">
+                    <InlineRow
+                      icon={<CheckCircle size={14} className="text-emerald-600" />}
+                      label="Visa Status"
+                      value={visaStatusText}
+                    />
+                    <InlineRow
+                      icon={<Navigation size={14} className="text-amber-600" />}
+                      label="Lane Advice"
+                      value={laneText}
+                    />
+                    <InlineRow
+                      icon={<Plane size={14} className="text-slate-600" />}
+                      label="Entry Strategy"
+                      value={strategyText}
+                    />
+                    <InlineRow
+                      icon={<Wifi size={14} className="text-blue-600" />}
+                      label="Digital Entry"
+                      value={digitalEntryText}
+                      bordered={false}
+                    />
+                  </div>
+                </div>
+
+                <div className="relative overflow-hidden">
+                  <span className="cyber-border-pulse pointer-events-none absolute -inset-1 rounded-2xl border border-cyan-300/55" />
+                  <motion.button
+                    type="button"
+                    onClick={onMarkLanded}
+                    whileTap={{ scale: 0.98 }}
+                    className="relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] backdrop-blur-md"
                   >
-                    <span className="cyber-border-pulse pointer-events-none absolute -inset-1 rounded-2xl border border-cyan-300/55" />
-                    <motion.button
-                      type="button"
-                      onClick={onMarkLanded}
-                      whileTap={{ scale: 0.98 }}
-                      className="relative inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 px-5 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-[0_12px_30px_rgba(59,130,246,0.35)] backdrop-blur-md"
-                    >
-                      {balanceText(`I've Landed in ${cityName}`)}
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence initial={false}>
-                {hasLanded && (
-                  <motion.div
-                    key="arrival-expanded"
-                    initial={{ opacity: 0, height: 0, y: -8 }}
-                    animate={{ opacity: 1, height: 'auto', y: 0 }}
-                    exit={{ opacity: 0, height: 0, y: -8 }}
-                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-                      <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Connectivity</p>
-                        <div className="mt-3 space-y-0.5">
-                          <InlineRow
-                            icon={<Wifi size={14} className="text-blue-600" />}
-                            label="WiFi SSID"
-                            value={wifiSsidText}
-                          />
-                          <InlineRow
-                            icon={<CheckCircle size={14} className="text-emerald-600" />}
-                            label="Password"
-                            value={wifiPasswordText}
-                            bordered={false}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Transit from Airport</p>
-                        <div className="mt-3 space-y-0.5">
-                          <InlineRow
-                            icon={<Navigation size={14} className="text-amber-600" />}
-                            label="Official Route"
-                            value={officialTransportText}
-                          />
-                          <InlineRow
-                            icon={<CheckCircle size={14} className="text-emerald-600" />}
-                            label="Taxi Estimate"
-                            value={taxiEstimateText}
-                          />
-                          <InlineRow
-                            icon={<CheckCircle size={14} className="text-emerald-600" />}
-                            label="Train Estimate"
-                            value={trainEstimateText}
-                            bordered={false}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Next Steps</p>
-                        <div className="mt-3 space-y-0.5">
-                          <InlineRow
-                            icon={<CheckCircle size={14} className="text-emerald-600" />}
-                            label="SIM / ATM Locations"
-                            value={currencySimText}
-                            bordered={false}
-                          />
-                        </div>
-                      </div>
-
-                      <CityPulseBlock key={citySlug} citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
+                    {balanceText(`I've Landed in ${cityName}`)}
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {hasLanded && (
