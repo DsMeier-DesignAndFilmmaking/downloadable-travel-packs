@@ -1406,7 +1406,7 @@ export default function CityGuideView() {
             <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
               <Droplets className="text-blue-600 mb-4" size={32} />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
-              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
                 {balanceText(`${cityData.survival?.tapWater || 'Check Local Intel'}`)}
               </p>
             </div>
@@ -1429,7 +1429,7 @@ export default function CityGuideView() {
                   </span>
                 </div>
               </div>
-              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
                 {balanceText(quickFuelIntel?.staple ?? deriveFallbackFuelStaple(cityData))}
               </p>
               <p className="mt-2 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
@@ -1438,15 +1438,15 @@ export default function CityGuideView() {
               <p className="mt-1 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
                 {balanceText(`Budget: ${quickFuelIntel?.priceAnchor ?? deriveQuickFuelBudget(cityData).replace(/^Budget\s*~/, '')}`)}
               </p>
-              <p className="mt-3 text-[10px] tracking-[0.02em] font-medium text-slate-500 leading-relaxed">
-                {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
-              </p>
+              <p className="mt-3 text-[13px] tracking-[0.02em] font-bold text-amber-800 leading-relaxed">
+              {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
+            </p>
             </div>
 
             <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
               <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
               <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
-              <p className="text-2xl font-bold text-[#1a1a1a] leading-tight">
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
                 {balanceText(
                   typeof cityData.survival?.power === 'object'
                     ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
@@ -1477,38 +1477,55 @@ export default function CityGuideView() {
         </section>
 
         <section className="space-y-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">MONEY</h2>
+        <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+          MONEY
+        </h2>
 
-          <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <Globe size={14} className="text-slate-400" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Spending Quick References</p>
-            </div>
-            <p className="text-sm font-semibold text-slate-600 leading-relaxed">
-              1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
-              {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+        {/* Keeping this container exactly as it was */}
+        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <Globe size={14} className="text-slate-400" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            Quick Spending Reference
             </p>
-            <div className="mt-4 rounded-2xl border border-slate-200 overflow-hidden">
-              {quickReferenceRows.map((row) => (
-                <div key={row.localAmount} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0">
-                  <span className="text-sm font-semibold text-slate-700">{row.context}</span>
-                  <span className="text-sm font-black text-slate-800 tabular-nums">
-                    {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
-                  </span>
-                  <span className="text-sm font-bold text-emerald-700 tabular-nums">
-                    ≈ ${row.usdAmount}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 p-5 bg-amber-50 rounded-2xl border border-amber-200/50">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">Tip Culture</p>
-              <p className="mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
-                {cityData.survival?.tipping || 'Standard 10% is expected.'}
-              </p>
-            </div>
           </div>
-          </section>
+          
+          <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4">
+            1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
+            {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+          </p>
+
+          {/* Removed nested border/rounded container on mobile */}
+          <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
+            {quickReferenceRows.map((row) => (
+              <div 
+                key={row.localAmount} 
+                className="grid grid-cols-[1fr_auto_auto] items-center gap-3 bg-white py-3 
+                          px-0 sm:px-4 
+                          border-none sm:border-b sm:border-slate-100 sm:last:border-b-0"
+              >
+                <span className="text-sm font-semibold text-slate-700">{row.context}</span>
+                <span className="text-sm font-black text-slate-800 tabular-nums">
+                  {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
+                </span>
+                <span className="text-sm font-bold text-emerald-700 tabular-nums">
+                  ≈ ${row.usdAmount}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Tipping: Removed border on mobile, kept layout */}
+          <div className="mt-4 p-0 sm:p-5 bg-transparent sm:bg-amber-50 rounded-none sm:rounded-2xl border-none sm:border sm:border-amber-200/50">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">
+              Tip Culture
+            </p>
+            <p className="mt-1 sm:mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
+              {cityData.survival?.tipping || 'Standard 10% is expected.'}
+            </p>
+          </div>
+        </div>
+      </section>
 
           <section className="space-y-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
@@ -1540,7 +1557,7 @@ export default function CityGuideView() {
           )}
         </section>
 
-        <section className="pt-8 pb-4">
+        <section className="pt-2 pb-4">
           <SpontaneityEnginePromo />
         </section>
       </main>

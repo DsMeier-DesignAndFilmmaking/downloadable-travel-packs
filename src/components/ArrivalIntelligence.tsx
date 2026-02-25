@@ -154,8 +154,8 @@ export default function ArrivalIntelligence({
             {/* Multi-airport: Arrival info for {code} + dropdown */}
             {selectedAirportCode && airportOptions && airportOptions.length > 0 && (
               <div className="mb-3 flex flex-wrap items-center gap-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/90">
-                  Arrival info for {selectedAirportCode}
+                <p className="text-[12px] font-black uppercase tracking-[0.12em] text-cyan-100/90">
+                  Arrival info for 
                 </p>
                 {onAirportChange && airportOptions.length > 1 && (
                   <div className="relative">
@@ -207,7 +207,7 @@ export default function ArrivalIntelligence({
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/80 mb-2">
                   {selectedAirportCode} — Quick intel
                 </p>
-                <div className="grid grid-cols-1 gap-2 text-xs text-cyan-100/90">
+                <div className="grid grid-cols-1 gap-2 text-sm text-cyan-100/90">
                   <p>
                     <span className="font-semibold">Transport:</span>{' '}
                     {airportArrivalInfo.transport.join(', ')}
@@ -226,11 +226,13 @@ export default function ArrivalIntelligence({
               </div>
             )}
 
+            <div className="mt-6 pt-4">
             {/* Header: headline + SourceInfo left (Pre-Arrival alignment); Refresh right; items-center for vertical alignment. */}
             <div className="flex items-center justify-between gap-3 mb-4">
               {/* Left: headline and SourceInfo in one row */}
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="font-black text-cyan-100 text-[10px] uppercase tracking-widest leading-snug break-words line-clamp-2 sm:text-xs">
+              {/* Left: headline and SourceInfo in one row */}
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="font-black text-cyan-100 text-[12px] uppercase tracking-[0.15em] leading-snug break-words line-clamp-2 sm:text-sm">
                   {arrivalStage === 'pre-arrival'
                     ? 'Pre-Arrival'
                     : arrivalStage === 'entry-immigration'
@@ -257,6 +259,7 @@ export default function ArrivalIntelligence({
                 )}
               </div>
             </div>
+            </div>
 
             {arrivalStage !== 'pre-arrival' && (
               <div className="mt-2 flex items-center justify-between text-[11px] text-cyan-100/70">
@@ -282,7 +285,7 @@ export default function ArrivalIntelligence({
               {arrivalStage === 'pre-arrival' && (
                 <motion.div key="pre-arrival" className="space-y-3">
                   <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                    <h3 className="text-sm font-bold text-slate-800">Welcome to {cityName}</h3>
+                    <h2 className="text-md font-bold text-slate-800">Welcome to {cityName}</h2>
                     <p className="mt-2 text-xs text-slate-500">
                       Tap below once you&apos;ve landed to begin guided arrival.
                     </p>
@@ -326,30 +329,85 @@ export default function ArrivalIntelligence({
                       <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
                       <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
                       <InlineRow
-                        icon={<CheckCircle size={14} className="text-emerald-600" />}
-                        label="Transit Estimates"
-                        value={
-                          (() => {
-                            const taxiColon = taxiEstimateText.indexOf(':');
-                            const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
-                            const taxiValue = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
-                            const taxiMiddle = taxiBefore.replace(/^Taxi\s*/i, '').trim();
-                            const trainColon = trainEstimateText.indexOf(':');
-                            const trainValue = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
-                            return (
-                              <>
-                                <span className="font-bold">Taxi</span>
-                                <span>{taxiMiddle ? ` ${taxiMiddle}: ` : ' to city center: '}</span>
-                                <span className="font-bold">{taxiValue}</span>
-                                <br />
-                                <span className="font-bold">Rail</span>
-                                <span> to central zones: </span>
-                                <span className="font-bold">{trainValue}</span>
-                              </>
-                            );
-                          })()
-                        }
-                      />
+  icon={<CheckCircle size={14} className="text-emerald-600" />}
+  label="Transit Estimates"
+  value={
+    (() => {
+      const pipe = ' | ';
+      const taxiColon = taxiEstimateText.indexOf(':');
+      const taxiValueRaw = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
+      const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
+      const taxiMiddle = taxiBefore.replace(/^Taxi\s*\/?\s*/i, '').trim() || null;
+      
+      const trainColon = trainEstimateText.indexOf(':');
+      const trainValueRaw = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
+
+      const formatValue = (val: string) => {
+        const modes = val.split(pipe);
+        return (
+          <div className="flex flex-col gap-1"> 
+            {modes.map((mode, idx) => {
+              const parts = mode.trim().split(/(\(.*?\))/g);
+              return (
+                <div key={idx} className="flex flex-wrap items-center gap-x-1.5 justify-start">
+                  {parts.map((part, i) => {
+                    if (part.startsWith('(') && part.endsWith(')')) {
+                      return (
+                        <span key={i} className="text-orange-600 font-black text-[10px] uppercase tracking-tight">
+                          {part}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span key={i} className="font-bold text-slate-900 tabular-nums">
+                        {part}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+
+      return (
+        /* grid-cols-1 on mobile, 2 columns on desktop with fixed label width */
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr] sm:gap-y-3 sm:gap-x-2">
+          
+          {/* Taxi Label */}
+          <div className="flex items-center gap-1.5 self-start pt-0.5">
+            <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
+              Taxi
+            </span>
+            <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
+              {taxiMiddle ?? 'to center'}
+            </span>
+          </div>
+          {/* Taxi Data */}
+          <div className="text-sm">
+            {formatValue(taxiValueRaw)}
+          </div>
+
+          {/* Rail Label */}
+          <div className="flex items-center gap-1.5 self-start pt-0.5">
+            <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
+              Rail
+            </span>
+            <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
+              to zones
+            </span>
+          </div>
+          {/* Rail Data */}
+          <div className="text-sm">
+            {formatValue(trainValueRaw)}
+          </div>
+
+        </div>
+      );
+    })()
+  }
+/>
                       <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
                     </div>
                   </div>

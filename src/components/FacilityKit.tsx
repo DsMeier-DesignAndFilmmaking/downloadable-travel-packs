@@ -14,15 +14,20 @@ export default function FacilityKit({ data }: { data: FacilityIntel }) {
 
   return (
     <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm relative overflow-hidden group">
-      <div className="flex items-center gap-4 mb-6">
-      <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl transition-all duration-300">          
-        <SquareUser size={22} strokeWidth={2.5} aria-hidden="true" />
+<div className="flex items-center gap-4 mb-6">
+        <div className="p-2.5 bg-blue-50 text-blue-700 rounded-xl transition-all duration-300">          
+          <SquareUser size={22} strokeWidth={2.5} aria-hidden="true" />
         </div>
         <div>
           {/* ADA compliant headline - 14px */}
           <h4 className="text-[14px] font-black uppercase tracking-[0.15em] text-slate-900 leading-tight">
             Restroom Guide
           </h4>
+          
+          {/* New Subline - Subtle, italicized footnote style */}
+          <p className="text-[11px] font-medium italic text-slate-400 mt-0.5">
+            *Generally speaking
+          </p>
           
           {/* Audit: Casual, relatable sub-header - 11px
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1.5 border-t border-slate-100 pt-1">

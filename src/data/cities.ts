@@ -493,10 +493,10 @@ export const arrivalTacticalBySlug: Record<string, ArrivalTacticalIntel> = {
     },
     postLand: {
       connectivity: { wifiSsid: 'MEX-Internet', wifiPassword: 'Portal login (no password)' },
-      officialTransport: 'Authorized taxi stands and official ride-app pickup zones are the safest exits.',
+      officialTransport: 'Metrobús Line 4 (Terminal 1), Metro Line 5 (Terminal Aérea), Authorized Taxis',
       currencySimLocations: 'Telcel SIM counters and exchange/ATM points are in arrivals corridors.',
-      taxiEstimate: 'Authorized taxi/ride app to city center: ~300-450 MXN.',
-      trainEstimate: 'Metro + bus route: ~10-20 MXN with transfer overhead.',
+      taxiEstimate: 'Taxi/Uber to Zócalo: 15-20 mins | 250-450 MXN',
+      trainEstimate: 'Metrobús Line 4: 30 MXN (Req. Smart Card) | Metro: 5 MXN',
     },
   },
 }

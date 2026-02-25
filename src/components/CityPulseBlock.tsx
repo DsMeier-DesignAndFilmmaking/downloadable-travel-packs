@@ -128,134 +128,102 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
 
   return (
     <section className="space-y-3">
-      <h2 className="px-2 text-[12px] font-black uppercase tracking-[0.3em]">City Pulse</h2>
+  {/* Level 1: Header */}
+  <div className="flex items-center justify-between px-2">
+    <h2 className="text-[12px] font-black uppercase tracking-[0.3em] text-slate-600">City Pulse</h2>
+    {!isLoading && pulseData && pulseData.length > 0 && (
+      <button
+        type="button"
+        onClick={handleFetchPulse}
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50"
+      >
+        <RefreshCw size={13} />
+      </button>
+    )}
+  </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-cyan-200/20 bg-[linear-gradient(160deg,rgba(15,23,42,0.92),rgba(30,41,59,0.78))] p-5 shadow-[0_20px_40px_rgba(2,6,23,0.35)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.2),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.2),transparent_45%)]" />
-        <div className="relative z-10">
-        {isLoading && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">
-              Live City Pulse
-            </p>
-            <div className="space-y-2">
-              <div className="min-h-[104px] rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="h-3 w-2/5 animate-pulse rounded bg-slate-200" />
-                  <div className="h-3 w-1/4 animate-pulse rounded bg-slate-200" />
-                </div>
-                <div className="mt-3 grid place-items-center">
-                  <div className="relative h-12 w-12 overflow-hidden rounded-full border border-cyan-300/35 bg-slate-900/40">
-                    <span className="radar-ring absolute inset-0 rounded-full border border-cyan-300/55" />
-                    <span className="radar-ring radar-ring-delay absolute inset-1 rounded-full border border-purple-300/45" />
-                    <span className="radar-sweep-arm absolute left-1/2 top-1/2 h-[40%] w-[2px]">
-                      <span className="radar-sweep-line block h-full w-full rounded-full bg-gradient-to-t from-cyan-300/0 via-cyan-200 to-cyan-300" />
-                    </span>
-                    <span className="absolute inset-[36%] rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
-                  </div>
-                </div>
-                <p className="mt-3 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-                  Scanning local signals...
-                </p>
-                <div className="mt-2 h-2.5 overflow-hidden rounded-full border border-slate-200 bg-slate-100">
-                  <div className="decrypt-bar h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-500" />
-                </div>
-              </div>
-            </div>
+  {/* Level 2: Content State (Flattened) */}
+  <div className="space-y-2">
+    {/* --- LOADING STATE --- */}
+    {isLoading && (
+      <div className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Live City Pulse</p>
+          <div className="h-3 w-1/4 animate-pulse rounded bg-slate-100" />
+        </div>
+        <div className="mt-4 grid place-items-center">
+          <div className="relative h-12 w-12 overflow-hidden rounded-full border border-cyan-100 bg-slate-50">
+            <span className="radar-ring absolute inset-0 rounded-full border border-cyan-300/55" />
+            <span className="radar-sweep-arm absolute left-1/2 top-1/2 h-[40%] w-[2px] origin-bottom">
+              <span className="radar-sweep-line block h-full w-full rounded-full bg-cyan-400" />
+            </span>
+            <span className="absolute inset-[36%] rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
           </div>
-        )}
-
-        {!isLoading && pulseData && pulseData.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-100/80">Intelligence Snippets</p>
-              <button
-                type="button"
-                onClick={handleFetchPulse}
-                aria-label="Refresh city pulse"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-cyan-200/30 bg-white/10 text-cyan-100 transition-colors hover:bg-white/20"
-              >
-                <RefreshCw size={13} />
-              </button>
-            </div>
-            <div className="space-y-2">
-              {pulseData.map((snippet, index) => {
-                const headline = trimHeadline(snippet.title);
-                const isSafety = snippet.urgency || snippet.type === 'safety';
-
-                return (
-                  <motion.a
-                    key={`${snippet.title}-${snippet.publishedAt ?? snippet.source}`}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: index * 0.06 }}
-                    href={snippet.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block min-h-[104px] rounded-xl border border-neutral-200 border-l-4 bg-white p-4 md:p-5 transition-colors hover:bg-slate-50 ${
-                      isSafety
-                        ? 'border-l-red-500 shadow-[0_0_15px_rgba(239,68,68,0.2)]'
-                        : 'border-l-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={`inline-flex h-2.5 w-2.5 shrink-0 rounded-full ${
-                            isSafety
-                              ? 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.55)]'
-                              : 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.55)]'
-                          }`}
-                          aria-hidden="true"
-                        />
-                        <span className="truncate font-mono text-[10px] font-black uppercase tracking-[0.14em] text-slate-600">
-                          {snippet.source || 'Feed'}
-                        </span>
-                      </div>
-                      <div className="shrink-0 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                        <Clock3 size={11} />
-                        <span>{toTimeAgo(snippet.publishedAt)}</span>
-                        <ArrowUpRight size={12} />
-                      </div>
-                    </div>
-                    <p className="mt-3 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-                      {headline}
-                    </p>
-                  </motion.a>
-                );
-              })}
-            </div>
-            {errorMessage && (
-              <p className="text-xs font-medium tracking-[0.01em] text-cyan-100/70 leading-relaxed">{errorMessage}</p>
-            )}
-          </div>
-        )}
-
-        {!isLoading && (!pulseData || pulseData.length === 0) && (
-          <div className="min-h-[104px] rounded-xl border border-neutral-200 border-l-4 border-l-emerald-500 bg-white p-4 md:p-5 shadow-[0_0_12px_rgba(16,185,129,0.18)]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" aria-hidden="true" />
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                  SYSTEM STATUS
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleFetchPulse}
-                aria-label="Refresh city pulse"
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-emerald-200 text-emerald-700 transition-colors hover:bg-emerald-50"
-              >
-                <RefreshCw size={13} />
-              </button>
-            </div>
-            <p className="mt-3 text-sm md:text-[15px] tracking-[0.01em] font-semibold text-emerald-900 leading-relaxed">
-              {`Nominal. No major transit or safety alerts for ${cityName}.`}
-            </p>
-          </div>
-        )}
+          <p className="mt-4 text-sm font-semibold text-slate-900">Scanning local signals...</p>
+        </div>
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100">
+          <div className="decrypt-bar h-full rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500" />
         </div>
       </div>
-    </section>
+    )}
+
+    {/* --- ACTIVE FEED --- */}
+    {!isLoading && pulseData && pulseData.length > 0 && (
+      <>
+        {pulseData.map((snippet, index) => {
+          const headline = trimHeadline(snippet.title);
+          const isSafety = snippet.urgency || snippet.type === 'safety';
+
+          return (
+            <motion.a
+              key={`${snippet.title}-${index}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.05 }}
+              href={snippet.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`block rounded-xl border-l-4 bg-white p-4 shadow-sm border border-neutral-200 transition-all active:scale-[0.98] ${
+                isSafety ? 'border-l-red-500' : 'border-l-cyan-500'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className={`h-2 w-2 rounded-full ${isSafety ? 'bg-red-500 animate-pulse' : 'bg-cyan-500'}`} />
+                  <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    {snippet.source || 'Local Intelligence'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase">
+                  <Clock3 size={10} />
+                  <span>{toTimeAgo(snippet.publishedAt)}</span>
+                </div>
+              </div>
+              <p className="text-[14px] font-bold text-slate-900 leading-snug">
+                {headline}
+              </p>
+            </motion.a>
+          );
+        })}
+        {errorMessage && <p className="px-2 text-[10px] font-bold text-red-500 uppercase">{errorMessage}</p>}
+      </>
+    )}
+
+    {/* --- EMPTY/NOMINAL STATE --- */}
+    {!isLoading && (!pulseData || pulseData.length === 0) && (
+      <div className="rounded-xl border border-neutral-200 border-l-4 border-l-emerald-500 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+          <p className="font-mono text-[10px] font-black uppercase tracking-widest text-emerald-600">
+            System Status: Nominal
+          </p>
+        </div>
+        <p className="mt-3 text-[14px] font-bold text-slate-900 leading-relaxed">
+          {`No major transit or safety alerts for ${cityName}. Local signals are stable.`}
+        </p>
+      </div>
+    )}
+  </div>
+</section>
   );
 }

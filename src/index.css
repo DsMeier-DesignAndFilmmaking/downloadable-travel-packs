@@ -103,3 +103,32 @@ html {
   .cyber-border-pulse {
     animation: cyber-pulse 2.2s ease-in-out infinite;
   }
+
+  /* Add to the bottom of your /src/index.css */
+
+@media (max-width: 640px) {
+  html {
+    /* Increases the base 16px to roughly 18.4px */
+    font-size: 115%; 
+  }
+
+  /* Specific legibility for the tactical intelligence blocks */
+  .arrival-section-container p,
+  .pulse-intelligence-item p {
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+  }
+  
+  /* Make "Level 1" labels punchier on mobile */
+  .text-terminal-label {
+    font-size: 0.85rem; 
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Reset for Tablet/Desktop to keep your original design */
+@media (min-width: 641px) {
+  html {
+    font-size: 100%;
+  }
+}
