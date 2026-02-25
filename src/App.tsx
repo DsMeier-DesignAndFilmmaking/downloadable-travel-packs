@@ -9,7 +9,7 @@ import {
 import { AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
 
-import posthog from './lib/analytics'
+import { posthogClient as posthog } from './lib/analytics'
 
 // Views
 import HomePage from './pages/HomePage';

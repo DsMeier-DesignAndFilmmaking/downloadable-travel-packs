@@ -1,20 +1,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
-import posthog from 'posthog-js'
+import { posthogClient as posthog } from './lib/analytics'
 import { PostHogProvider } from '@posthog/react'
 
 import App from './App'
 import './index.css'
-
-// 1. Initialize PostHog before the React tree renders
-// Replace the placeholder strings with your actual project key and host
-if (typeof window !== 'undefined') {
-  posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com',
-    person_profiles: 'identified_only', // Recommended for newer PostHog versions
-  })
-}
 
 const SW_READY_TIMEOUT_MS = 2500
 

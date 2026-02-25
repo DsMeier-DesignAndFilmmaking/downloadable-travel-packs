@@ -1,61 +1,61 @@
 // /src/lib/analytics.ts
-
 import posthog from 'posthog-js'
 
-// --------------------------------------------------
-// Safe Initialization
-// --------------------------------------------------
-
+// -----------------------------
+// Environment variables
+// -----------------------------
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY
-const POSTHOG_HOST =
-  import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com'
+const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com'
 
+// -----------------------------
+// Initialize PostHog
+// -----------------------------
 if (!POSTHOG_KEY) {
   console.warn('⚠️ PostHog key missing — analytics disabled')
 } else {
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     persistence: 'localStorage',
+    capture_pageview: false, // SPA controlled manually
+    autocapture: false,      // manual control
 
-    // SPA controlled manually
-    capture_pageview: false,
-    autocapture: false,
+    // DEV-only flush settings for immediate Live Events
+    ...(import.meta.env.DEV ? { flushAt: 1, flushInterval: 100 } as any : {}),
 
-    // Optional but recommended
+    // recommended for newer PostHog versions
+    person_profiles: 'identified_only',
+
     loaded: (ph) => {
       if (import.meta.env.DEV) {
-        console.log('PostHog loaded:', ph.get_distinct_id())
+        console.log('✅ PostHog loaded. Distinct ID:', ph.get_distinct_id())
       }
     },
   })
 }
 
-// Expose ONLY in development
+// Expose globally only in development for debugging
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   ;(window as any).posthog = posthog
 }
 
-export default posthog
+// Named export for TS safety
+export { posthog as posthogClient }
 
-// --------------------------------------------------
+// -----------------------------
 // Session Handling
-// --------------------------------------------------
-
+// -----------------------------
 export function getSessionId(): string {
   let sessionId = localStorage.getItem('tp_session_id')
-
   if (!sessionId) {
     sessionId = crypto.randomUUID()
     localStorage.setItem('tp_session_id', sessionId)
   }
-
   return sessionId
 }
 
-// --------------------------------------------------
+// -----------------------------
 // Centralized Capture Wrapper
-// --------------------------------------------------
-
+// -----------------------------
 export function captureEvent(
   eventName: string,
   properties: Record<string, unknown> = {},
@@ -70,30 +70,24 @@ export function captureEvent(
   })
 }
 
-// --------------------------------------------------
+// -----------------------------
 // Structured Events
-// --------------------------------------------------
-
+// -----------------------------
 export function trackHomepageView(): void {
   captureEvent('homepage_viewed')
 }
 
 export function trackCityPackView(cityName: string): void {
-  captureEvent('city_pack_viewed', {
-    city_name: cityName,
-  })
+  captureEvent('city_pack_viewed', { city_name: cityName })
 }
 
 export function trackAddToDevice(cityName: string): void {
-  captureEvent('add_to_device_clicked', {
-    city_name: cityName,
-  })
+  captureEvent('add_to_device_clicked', { city_name: cityName })
 }
 
-// --------------------------------------------------
-// Page Duration Tracker (Improved)
-// --------------------------------------------------
-
+// -----------------------------
+// Page Duration Tracker
+// -----------------------------
 export class PageTimer {
   private startTime: number
   private pageName: 'homepage' | 'city_pack'
@@ -104,6 +98,7 @@ export class PageTimer {
     this.cityName = cityName
     this.startTime = Date.now()
 
+    // Send duration on tab close or hide
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         this.sendDuration()
@@ -120,7 +115,7 @@ export class PageTimer {
         : 'city_pack_duration',
       {
         duration_ms: durationMs,
-        city_name: this.cityName,
+        ...(this.cityName ? { city_name: this.cityName } : {}),
       },
     )
   }

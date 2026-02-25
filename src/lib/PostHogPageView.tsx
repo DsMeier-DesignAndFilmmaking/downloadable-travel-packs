@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import posthog from './analytics'
+import { posthogClient } from './analytics'
 
 export default function PostHogPageView() {
   const location = useLocation()
 
   useEffect(() => {
-    posthog.capture('$pageview', {
+    posthogClient.capture('$pageview', {
       path: location.pathname,
     })
   }, [location])
