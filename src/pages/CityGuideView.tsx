@@ -37,7 +37,7 @@ import SunSafetyAlert from '@/components/SunSafetyAlert';
 import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
-import BorderStatusCard from '@/components/arrival/BorderStatusCard';
+import EntryAdvisoryBanner from '@/components/arrival/EntryAdvisoryBanner';
 import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
 import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard';
@@ -59,7 +59,11 @@ function balanceText(text: string): string {
   return `${words.slice(0, -2).join(' ')} ${tail}`;
 }
 
-export type ArrivalStage = 'immigration' | 'airport-exit' | 'left-airport';
+export type ArrivalStage =
+  | 'pre-arrival'
+  | 'entry-immigration'
+  | 'airport-exit'
+  | 'left-airport';
 
 // ---------------------------------------------------------------------------
 // IndexedDB: persist city pack after load
@@ -723,8 +727,7 @@ export default function CityGuideView() {
   const [climatePulseSafetyWarning, setClimatePulseSafetyWarning] = useState(false);
   const [showSunAlert, setShowSunAlert] = useState(false);
   const [hasSeenAlert, setHasSeenAlert] = useState(false);
-  const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('immigration');
-  const [isLandedHydrated, setIsLandedHydrated] = useState(false);
+  const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('pre-arrival');
 
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
@@ -942,6 +945,12 @@ export default function CityGuideView() {
     posthog,
   ]);
 
+  const handleConfirmArrival = useCallback(() => {
+    setArrivalStage('entry-immigration');
+    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
+    window.localStorage.setItem(landedStatusStorageKey, 'entry-immigration');
+  }, [landedStatusStorageKey]);
+
   const handleMarkLanded = useCallback(() => {
     setArrivalStage('airport-exit');
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
@@ -955,7 +964,7 @@ export default function CityGuideView() {
   }, [landedStatusStorageKey]);
 
   const handleResetLandedStatus = useCallback(() => {
-    setArrivalStage('immigration');
+    setArrivalStage('pre-arrival');
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
     window.localStorage.removeItem(landedStatusStorageKey);
   }, [landedStatusStorageKey]);
@@ -976,48 +985,17 @@ export default function CityGuideView() {
     setDismissedInstallBanner(false);
     setShowSunAlert(false);
     setHasSeenAlert(false);
-    setArrivalStage('immigration');
-    setIsLandedHydrated(false);
+    setArrivalStage('pre-arrival');
   }, [cleanSlug]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !landedStatusStorageKey) {
-      setArrivalStage('immigration');
-      setIsLandedHydrated(true);
-      return;
-    }
-
-    setIsLandedHydrated(false);
-    const saved = window.localStorage.getItem(landedStatusStorageKey);
-    const stage: ArrivalStage =
-      saved === 'airport-exit' || saved === 'left-airport'
-        ? saved
-        : saved === '1' || saved === 'true'
-          ? 'airport-exit'
-          : 'immigration';
-    setArrivalStage(stage);
-    setIsLandedHydrated(true);
-  }, [landedStatusStorageKey]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !landedStatusStorageKey || !isLandedHydrated) return;
-    if (arrivalStage === 'immigration') {
+    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
+    if (arrivalStage === 'pre-arrival') {
       window.localStorage.removeItem(landedStatusStorageKey);
       return;
     }
     window.localStorage.setItem(landedStatusStorageKey, arrivalStage);
-  }, [arrivalStage, isLandedHydrated, landedStatusStorageKey]);
-
-  // Optional timed auto-suggestion: airport-exit → left-airport after 75s (no new localStorage logic)
-  useEffect(() => {
-    if (arrivalStage !== 'airport-exit') return;
-
-    const timer = setTimeout(() => {
-      setArrivalStage('left-airport');
-    }, 75000);
-
-    return () => clearTimeout(timer);
-  }, [arrivalStage]);
+  }, [arrivalStage, landedStatusStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1330,14 +1308,14 @@ export default function CityGuideView() {
         {cityData.arrival && (
           <section id="arrival" className="scroll-mt-6 pb-2 md:pb-4">
             <div className="space-y-4 pt-2">
-              <BorderStatusCard
-                visaText={arrivalVisaStatus}
-                live={!!visaData}
-                source={cityData.arrival?.borderStatus?.source ?? integritySource}
-                lastChecked={cityData.arrival?.borderStatus?.last_checked ?? integrityLastVerified}
-                summaryNote={cityData.arrival?.borderStatus?.summary_note}
-                offlineFallback={cityData.arrival?.borderStatus?.offline_fallback}
-              />
+              <div className="mb-6">
+                <EntryAdvisoryBanner
+                  summary={arrivalVisaStatus}
+                  source={integritySource}
+                  lastChecked={integrityLastVerified}
+                  isLive={!!visaData}
+                />
+              </div>
               <ArrivalIntelligence
                 key={cleanSlug ?? cityData.slug}
                 citySlug={cleanSlug ?? cityData.slug}
@@ -1345,9 +1323,8 @@ export default function CityGuideView() {
                 source={integritySource}
                 lastUpdated={integrityLastVerified}
                 isLive={!!visaData}
-                hasLanded={arrivalStage !== 'immigration'}
+                hasLanded={arrivalStage === 'airport-exit' || arrivalStage === 'left-airport'}
                 arrivalStage={arrivalStage}
-                isLandedHydrated={isLandedHydrated}
                 visaStatus={arrivalVisaStatus}
                 visaLoading={isApiLoading}
                 visaError={visaFetchError}
@@ -1360,6 +1337,7 @@ export default function CityGuideView() {
                 currencySimLocations={arrivalTacticalIntel?.postLand.currencySimLocations}
                 taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
                 trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
+                onConfirmArrival={handleConfirmArrival}
                 onMarkLanded={handleMarkLanded}
                 onProceedToCity={handleProceedToCity}
                 onResetStatus={handleResetLandedStatus}

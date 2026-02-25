@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, Navigation, Plane, Wifi, RotateCcw } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -7,7 +6,11 @@ import CityPulseBlock from '@/components/CityPulseBlock';
 
 // --- TYPES & HELPERS ---
 
-type ArrivalStage = 'immigration' | 'airport-exit' | 'left-airport';
+type ArrivalStage =
+  | 'pre-arrival'
+  | 'entry-immigration'
+  | 'airport-exit'
+  | 'left-airport';
 
 type ArrivalIntelligenceProps = {
   citySlug: string;
@@ -17,7 +20,6 @@ type ArrivalIntelligenceProps = {
   isLive: boolean;
   hasLanded: boolean;
   arrivalStage: ArrivalStage;
-  isLandedHydrated: boolean;
   visaStatus: string;
   visaLoading: boolean;
   visaError?: string | null;
@@ -30,6 +32,7 @@ type ArrivalIntelligenceProps = {
   currencySimLocations?: string;
   taxiEstimate?: string;
   trainEstimate?: string;
+  onConfirmArrival: () => void;
   onMarkLanded: () => void;
   onProceedToCity: () => void;
   onResetStatus: () => void;
@@ -50,7 +53,7 @@ function InlineRow({
 }: {
   icon: ReactNode;
   label: string;
-  value: string;
+  value: ReactNode; 
   bordered?: boolean;
 }) {
   return (
@@ -58,9 +61,10 @@ function InlineRow({
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div className="min-w-0">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>
-        <p className="mt-0.5 text-sm md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-          {balanceText(value)}
-        </p>
+        {/* font-normal base allows our nested bolds to stand out */}
+        <div className="mt-0.5 text-sm md:text-[15px] tracking-[0.01em] font-normal text-[#222222] leading-relaxed">
+          {typeof value === 'string' ? balanceText(value) : value}
+        </div>
       </div>
     </div>
   );
@@ -76,7 +80,6 @@ export default function ArrivalIntelligence({
   isLive,
   hasLanded,
   arrivalStage,
-  isLandedHydrated,
   visaStatus,
   visaLoading,
   visaError,
@@ -89,34 +92,21 @@ export default function ArrivalIntelligence({
   currencySimLocations,
   taxiEstimate,
   trainEstimate,
+  onConfirmArrival,
   onMarkLanded,
   onProceedToCity,
   onResetStatus,
 }: ArrivalIntelligenceProps) {
-  const immigrationRef = useRef<HTMLDivElement | null>(null);
-
-  const stageOrder: ArrivalStage[] = [
-    'immigration',
+  const progressStageOrder: ArrivalStage[] = [
+    'entry-immigration',
     'airport-exit',
     'left-airport',
   ];
-  const currentStageIndex = stageOrder.indexOf(arrivalStage) + 1;
-  const totalStages = stageOrder.length;
-
-  useEffect(() => {
-    if (arrivalStage !== 'immigration') return;
-
-    const handleScroll = () => {
-      if (!immigrationRef.current) return;
-      const rect = immigrationRef.current.getBoundingClientRect();
-      if (rect.bottom < window.innerHeight * 0.6) {
-        onMarkLanded();
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [arrivalStage, onMarkLanded]);
+  const currentStageIndex =
+    arrivalStage === 'pre-arrival'
+      ? 0
+      : progressStageOrder.indexOf(arrivalStage) + 1;
+  const totalStages = progressStageOrder.length;
 
   const strategyText = preLandStrategy?.trim() || 'Confirm entry requirements and keep passport validity.';
   const laneText = laneSelection?.trim() || 'Use official airport lane signage.';
@@ -153,18 +143,20 @@ export default function ArrivalIntelligence({
                 <Plane size={20} className="text-cyan-100 shrink-0" />
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-black text-cyan-100 text-xs uppercase tracking-widest whitespace-nowrap">
-                    {arrivalStage === 'immigration'
-                      ? 'Entry & Immigration'
-                      : arrivalStage === 'airport-exit'
-                        ? 'Airport Exit'
-                        : `En Route to ${cityName}`}
+                    {arrivalStage === 'pre-arrival'
+                      ? 'Pre-Arrival'
+                      : arrivalStage === 'entry-immigration'
+                        ? 'Entry & Immigration'
+                        : arrivalStage === 'airport-exit'
+                          ? 'Airport Exit'
+                          : `En Route to ${cityName}`}
                   </span>
                   <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
                 </div>
               </div>
 
               {/* TOP RIGHT RESET BUTTON */}
-              {arrivalStage !== 'immigration' && (
+              {arrivalStage !== 'pre-arrival' && (
                 <button
                   type="button"
                   onClick={onResetStatus}
@@ -176,34 +168,48 @@ export default function ArrivalIntelligence({
               )}
             </div>
 
-            <div className="mt-2 flex items-center justify-between text-[11px] text-cyan-100/70">
-              <span className="uppercase tracking-[0.14em]">
-                Stage {currentStageIndex} of {totalStages}
-              </span>
-              <div className="flex items-center gap-1">
-                {stageOrder.map((_, index) => (
-                  <span
-                    key={index}
-                    className={
-                      index + 1 <= currentStageIndex
-                        ? 'h-1.5 w-6 rounded-full bg-cyan-300'
-                        : 'h-1.5 w-6 rounded-full bg-cyan-300/30'
-                    }
-                  />
-                ))}
+            {arrivalStage !== 'pre-arrival' && (
+              <div className="mt-2 flex items-center justify-between text-[11px] text-cyan-100/70">
+                <span className="uppercase tracking-[0.14em]">
+                  Stage {currentStageIndex} of {totalStages}
+                </span>
+                <div className="flex items-center gap-1">
+                  {progressStageOrder.map((_, index) => (
+                    <span
+                      key={index}
+                      className={
+                        index + 1 <= currentStageIndex
+                          ? 'h-1.5 w-6 rounded-full bg-cyan-300'
+                          : 'h-1.5 w-6 rounded-full bg-cyan-300/30'
+                      }
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <AnimatePresence mode="wait" initial={false}>
-              {!isLandedHydrated && (
-                <motion.div key="loading" className="rounded-xl border border-neutral-200 bg-white p-4">
-                  <p className="text-sm font-medium text-slate-500 animate-pulse">Syncing arrival status...</p>
+              {arrivalStage === 'pre-arrival' && (
+                <motion.div key="pre-arrival" className="space-y-3">
+                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                    <h3 className="text-sm font-bold text-slate-800">Welcome to {cityName}</h3>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Tap below once you&apos;ve landed to begin guided arrival.
+                    </p>
+                  </div>
+                  <motion.button
+                    type="button"
+                    onClick={onConfirmArrival}
+                    whileTap={{ scale: 0.98 }}
+                    className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
+                  >
+                    Confirm Arrival
+                  </motion.button>
                 </motion.div>
               )}
 
-              {arrivalStage === 'immigration' && (
-                <div ref={immigrationRef}>
-                  <motion.div key="stage-1" className="space-y-3">
+              {arrivalStage === 'entry-immigration' && (
+                <motion.div key="stage-1" className="space-y-3">
                     <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
                       <div className="mt-3 space-y-0.5">
                         <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Visa Requirement" value={displayVisaStatus} />
@@ -220,68 +226,89 @@ export default function ArrivalIntelligence({
                       I've Cleared Customs!
                     </motion.button>
                   </motion.div>
-                </div>
               )}
 
-              {(arrivalStage === 'airport-exit' || arrivalStage === 'left-airport') && (
-                <motion.div key="stage-2-3" className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
-                  {arrivalStage === 'airport-exit' && (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">GROUND ORIENTATION</p>
-                        <div className="mt-3 space-y-1">
-                          <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Pass: ${wifiPasswordText}`} />
-                          <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
-                          <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Transit Estimates" value={`Taxi: ${taxiEstimateText} • Train: ${trainEstimateText}`} />
-                          <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
-                        </div>
-                      </div>
-                      <motion.button
-                        onClick={onProceedToCity}
-                        whileTap={{ scale: 0.98 }}
-                        className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white"
-                      >
-                        I've Left the Airport
-                      </motion.button>
+              {arrivalStage === 'airport-exit' && (
+                <motion.div key="stage-2" className="space-y-3">
+                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">GROUND ORIENTATION</p>
+                    <div className="mt-3 space-y-1">
+                      <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
+                      <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
+                      <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Transit Estimates"
+                        value={
+                          (() => {
+                            const taxiColon = taxiEstimateText.indexOf(':');
+                            const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
+                            const taxiValue = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
+                            const taxiMiddle = taxiBefore.replace(/^Taxi\s*/i, '').trim();
+                            const trainColon = trainEstimateText.indexOf(':');
+                            const trainValue = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
+                            return (
+                              <>
+                                <span className="font-bold">Taxi</span>
+                                <span>{taxiMiddle ? ` ${taxiMiddle}: ` : ' to city center: '}</span>
+                                <span className="font-bold">{taxiValue}</span>
+                                <br />
+                                <span className="font-bold">Rail</span>
+                                <span> to central zones: </span>
+                                <span className="font-bold">{trainValue}</span>
+                              </>
+                            );
+                          })()
+                        }
+                      />
+                      <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
                     </div>
-                  )}
+                  </div>
+                  <motion.button
+                    onClick={onProceedToCity}
+                    whileTap={{ scale: 0.98 }}
+                    className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+                  >
+                    I've Left the Airport
+                  </motion.button>
+                </motion.div>
+              )}
 
-                  {arrivalStage === 'left-airport' && (
-                    <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                        CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500 font-medium">
-                        Understand the social layout before committing time or money.
-                      </p>
-                      <div className="mt-3 space-y-0.5">
-                        <InlineRow
-                          icon={<CheckCircle size={14} className="text-emerald-600" />}
-                          label="Tourist Clusters"
-                          value="High-traffic zones with elevated pricing."
-                        />
-                        <InlineRow
-                          icon={<CheckCircle size={14} className="text-emerald-600" />}
-                          label="Local Districts"
-                          value="Primarily residential and culturally authentic."
-                        />
-                        <InlineRow
-                          icon={<CheckCircle size={14} className="text-emerald-600" />}
-                          label="Feels Unsafe vs Is Unsafe"
-                          value="Differentiate perception from crime statistics."
-                        />
-                        <InlineRow
-                          icon={<CheckCircle size={14} className="text-emerald-600" />}
-                          label="Gentrified vs Historic"
-                          value="Recently commercialized vs culturally rooted areas."
-                          bordered={false}
-                        />
-                      </div>
-                      <div className="mt-4 pt-3 border-t border-neutral-100">
-                        <CityPulseBlock citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
-                      </div>
+              {arrivalStage === 'left-airport' && (
+                <motion.div key="stage-3" className="space-y-3">
+                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                      CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 font-medium">
+                      Understand the social layout before committing time or money.
+                    </p>
+                    <div className="mt-3 space-y-0.5">
+                      <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Tourist Clusters"
+                        value="High-traffic zones with elevated pricing."
+                      />
+                      <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Local Districts"
+                        value="Primarily residential and culturally authentic."
+                      />
+                      <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Feels Unsafe vs Is Unsafe"
+                        value="Differentiate perception from crime statistics."
+                      />
+                      <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Gentrified vs Historic"
+                        value="Recently commercialized vs culturally rooted areas."
+                        bordered={false}
+                      />
                     </div>
-                  )}
+                    <div className="mt-4 pt-3 border-t border-neutral-100">
+                      <CityPulseBlock citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>

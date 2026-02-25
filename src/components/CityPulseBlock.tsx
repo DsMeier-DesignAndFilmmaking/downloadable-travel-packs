@@ -128,7 +128,7 @@ export default function CityPulseBlock({ citySlug, cityName, hasLanded }: CityPu
 
   return (
     <section className="space-y-3">
-      <h2 className="px-2 text-[12px] font-black text-cyan-100 uppercase tracking-[0.3em]">City Pulse</h2>
+      <h2 className="px-2 text-[12px] font-black uppercase tracking-[0.3em]">City Pulse</h2>
 
       <div className="relative overflow-hidden rounded-2xl border border-cyan-200/20 bg-[linear-gradient(160deg,rgba(15,23,42,0.92),rgba(30,41,59,0.78))] p-5 shadow-[0_20px_40px_rgba(2,6,23,0.35)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(34,211,238,0.2),transparent_40%),radial-gradient(circle_at_85%_0%,rgba(168,85,247,0.2),transparent_45%)]" />
