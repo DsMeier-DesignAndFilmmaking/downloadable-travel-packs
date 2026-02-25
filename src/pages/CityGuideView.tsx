@@ -44,7 +44,10 @@ import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard'
 import SpontaneityEnginePromo from '@/components/SpontaneityEnginePromo';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
+import { getAirportArrivalInfo } from '@/data/multiAirport';
 import { performGlobalReset } from '@/utils/appReset';
+import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
+import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import { usePostHog } from '@posthog/react';
 
@@ -728,7 +731,9 @@ export default function CityGuideView() {
   const [showSunAlert, setShowSunAlert] = useState(false);
   const [hasSeenAlert, setHasSeenAlert] = useState(false);
   const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('pre-arrival');
+  const [showAirportModal, setShowAirportModal] = useState(false);
 
+  const { getAirport, setAirport, needsSelection, getOptions } = useSelectedAirport();
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
@@ -866,6 +871,44 @@ export default function CityGuideView() {
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
     [cleanSlug],
   );
+  const selectedAirportCode = useMemo(
+    () => (cleanSlug ? getAirport(cleanSlug) : null),
+    [cleanSlug, getAirport],
+  );
+  const airportArrivalInfo = useMemo(
+    () =>
+      cleanSlug && selectedAirportCode
+        ? getAirportArrivalInfo(cleanSlug, selectedAirportCode)
+        : undefined,
+    [cleanSlug, selectedAirportCode],
+  );
+  const airportOptions = useMemo(
+    () => (cleanSlug ? getOptions(cleanSlug) : []),
+    [cleanSlug, getOptions],
+  );
+  const hasMultiAirport = airportOptions.length > 0;
+
+  useEffect(() => {
+    if (!cityData || !cleanSlug) return;
+    if (getOptions(cleanSlug).length === 0) {
+      setShowAirportModal(false);
+      return;
+    }
+    if (needsSelection(cleanSlug)) setShowAirportModal(true);
+  }, [cityData, cleanSlug, needsSelection, getOptions]);
+
+  const handleAirportSelect = useCallback(
+    (code: string) => {
+      if (!cleanSlug) return;
+      setAirport(cleanSlug, code);
+      captureEvent(posthog, 'airport_selected', {
+        city: cityData?.name ?? 'Mexico City',
+        airport: code,
+      });
+    },
+    [cleanSlug, cityData?.name, setAirport, posthog],
+  );
+
   const preLandStrategy = useMemo(() => {
     return (
       arrivalTacticalIntel?.preLand.strategy ||
@@ -1316,6 +1359,13 @@ export default function CityGuideView() {
                   isLive={!!visaData}
                 />
               </div>
+              <AirportSelectionModal
+                isOpen={showAirportModal}
+                onClose={() => setShowAirportModal(false)}
+                cityName={cityData?.name ?? 'Mexico City'}
+                options={airportOptions}
+                onSelect={handleAirportSelect}
+              />
               <ArrivalIntelligence
                 key={cleanSlug ?? cityData.slug}
                 citySlug={cleanSlug ?? cityData.slug}
@@ -1331,12 +1381,16 @@ export default function CityGuideView() {
                 digitalEntry={cityData.survival?.digitalEntry}
                 preLandStrategy={preLandStrategy}
                 laneSelection={preLandLaneSelection}
-                wifiSsid={arrivalTacticalIntel?.postLand.connectivity.wifiSsid}
-                wifiPassword={arrivalTacticalIntel?.postLand.connectivity.wifiPassword}
-                officialTransport={arrivalTacticalIntel?.postLand.officialTransport}
-                currencySimLocations={arrivalTacticalIntel?.postLand.currencySimLocations}
-                taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
-                trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
+                wifiSsid={airportArrivalInfo?.wifiSsid ?? arrivalTacticalIntel?.postLand.connectivity.wifiSsid}
+                wifiPassword={airportArrivalInfo?.wifiPassword ?? arrivalTacticalIntel?.postLand.connectivity.wifiPassword}
+                officialTransport={airportArrivalInfo?.officialTransport ?? arrivalTacticalIntel?.postLand.officialTransport}
+                currencySimLocations={airportArrivalInfo?.currencySimLocations ?? arrivalTacticalIntel?.postLand.currencySimLocations}
+                taxiEstimate={airportArrivalInfo?.taxiEstimate ?? arrivalTacticalIntel?.postLand.taxiEstimate}
+                trainEstimate={airportArrivalInfo?.trainEstimate ?? arrivalTacticalIntel?.postLand.trainEstimate}
+                selectedAirportCode={hasMultiAirport ? selectedAirportCode ?? undefined : undefined}
+                airportArrivalInfo={airportArrivalInfo}
+                airportOptions={hasMultiAirport ? airportOptions : undefined}
+                onAirportChange={hasMultiAirport ? handleAirportSelect : undefined}
                 onConfirmArrival={handleConfirmArrival}
                 onMarkLanded={handleMarkLanded}
                 onProceedToCity={handleProceedToCity}

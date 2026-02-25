@@ -24,6 +24,7 @@ import SettingsView from './pages/SettingsView';
 // Components
 import PageTransition from './components/PageTransition';
 import Footer from './components/Footer';
+import { SelectedAirportProvider } from './contexts/SelectedAirportContext';
 
 /**
  * AnimatedRoutes with scroll restoration
@@ -178,14 +179,16 @@ function PWAStandaloneRedirect() {
 export default function App() {
   return (
     <Router>
-      <PWAStandaloneRedirect />
-      <div className="flex flex-col min-h-screen bg-[#F7F7F7]">
-        <main className="flex-grow">
-          <AnimatedRoutes />
-        </main>
+      <SelectedAirportProvider>
+        <PWAStandaloneRedirect />
+        <div className="flex flex-col min-h-screen bg-[#F7F7F7]">
+          <main className="flex-grow">
+            <AnimatedRoutes />
+          </main>
 
-        <Footer />
-      </div>
+          <Footer />
+        </div>
+      </SelectedAirportProvider>
     </Router>
   );
 }

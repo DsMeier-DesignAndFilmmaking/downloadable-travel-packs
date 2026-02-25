@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, Navigation, Plane, Wifi, RotateCcw } from 'lucide-react';
+import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, RotateCcw } from 'lucide-react';
 import type { ReactNode } from 'react';
 import SourceInfo from '@/components/SourceInfo';
 import CityPulseBlock from '@/components/CityPulseBlock';
+import type { AirportArrivalInfo } from '@/data/multiAirport';
 
 // --- TYPES & HELPERS ---
 
@@ -36,6 +38,14 @@ type ArrivalIntelligenceProps = {
   onMarkLanded: () => void;
   onProceedToCity: () => void;
   onResetStatus: () => void;
+  /** Multi-airport: selected code (e.g. MEX, TLC, NLU) */
+  selectedAirportCode?: string;
+  /** Multi-airport: dynamic arrival content for selected airport */
+  airportArrivalInfo?: AirportArrivalInfo;
+  /** Multi-airport: options for dropdown */
+  airportOptions?: { code: string; name: string; distanceToCenter?: string }[];
+  /** Multi-airport: called when user changes airport from dropdown */
+  onAirportChange?: (code: string) => void;
 };
 
 function balanceText(text: string): string {
@@ -96,7 +106,12 @@ export default function ArrivalIntelligence({
   onMarkLanded,
   onProceedToCity,
   onResetStatus,
+  selectedAirportCode,
+  airportArrivalInfo,
+  airportOptions,
+  onAirportChange,
 }: ArrivalIntelligenceProps) {
+  const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
   const progressStageOrder: ArrivalStage[] = [
     'entry-immigration',
     'airport-exit',
@@ -136,36 +151,111 @@ export default function ArrivalIntelligence({
         
         <div className="relative z-10">
           <div className="space-y-3">
-            
-            {/* Header: Headline + Source inline, Reset Button top-right */}
-            <div className="mb-4 flex items-start justify-between gap-4 px-1">
-              <div className="flex items-center gap-3 min-w-0">
-                <Plane size={20} className="text-cyan-100 shrink-0" />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-black text-cyan-100 text-xs uppercase tracking-widest whitespace-nowrap">
-                    {arrivalStage === 'pre-arrival'
-                      ? 'Pre-Arrival'
-                      : arrivalStage === 'entry-immigration'
-                        ? 'Entry & Immigration'
-                        : arrivalStage === 'airport-exit'
-                          ? 'Airport Exit'
-                          : `En Route to ${cityName}`}
-                  </span>
-                  <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
+            {/* Multi-airport: Arrival info for {code} + dropdown */}
+            {selectedAirportCode && airportOptions && airportOptions.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/90">
+                  Arrival info for {selectedAirportCode}
+                </p>
+                {onAirportChange && airportOptions.length > 1 && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setAirportDropdownOpen((o) => !o)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-cyan-200/40 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-100"
+                    >
+                      {selectedAirportCode}
+                      <ChevronDown size={12} className={airportDropdownOpen ? 'rotate-180' : ''} />
+                    </button>
+                    {airportDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          aria-hidden
+                          onClick={() => setAirportDropdownOpen(false)}
+                        />
+                        <ul className="absolute left-0 top-full z-20 mt-1 min-w-[180px] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                          {airportOptions.map((opt) => (
+                            <li key={opt.code}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onAirportChange(opt.code);
+                                  setAirportDropdownOpen(false);
+                                }}
+                                className={`w-full px-3 py-2 text-left text-xs font-medium ${
+                                  opt.code === selectedAirportCode
+                                    ? 'bg-cyan-50 text-cyan-800'
+                                    : 'text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {opt.code} — {opt.name}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Airport-specific summary card when multi-airport */}
+            {airportArrivalInfo && (
+              <div className="rounded-xl border border-cyan-200/30 bg-white/5 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/80 mb-2">
+                  {selectedAirportCode} — Quick intel
+                </p>
+                <div className="grid grid-cols-1 gap-2 text-xs text-cyan-100/90">
+                  <p>
+                    <span className="font-semibold">Transport:</span>{' '}
+                    {airportArrivalInfo.transport.join(', ')}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Travel time to center:</span>{' '}
+                    ~{airportArrivalInfo.travelTimeMinutes} min
+                  </p>
+                  {airportArrivalInfo.tips.length > 0 && (
+                    <p>
+                      <span className="font-semibold">Tips:</span>{' '}
+                      {airportArrivalInfo.tips.join(' • ')}
+                    </p>
+                  )}
                 </div>
               </div>
+            )}
 
-              {/* TOP RIGHT RESET BUTTON */}
-              {arrivalStage !== 'pre-arrival' && (
-                <button
-                  type="button"
-                  onClick={onResetStatus}
-                  className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-cyan-100 transition-colors hover:bg-white/20 active:scale-95 shrink-0"
-                >
-                  <RotateCcw size={12} />
-                  Reset
-                </button>
-              )}
+            {/* Header: headline + SourceInfo left (Pre-Arrival alignment); Refresh right; items-center for vertical alignment. */}
+            <div className="flex items-center justify-between gap-3 mb-4">
+              {/* Left: headline and SourceInfo in one row */}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="font-black text-cyan-100 text-[10px] uppercase tracking-widest leading-snug break-words line-clamp-2 sm:text-xs">
+                  {arrivalStage === 'pre-arrival'
+                    ? 'Pre-Arrival'
+                    : arrivalStage === 'entry-immigration'
+                      ? 'Entry & Immigration'
+                      : arrivalStage === 'airport-exit'
+                        ? 'Airport Exit'
+                        : `En Route to ${cityName}`}
+                </span>
+                <SourceInfo source={source} lastUpdated={lastUpdated} isLive={isLive} />
+              </div>
+
+              {/* Right: Refresh button only */}
+              <div className="flex shrink-0 items-center">
+                {arrivalStage !== 'pre-arrival' && (
+                  <button
+                    type="button"
+                    onClick={onResetStatus}
+                    className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-2 min-h-[44px] text-[10px] font-black uppercase tracking-wider text-cyan-100 transition-colors hover:bg-white/20 active:scale-95 sm:px-3 sm:py-1.5 sm:min-h-0"
+                    aria-label="Refresh arrival status"
+                  >
+                    <RotateCcw size={12} />
+                    <span className="hidden sm:inline">Refresh</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {arrivalStage !== 'pre-arrival' && (
