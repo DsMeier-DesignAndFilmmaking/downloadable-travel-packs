@@ -32,6 +32,7 @@ import { getCleanSlug } from '@/utils/slug';
 import { isGuideOfflineAvailable } from '@/utils/cityPackIdb';
 import { fetchVisaCheck, type VisaCheckData } from '../services/visaService';
 import { fetchCityWeather, climateAdviceFallback } from '@/services/weatherService';
+import { fetchNearestRestroom, type OverpassResult } from '@/services/overpassService';
 import { isClimateSafetyWarning } from '@/constants/weatherAdvice';
 import DebugBanner from '@/components/DebugBanner';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
@@ -696,8 +697,6 @@ export default function CityGuideView() {
   const navigate = useNavigate();
   const posthog = usePostHog();
 
-
-
   const {
     cityData,
     isLoading: packLoading,
@@ -762,6 +761,10 @@ const exchangeRateDisplay = useMemo(() => {
   const [hasSeenAlert, setHasSeenAlert] = useState(false);
   const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('pre-arrival');
   const [showAirportModal, setShowAirportModal] = useState(false);
+  const [nearestRestroom, setNearestRestroom] = useState<OverpassResult | null>(null);
+
+  /** User/city latitude and longitude (used by Climate Pulse and Restroom fetch). */
+  const coordinates = cityData?.coordinates;
 
   const { getAirport, setAirport, needsSelection, getOptions } = useSelectedAirport();
   const climatePulseSyncedCityRef = useRef<string | null>(null);
@@ -1243,6 +1246,29 @@ const exchangeRateDisplay = useMemo(() => {
   }, [cityData?.coordinates, hasSeenAlert]);
 
   useEffect(() => {
+    const lat = coordinates?.lat;
+    const lng = coordinates?.lng;
+    if (lat == null || lng == null || typeof lat !== 'number' || typeof lng !== 'number') {
+      setNearestRestroom(null);
+      return;
+    }
+    let cancelled = false;
+    fetchNearestRestroom(lat, lng)
+      .then((result) => {
+        if (!cancelled) setNearestRestroom(result ?? null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setNearestRestroom(null);
+          console.error('Restroom fetch failed:', err);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [coordinates?.lat, coordinates?.lng]);
+
+  useEffect(() => {
     if (!cityData || !quickFuelIntel) return;
     console.log('🥘 BASIC NEEDS SYNC:', {
       water: cityData.survival?.tapWater,
@@ -1657,8 +1683,7 @@ const exchangeRateDisplay = useMemo(() => {
 
           {cityData.facility_intel && (
             <div className="space-y-3">
-              
-              <FacilityKit data={cityData.facility_intel} />
+              <FacilityKit data={cityData.facility_intel} nearestRestroom={nearestRestroom} />
             </div>
           )}
         </section>

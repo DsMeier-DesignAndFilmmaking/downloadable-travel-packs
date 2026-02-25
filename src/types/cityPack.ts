@@ -170,6 +170,12 @@ export interface CityGuide {
   fuel?: CityPackFuel
   scam_alerts: string[]
   real_time_hacks: string[]
+  basic_needs: {
+    water_rule: string;
+    street_food: string;
+    restroom_guide: FacilityIntel; // This connects to your FacilityKit
+    altitude_warning: string;
+  };
 }
 
 /** Alias for backward compatibility. */
