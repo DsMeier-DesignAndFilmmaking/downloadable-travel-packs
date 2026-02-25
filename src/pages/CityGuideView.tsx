@@ -59,6 +59,7 @@ function balanceText(text: string): string {
   return `${words.slice(0, -2).join(' ')} ${tail}`;
 }
 
+export type ArrivalStage = 'immigration' | 'airport-exit' | 'left-airport';
 
 // ---------------------------------------------------------------------------
 // IndexedDB: persist city pack after load
@@ -722,8 +723,9 @@ export default function CityGuideView() {
   const [climatePulseSafetyWarning, setClimatePulseSafetyWarning] = useState(false);
   const [showSunAlert, setShowSunAlert] = useState(false);
   const [hasSeenAlert, setHasSeenAlert] = useState(false);
-  const [hasLanded, setHasLanded] = useState(false);
+  const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('immigration');
   const [isLandedHydrated, setIsLandedHydrated] = useState(false);
+
   const climatePulseSyncedCityRef = useRef<string | null>(null);
 
   const isStandalone =
@@ -941,13 +943,19 @@ export default function CityGuideView() {
   ]);
 
   const handleMarkLanded = useCallback(() => {
-    setHasLanded(true);
+    setArrivalStage('airport-exit');
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.setItem(landedStatusStorageKey, 'true');
+    window.localStorage.setItem(landedStatusStorageKey, 'airport-exit');
+  }, [landedStatusStorageKey]);
+
+  const handleProceedToCity = useCallback(() => {
+    setArrivalStage('left-airport');
+    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
+    window.localStorage.setItem(landedStatusStorageKey, 'left-airport');
   }, [landedStatusStorageKey]);
 
   const handleResetLandedStatus = useCallback(() => {
-    setHasLanded(false);
+    setArrivalStage('immigration');
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
     window.localStorage.removeItem(landedStatusStorageKey);
   }, [landedStatusStorageKey]);
@@ -968,31 +976,48 @@ export default function CityGuideView() {
     setDismissedInstallBanner(false);
     setShowSunAlert(false);
     setHasSeenAlert(false);
-    setHasLanded(false);
+    setArrivalStage('immigration');
     setIsLandedHydrated(false);
   }, [cleanSlug]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !landedStatusStorageKey) {
-      setHasLanded(false);
+      setArrivalStage('immigration');
       setIsLandedHydrated(true);
       return;
     }
 
     setIsLandedHydrated(false);
-    const savedStatus = window.localStorage.getItem(landedStatusStorageKey);
-    setHasLanded(savedStatus === '1' || savedStatus === 'true');
+    const saved = window.localStorage.getItem(landedStatusStorageKey);
+    const stage: ArrivalStage =
+      saved === 'airport-exit' || saved === 'left-airport'
+        ? saved
+        : saved === '1' || saved === 'true'
+          ? 'airport-exit'
+          : 'immigration';
+    setArrivalStage(stage);
     setIsLandedHydrated(true);
   }, [landedStatusStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !landedStatusStorageKey || !isLandedHydrated) return;
-    if (hasLanded) {
-      window.localStorage.setItem(landedStatusStorageKey, 'true');
+    if (arrivalStage === 'immigration') {
+      window.localStorage.removeItem(landedStatusStorageKey);
       return;
     }
-    window.localStorage.removeItem(landedStatusStorageKey);
-  }, [hasLanded, isLandedHydrated, landedStatusStorageKey]);
+    window.localStorage.setItem(landedStatusStorageKey, arrivalStage);
+  }, [arrivalStage, isLandedHydrated, landedStatusStorageKey]);
+
+  // Optional timed auto-suggestion: airport-exit → left-airport after 75s (no new localStorage logic)
+  useEffect(() => {
+    if (arrivalStage !== 'airport-exit') return;
+
+    const timer = setTimeout(() => {
+      setArrivalStage('left-airport');
+    }, 75000);
+
+    return () => clearTimeout(timer);
+  }, [arrivalStage]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1320,7 +1345,8 @@ export default function CityGuideView() {
                 source={integritySource}
                 lastUpdated={integrityLastVerified}
                 isLive={!!visaData}
-                hasLanded={hasLanded}
+                hasLanded={arrivalStage !== 'immigration'}
+                arrivalStage={arrivalStage}
                 isLandedHydrated={isLandedHydrated}
                 visaStatus={arrivalVisaStatus}
                 visaLoading={isApiLoading}
@@ -1335,6 +1361,7 @@ export default function CityGuideView() {
                 taxiEstimate={arrivalTacticalIntel?.postLand.taxiEstimate}
                 trainEstimate={arrivalTacticalIntel?.postLand.trainEstimate}
                 onMarkLanded={handleMarkLanded}
+                onProceedToCity={handleProceedToCity}
                 onResetStatus={handleResetLandedStatus}
               />
             </div>

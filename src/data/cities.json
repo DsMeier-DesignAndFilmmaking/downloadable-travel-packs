@@ -77,7 +77,7 @@
           "live": true,
           "source": "visa-requirement.p.rapidapi.com",
           "last_checked": null,
-          "summary_note": "Visa rules dynamically verified based on selected passport.",
+          "summary_note": "Visa rules dynamically verified based on destination.",
           "offline_fallback": "Showing last verified visa rules. Confirm with embassy if travel is time-sensitive."
         },
         "first60Protocol": [
