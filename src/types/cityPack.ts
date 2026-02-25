@@ -140,6 +140,8 @@ export interface CityPackTransitLogic {
   primary_app: string
   payment_method: string
   etiquette: string
+  /** Optional tactical note (e.g. EcoBici dead zones). */
+  micromobility_alert?: string
 }
 
 export interface CityCoordinates {

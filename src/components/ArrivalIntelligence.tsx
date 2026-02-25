@@ -204,16 +204,14 @@ export default function ArrivalIntelligence({
             {/* Airport-specific summary card when multi-airport */}
             {airportArrivalInfo && (
               <div className="rounded-xl border border-cyan-200/30 bg-white/5 px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/80 mb-2">
-                  {selectedAirportCode} — Quick Info
-                </p>
+                
                 <div className="grid grid-cols-1 gap-2 text-sm text-cyan-100/90">
                   <p>
                     <span className="font-semibold">Transport:</span>{' '}
                     {airportArrivalInfo.transport.join(', ')}
                   </p>
                   <p>
-                    <span className="font-semibold">Travel time to center:</span>{' '}
+                    <span className="font-semibold">Travel time to city center:</span>{' '}
                     ~{airportArrivalInfo.travelTimeMinutes} min
                   </p>
                   {airportArrivalInfo.tips.length > 0 && (
@@ -324,7 +322,34 @@ export default function ArrivalIntelligence({
               {arrivalStage === 'airport-exit' && (
                 <motion.div key="stage-2" className="space-y-3">
                   <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">GROUND ORIENTATION</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Extraction Strategy</p>
+                    <ul className="mt-3 space-y-3 text-sm text-slate-700">
+                      <li className="flex gap-2">
+                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Terminal:</span>
+                        {/* Removed truncate, added leading-relaxed for better readability on wrap */}
+                        <span className="min-w-0 leading-relaxed">
+                          Verify your terminal: T1 (Inter) vs T2 (Aeromexico). The shuttle between them takes 15+ minutes.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Handshake:</span>
+                        <span className="min-w-0 leading-relaxed">
+                          Finalize your ride on airport Wi‑Fi before exiting. LTE/5G is unstable in the pickup lanes.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Pickup:</span>
+                        <span className="min-w-0 leading-relaxed">
+                          T1: Exit Gate 7, outer lane. T2: Ground Floor, follow &quot;Transporte por Aplicación&quot; signage.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Resilience:</span>
+                        <span className="min-w-0 leading-relaxed">
+                          Ignore solicitations in the hall. Use pre‑booked apps or &quot;Taxi Autorizado&quot; kiosks only.
+                        </span>
+                      </li>
+                    </ul>
                     <div className="mt-3 space-y-1">
                       <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
                       <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />

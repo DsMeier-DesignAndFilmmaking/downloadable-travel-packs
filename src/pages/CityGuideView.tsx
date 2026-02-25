@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import React from 'react';
+// ... your other imports like 'Phone', 'Map', etc.
 import {
   Phone,
   AlertTriangle,
@@ -1453,9 +1455,9 @@ const exchangeRateDisplay = useMemo(() => {
   
   {/* 3. Exchange Rate Display */}
   <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4 pr-10">
-    1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
-    {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
-  </p>
+  <span className="text-emerald-700">1 USD</span> = {exchangeRateDisplay} {currencyCodeDisplay}
+  {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+</p>
 
   {/* 4. Conversion Table */}
   <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
@@ -1515,24 +1517,60 @@ const exchangeRateDisplay = useMemo(() => {
                 <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Transit</p>
               </div>
-              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                {balanceText(cityData.transit_logic.payment_method)}
-              </p>
-              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+              <div className="pl-5">
+  <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-line">
+    {cityData.transit_logic.payment_method.split('Note:').map((part, index, array) => (
+      <React.Fragment key={index}>
+        {part}
+        {/* If this isn't the last part, it means a "Note:" was here */}
+        {index < array.length - 1 && (
+          <span className="font-black text-black">Note:</span>
+        )}
+      </React.Fragment>
+    ))}
+  </p>
+</div>
+              <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-2">
+                {/* Label Row */}
                 <div className="flex items-center gap-2">
-                  <Phone size={14} className="text-slate-400" />
-                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span>
+                  <Phone size={12} className="text-slate-400" />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">
+                    Primary Transit Apps
+                  </span>
                 </div>
-                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
-                  {cityData.transit_logic.primary_app}
-                </span>
+
+                {/* Value Row - High Contrast & Tactical Styling */}
+                <div className="pl-5 flex flex-col gap-2 mt-1">
+                {cityData.transit_logic.primary_app
+                  .split(/(?<=[;.])\s+/) // Splits after any ; or . followed by a space
+                  .filter(sentence => sentence.trim().length > 0) // Removes empty strings
+                  .map((sentence, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      {/* The Elite Bullet */}
+                      <span className="text-blue-400 mt-1.5 shrink-0 text-[10px]">•</span>
+                      
+                      {/* The Tactical Instruction */}
+                      <span className="text-sm font-medium text-blue-700 leading-snug">
+                        {sentence.trim()}
+                      </span>
+                    </div>
+                  ))}
+              </div>
               </div>
               <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
-                <p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">
-                  "{balanceText(cityData.transit_logic.etiquette)}"
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tactical Safety & Etiquette</p>
+                <p className="text-sm tracking-[0.01em] font-bold text-slate-600 italic leading-relaxed">
+                  {balanceText(cityData.transit_logic.etiquette)}
                 </p>
               </div>
+              {'micromobility_alert' in cityData.transit_logic && cityData.transit_logic.micromobility_alert && (
+                <div className="mt-4 p-4 bg-amber-50/80 rounded-2xl border border-amber-100">
+                  <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Micro-Mobility Alert</p>
+                  <p className="text-sm tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
+                    {balanceText(cityData.transit_logic.micromobility_alert)}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 </section>
