@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, Clock3, RefreshCw } from 'lucide-react';
+import { Clock3, RefreshCw } from 'lucide-react';
 import { fetchCityPulse, type PulseIntelligence } from '@/services/pulseService';
 
 type CityPulseBlockProps = {
