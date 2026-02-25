@@ -190,6 +190,17 @@ export default function SourceInfo({
                   </div>
                 </div>
               </div>
+              {isDesktop && (
+                <div 
+                  className={`
+                    absolute left-1/2 -translate-x-1/2 border-8 border-transparent
+                    ${desktopPlacement === 'above' 
+                      ? 'top-full border-t-white' 
+                      : 'bottom-full border-b-white'
+                    }
+                  `} 
+                />
+              )}
             </motion.div>
           </>
         )}
