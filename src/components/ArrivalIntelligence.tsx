@@ -205,7 +205,7 @@ export default function ArrivalIntelligence({
             {airportArrivalInfo && (
               <div className="rounded-xl border border-cyan-200/30 bg-white/5 px-4 py-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.12em] text-cyan-100/80 mb-2">
-                  {selectedAirportCode} — Quick intel
+                  {selectedAirportCode} — Quick Info
                 </p>
                 <div className="grid grid-cols-1 gap-2 text-sm text-cyan-100/90">
                   <p>

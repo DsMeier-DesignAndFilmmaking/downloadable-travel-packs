@@ -9,7 +9,7 @@ export default function Footer() {
        This 11rem (176px) buffer ensures that the "All Rights Reserved" 
        text clears the fixed "Save Field Pack" button and its background blur.
     */
-    <footer className="w-full bg-white border-t border-slate-200 pt-16 pb-44 mt-20">
+    <footer className="w-full bg-white border-t border-slate-200 pt-8 pb-44 mt-0">
       <div className="max-w-xl mx-auto px-6">
         
         {/* Top Section: Brand & Vision */}

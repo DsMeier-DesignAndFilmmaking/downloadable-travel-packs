@@ -49,6 +49,8 @@ import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
+import SourceInfo from '@/components/SourceInfo';
+
 import { usePostHog } from '@posthog/react';
 
 import { trackCityPackView, PageTimer, captureEvent } from '@/lib/analytics';
@@ -691,7 +693,9 @@ export default function CityGuideView() {
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
   const posthog = usePostHog();
-  
+
+
+
   const {
     cityData,
     isLoading: packLoading,
@@ -714,6 +718,30 @@ export default function CityGuideView() {
   const [isOfflineHelpOpen, setIsOfflineHelpOpen] = useState(false);
   const [showStandaloneBanner, setShowStandaloneBanner] = useState(false);
   const [visaData, setVisaData] = useState<VisaCheckData | null>(null);
+
+// 2. NOW DEFINE YOUR VARIABLES (Below the state)
+const lastUpdated = useMemo(() => {
+  // Try to get the real API timestamp first
+  const apiTimestamp = visaData?.destination?.updated_at;
+
+  // Check if it's a valid string. If not, use the current time as a string.
+  if (typeof apiTimestamp === 'string' && apiTimestamp.length > 0) {
+    return apiTimestamp;
+  }
+
+  // FALLBACK: Must be a string, not {}
+  return new Date().toISOString(); 
+}, [visaData]);
+
+const exchangeRateDisplay = useMemo(() => {
+  const fallbackRate = CURRENCY_PROTOCOL[cityData?.countryCode ?? '']?.rate;
+  return resolveUsdToLocalRate(
+    visaData?.destination?.exchange,
+    visaData?.destination?.currency_code,
+    fallbackRate,
+  );
+}, [visaData, cityData, visaData?.destination?.exchange]);
+
   const [visaFetchError, setVisaFetchError] = useState<string | null>(null);
   const [isApiLoading, setIsApiLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -768,14 +796,7 @@ export default function CityGuideView() {
       ? candidate
       : lastSynced;
   }, [lastSynced, visaData]);
-  const exchangeRateDisplay = useMemo(() => {
-    const fallbackRate = CURRENCY_PROTOCOL[cityData?.countryCode ?? '']?.rate;
-    return resolveUsdToLocalRate(
-      visaData?.destination?.exchange,
-      visaData?.destination?.currency_code,
-      fallbackRate,
-    );
-  }, [cityData?.countryCode, visaData?.destination?.currency_code, visaData?.destination?.exchange]);
+  
   const currencyCodeDisplay = useMemo(() => {
     const apiCode = visaData?.destination?.currency_code?.toUpperCase().trim();
     if (apiCode && /^[A-Z]{3}$/.test(apiCode)) return apiCode;
@@ -1262,7 +1283,7 @@ export default function CityGuideView() {
   );
 
   return (
-    <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-40 w-full overflow-x-hidden">
+    <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-20 w-full overflow-x-hidden">
       <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
       
       {/* Fixed Modal Call with passed Props */}
@@ -1400,7 +1421,123 @@ export default function CityGuideView() {
           </section>
         )}
 
-        <section className="space-y-6">
+<section className="space-y-6">
+    <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+      MONEY
+    </h2>
+
+{/* CRITICAL FIX: Added 'relative' to this div so the absolute 
+    positioned SourceInfo button stays inside this card. 
+*/}
+<div className="relative bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm overflow-hidden">
+  
+  {/* 1. Tooltip Button - Positioned absolutely in the top right corner */}
+  <div className="absolute top-8 right-8 z-20">
+  <SourceInfo 
+  source="Interbank Mid-Market Feed" 
+  /* We use String() to ensure an object never gets passed, 
+     and a fallback to 'Syncing...' */
+  lastUpdated={typeof lastUpdated === 'string' ? lastUpdated : String(lastUpdated || 'Syncing...')} 
+  isLive={true} 
+  type="currency"
+/>
+  </div>
+
+  {/* 2. Header - Added pr-10 to prevent text from running under the button */}
+  <div className="flex items-center gap-2 mb-2 pr-10">
+    <Globe size={14} className="text-slate-400 shrink-0" />
+    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
+      Quick Spending Reference
+    </p>
+  </div>
+  
+  {/* 3. Exchange Rate Display */}
+  <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4 pr-10">
+    1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
+    {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+  </p>
+
+  {/* 4. Conversion Table */}
+  <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
+    {quickReferenceRows.map((row) => (
+      <div 
+        key={row.localAmount} 
+        className="grid grid-cols-[1fr_auto_auto] items-center gap-3 bg-white py-3 
+                  px-0 sm:px-4 
+                  border-none sm:border-b sm:border-slate-100 sm:last:border-b-0"
+      >
+        <span className="text-sm font-semibold text-slate-700">{row.context}</span>
+        <span className="text-sm font-black text-slate-800 tabular-nums">
+          {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
+        </span>
+        <span className="text-sm font-bold text-emerald-700 tabular-nums">
+          ≈ ${row.usdAmount}
+        </span>
+      </div>
+    ))}
+  </div>
+
+  {/* 5. Tipping Culture Section */}
+  <div className="mt-4 p-0 sm:p-5 bg-transparent sm:bg-amber-50 rounded-none sm:rounded-2xl border-none sm:border sm:border-amber-200/50">
+    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">
+      Tip Culture
+    </p>
+    <p className="mt-1 sm:mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
+      {cityData.survival?.tipping || 'Standard 10% is expected.'}
+    </p>
+  </div>
+</div>
+</section>
+
+<section className="space-y-5 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {primaryEmergencyItems.map(({ key, label, number }) => (
+              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
+                <Phone size={22} className="mb-2 text-[#FFDD00]" />
+                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
+                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4 pt-2">
+            <ArrivalSafetyNotesCard notes={cityData.real_time_hacks} title="Real-time tips" />
+            <ArrivalMistakesCard arrivalMistakes={cityData.arrival?.arrivalMistakes} />
+            <SystemHealthCard systemHealth={cityData.arrival?.systemHealth} liveData={arrivalLiveData} />
+          </div>
+</section>
+
+<section className="space-y-5 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
+          {cityData.transit_logic && (
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Transit</p>
+              </div>
+              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
+                {balanceText(cityData.transit_logic.payment_method)}
+              </p>
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Phone size={14} className="text-slate-400" />
+                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span>
+                </div>
+                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
+                  {cityData.transit_logic.primary_app}
+                </span>
+              </div>
+              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
+                <p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">
+                  "{balanceText(cityData.transit_logic.etiquette)}"
+                </p>
+              </div>
+            </div>
+          )}
+</section>
+
+        <section className="space-y-6 pt-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
@@ -1455,17 +1592,29 @@ export default function CityGuideView() {
               </p>
             </div>
 
-            <div
-              className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
-                climatePulseSafetyWarning ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
-              }`}
-            >
-              <ClimatePulseIcon size={32} className={climatePulseIconClass} />
-              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Climate Pulse</h3>
-              <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-                {balanceText(climatePulseSummary)}
-              </p>
-            </div>
+            <div className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
+  climatePulseSafetyWarning ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
+}`}
+>
+  <ClimatePulseIcon size={32} className={climatePulseIconClass} />
+  
+  <div className="flex items-center gap-2 mb-2">
+    <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">
+      Climate Pulse
+    </h3>
+    {/* Explicitly passing type="climate" triggers the meteorological copy rewrite */}
+    <SourceInfo 
+      source="Open-Meteo API" 
+      lastUpdated={String(lastUpdated || '')} // String() ensures {} becomes "[object Object]" instead of crashing, or '' if null
+      isLive={true} 
+      type="climate" 
+    />
+  </div>
+
+  <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
+    {balanceText(climatePulseSummary)}
+  </p>
+</div>
           </div>
 
           {cityData.facility_intel && (
@@ -1476,110 +1625,12 @@ export default function CityGuideView() {
           )}
         </section>
 
-        <section className="space-y-6">
-        <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
-          MONEY
-        </h2>
-
-        {/* Keeping this container exactly as it was */}
-        <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <Globe size={14} className="text-slate-400" />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-            Quick Spending Reference
-            </p>
-          </div>
-          
-          <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4">
-            1 USD = {exchangeRateDisplay} {currencyCodeDisplay}
-            {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
-          </p>
-
-          {/* Removed nested border/rounded container on mobile */}
-          <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
-            {quickReferenceRows.map((row) => (
-              <div 
-                key={row.localAmount} 
-                className="grid grid-cols-[1fr_auto_auto] items-center gap-3 bg-white py-3 
-                          px-0 sm:px-4 
-                          border-none sm:border-b sm:border-slate-100 sm:last:border-b-0"
-              >
-                <span className="text-sm font-semibold text-slate-700">{row.context}</span>
-                <span className="text-sm font-black text-slate-800 tabular-nums">
-                  {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
-                </span>
-                <span className="text-sm font-bold text-emerald-700 tabular-nums">
-                  ≈ ${row.usdAmount}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Tipping: Removed border on mobile, kept layout */}
-          <div className="mt-4 p-0 sm:p-5 bg-transparent sm:bg-amber-50 rounded-none sm:rounded-2xl border-none sm:border sm:border-amber-200/50">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">
-              Tip Culture
-            </p>
-            <p className="mt-1 sm:mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
-              {cityData.survival?.tipping || 'Standard 10% is expected.'}
-            </p>
-          </div>
-        </div>
-      </section>
-
-          <section className="space-y-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
-          {cityData.transit_logic && (
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Transit</p>
-              </div>
-              <p className="text-base md:text-[15px] tracking-[0.01em] font-medium text-[#222222] leading-relaxed">
-                {balanceText(cityData.transit_logic.payment_method)}
-              </p>
-              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Phone size={14} className="text-slate-400" />
-                  <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Primary Apps</span>
-                </div>
-                <span className="text-xs font-black text-blue-600 uppercase italic text-right max-w-[180px]">
-                  {cityData.transit_logic.primary_app}
-                </span>
-              </div>
-              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Local Etiquette</p>
-                <p className="text-sm md:text-[13px] tracking-[0.01em] font-bold text-slate-600 italic">
-                  "{balanceText(cityData.transit_logic.etiquette)}"
-                </p>
-              </div>
-            </div>
-          )}
-        </section>
-
         <section className="pt-2 pb-4">
           <SpontaneityEnginePromo />
         </section>
       </main>
 
       <footer className="px-6 pt-8 pb-12 max-w-2xl mx-auto">
-        <section className="space-y-5 border-t border-slate-200 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {primaryEmergencyItems.map(({ key, label, number }) => (
-              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
-                <Phone size={22} className="mb-2 text-[#FFDD00]" />
-                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
-                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-4 pt-2">
-            <ArrivalSafetyNotesCard notes={cityData.real_time_hacks} title="Real-time tips" />
-            <ArrivalMistakesCard arrivalMistakes={cityData.arrival?.arrivalMistakes} />
-            <SystemHealthCard systemHealth={cityData.arrival?.systemHealth} liveData={arrivalLiveData} />
-          </div>
-        </section>
         <section className="pt-8 text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Beta Support</p>
           <button
