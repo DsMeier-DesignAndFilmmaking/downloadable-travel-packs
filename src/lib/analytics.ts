@@ -1,67 +1,99 @@
 // /src/lib/analytics.ts
+
 import posthog from 'posthog-js'
 
-// -----------------------------
-// Initialize PostHog
-// -----------------------------
-posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-  api_host: 'https://app.posthog.com',
-  persistence: 'localStorage',
-  capture_pageview: false, // VERY important for SPA
-  autocapture: false,      // Manual control
-})
+// --------------------------------------------------
+// Safe Initialization
+// --------------------------------------------------
 
-export default posthog
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY
+const POSTHOG_HOST =
+  import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com'
 
-// -----------------------------
-// Session Handling
-// -----------------------------
-export function getSessionId(): string {
-  let sessionId = localStorage.getItem('tp_session_id')
-  if (!sessionId) {
-    sessionId = crypto.randomUUID() // unique session per user
-    localStorage.setItem('tp_session_id', sessionId)
-  }
-  return sessionId
-}
+if (!POSTHOG_KEY) {
+  console.warn('⚠️ PostHog key missing — analytics disabled')
+} else {
+  posthog.init(POSTHOG_KEY, {
+    api_host: POSTHOG_HOST,
+    persistence: 'localStorage',
 
-// -----------------------------
-// Event Tracking
-// -----------------------------
-export function trackHomepageView(): void {
-  posthog.capture('homepage_viewed', {
-    session_id: getSessionId(),
-    timestamp: new Date().toISOString(),
+    // SPA controlled manually
+    capture_pageview: false,
+    autocapture: false,
+
+    // Optional but recommended
+    loaded: (ph) => {
+      if (import.meta.env.DEV) {
+        console.log('PostHog loaded:', ph.get_distinct_id())
+      }
+    },
   })
 }
 
-export function trackCityPackView(cityName: string): void {
-  posthog.capture('city_pack_viewed', {
-    city_name: cityName,
+// Expose ONLY in development
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(window as any).posthog = posthog
+}
+
+export default posthog
+
+// --------------------------------------------------
+// Session Handling
+// --------------------------------------------------
+
+export function getSessionId(): string {
+  let sessionId = localStorage.getItem('tp_session_id')
+
+  if (!sessionId) {
+    sessionId = crypto.randomUUID()
+    localStorage.setItem('tp_session_id', sessionId)
+  }
+
+  return sessionId
+}
+
+// --------------------------------------------------
+// Centralized Capture Wrapper
+// --------------------------------------------------
+
+export function captureEvent(
+  eventName: string,
+  properties: Record<string, unknown> = {},
+): void {
+  if (!POSTHOG_KEY) return
+
+  posthog.capture(eventName, {
+    environment: import.meta.env.MODE,
+    app_version: '1.0',
     session_id: getSessionId(),
-    timestamp: new Date().toISOString(),
+    ...properties,
+  })
+}
+
+// --------------------------------------------------
+// Structured Events
+// --------------------------------------------------
+
+export function trackHomepageView(): void {
+  captureEvent('homepage_viewed')
+}
+
+export function trackCityPackView(cityName: string): void {
+  captureEvent('city_pack_viewed', {
+    city_name: cityName,
   })
 }
 
 export function trackAddToDevice(cityName: string): void {
-  posthog.capture('add_to_device_clicked', {
+  captureEvent('add_to_device_clicked', {
     city_name: cityName,
-    session_id: getSessionId(),
-    timestamp: new Date().toISOString(),
   })
 }
 
-export function captureEvent(
-  posthogClient: { capture: (eventName: string, properties?: Record<string, unknown>) => void } | null | undefined,
-  eventName: string,
-  properties: Record<string, unknown> = {},
-): void {
-  posthogClient?.capture(eventName, properties)
-}
+// --------------------------------------------------
+// Page Duration Tracker (Improved)
+// --------------------------------------------------
 
-// -----------------------------
-// Page Duration Tracker
-// -----------------------------
 export class PageTimer {
   private startTime: number
   private pageName: 'homepage' | 'city_pack'
@@ -72,22 +104,24 @@ export class PageTimer {
     this.cityName = cityName
     this.startTime = Date.now()
 
-    // Automatically send duration on page unload
-    window.addEventListener('beforeunload', () => this.sendDuration())
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.sendDuration()
+      }
+    })
   }
 
   public sendDuration(): void {
     const durationMs = Date.now() - this.startTime
-    const eventName = this.pageName === 'homepage' ? 'homepage_duration' : 'city_pack_duration'
 
-    const payload: Record<string, any> = {
-      session_id: getSessionId(),
-      duration: durationMs, // milliseconds
-      timestamp: new Date().toISOString(),
-    }
-
-    if (this.cityName) payload.city_name = this.cityName
-
-    posthog.capture(eventName, payload)
+    captureEvent(
+      this.pageName === 'homepage'
+        ? 'homepage_duration'
+        : 'city_pack_duration',
+      {
+        duration_ms: durationMs,
+        city_name: this.cityName,
+      },
+    )
   }
 }

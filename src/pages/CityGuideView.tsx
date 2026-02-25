@@ -54,11 +54,7 @@ import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import SourceInfo from '@/components/SourceInfo';
 
-import { usePostHog } from '@posthog/react';
-
-import { trackCityPackView, PageTimer, captureEvent } from '@/lib/analytics';
-
-new PageTimer('homepage')
+import { trackCityPackView, trackAddToDevice, PageTimer, captureEvent } from '@/lib/analytics';
 
 function balanceText(text: string): string {
   const words = text.trim().split(/\s+/);
@@ -363,7 +359,6 @@ function OfflineAccessModal({
   isChromeIOS: boolean;
 }) {
   const [showWhyRequired, setShowWhyRequired] = useState(false);
-  const posthog = usePostHog();
 
   useEffect(() => {
     if (!isOpen) setShowWhyRequired(false);
@@ -465,7 +460,7 @@ function OfflineAccessModal({
               <button
                 type="button"
                 onClick={() => {
-                  captureEvent(posthog, 'pwa_instructions_acknowledged', {
+                  captureEvent('pwa_instructions_acknowledged', {
                     city: cityData?.name,
                     slug: cleanSlug,
                     network_status: navigator.onLine ? 'online' : 'offline',
@@ -695,7 +690,6 @@ export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
-  const posthog = usePostHog();
 
   const {
     cityData,
@@ -927,12 +921,13 @@ const exchangeRateDisplay = useMemo(() => {
     (code: string) => {
       if (!cleanSlug) return;
       setAirport(cleanSlug, code);
-      captureEvent(posthog, 'airport_selected', {
+      captureEvent('airport_selected', {
         city: cityData?.name ?? 'Mexico City',
         airport: code,
+        slug: cleanSlug,
       });
     },
-    [cleanSlug, cityData?.name, setAirport, posthog],
+    [cleanSlug, cityData?.name, setAirport],
   );
 
   const preLandStrategy = useMemo(() => {
@@ -973,15 +968,18 @@ const exchangeRateDisplay = useMemo(() => {
     if (!cityData) return;
     if (isPackInstalled) return;
 
+    // Analytics: add-to-device CTA intent (required product event)
+    trackAddToDevice(cityData.name);
+
     if (platform.os === 'android' && isInstallable) {
-      captureEvent(posthog, 'pwa_install_prompt_triggered', {
+      captureEvent('pwa_install_prompt_triggered', {
         city: cityData.name,
         slug: cleanSlug,
         platform_os: platform.os,
         platform_browser: platform.browser,
       });
       const outcome = await installFieldPack();
-      captureEvent(posthog, 'pwa_install_prompt_outcome', {
+      captureEvent('pwa_install_prompt_outcome', {
         city: cityData.name,
         slug: cleanSlug,
         outcome,
@@ -991,7 +989,7 @@ const exchangeRateDisplay = useMemo(() => {
       return;
     }
 
-    captureEvent(posthog, 'pwa_install_instructions_viewed', {
+    captureEvent('pwa_install_instructions_viewed', {
       city: cityData.name,
       slug: cleanSlug,
       network_status: navigator.onLine ? 'online' : 'offline',
@@ -1011,7 +1009,6 @@ const exchangeRateDisplay = useMemo(() => {
     platform.browser,
     platform.isChromeiOS,
     platform.os,
-    posthog,
   ]);
 
   const handleConfirmArrival = useCallback(() => {
@@ -1092,10 +1089,9 @@ const exchangeRateDisplay = useMemo(() => {
     localStorage.setItem(STANDALONE_FIRST_LAUNCH_KEY, '1');
     setShowStandaloneBanner(true);
 
-    captureEvent(posthog, 'standalone_first_launch', {
+    captureEvent('standalone_first_launch', {
       city: cityData.name,
       slug: cleanSlug,
-      timestamp: new Date().toISOString(),
     });
 
     const timeoutId = window.setTimeout(() => {
@@ -1105,7 +1101,7 @@ const exchangeRateDisplay = useMemo(() => {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [isStandalone, cityData?.name, cleanSlug, posthog]);
+  }, [isStandalone, cityData?.name, cleanSlug]);
 
   // ---------------------------------------------------------------------------
   // 2️⃣ Track city pack view on load
@@ -1114,13 +1110,24 @@ const exchangeRateDisplay = useMemo(() => {
     if (cityData?.name) {
       trackCityPackView(cityData.name);
 
-      posthog?.capture('city_pack_opened', {
+      captureEvent('city_pack_opened', {
         city: cityData.name,
         is_online: navigator.onLine,
-        slug: cleanSlug
+        slug: cleanSlug,
       });
     }
-  }, [cityData?.name, posthog, cleanSlug]);
+  }, [cityData?.name, cleanSlug]);
+
+  // ---------------------------------------------------------------------------
+  // Analytics: city_pack duration (replaces incorrect module-level homepage timer)
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!cityData?.name || !cleanSlug) return;
+    const timer = new PageTimer('city_pack', cityData.name);
+    return () => {
+      timer.sendDuration();
+    };
+  }, [cityData?.name, cleanSlug]);
 
   // ---------------------------------------------------------------------------
   // 3️⃣ Document title, theme, and last pack
