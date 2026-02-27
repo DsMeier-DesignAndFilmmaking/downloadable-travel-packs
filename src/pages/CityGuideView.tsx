@@ -1107,24 +1107,74 @@ const exchangeRateDisplay = useMemo(() => {
   // 2️⃣ Track city pack view on load
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (cityData?.name) {
-      trackCityPackView(cityData.name);
-
-      captureEvent('city_pack_opened', {
-        city: cityData.name,
-        is_online: navigator.onLine,
-        slug: cleanSlug,
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] city_pack_view effect evaluated', {
+        cityName: cityData?.name ?? null,
+        slug: cleanSlug ?? null,
       });
     }
+
+    if (!cityData?.name) {
+      if (import.meta.env.DEV) {
+        console.log('[ANALYTICS_DEBUG] city_pack_view skipped (missing city name)', {
+          slug: cleanSlug ?? null,
+        });
+      }
+      return;
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] firing city pack analytics', {
+        cityName: cityData.name,
+        slug: cleanSlug ?? null,
+      });
+    }
+
+    trackCityPackView(cityData.name);
+
+    captureEvent('city_pack_opened', {
+      city: cityData.name,
+      is_online: navigator.onLine,
+      slug: cleanSlug,
+    });
   }, [cityData?.name, cleanSlug]);
 
   // ---------------------------------------------------------------------------
   // Analytics: city_pack duration (replaces incorrect module-level homepage timer)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    if (!cityData?.name || !cleanSlug) return;
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] page timer effect evaluated', {
+        cityName: cityData?.name ?? null,
+        slug: cleanSlug ?? null,
+      });
+    }
+
+    if (!cityData?.name || !cleanSlug) {
+      if (import.meta.env.DEV) {
+        console.log('[ANALYTICS_DEBUG] page timer skipped (missing city name or slug)', {
+          cityName: cityData?.name ?? null,
+          slug: cleanSlug ?? null,
+        });
+      }
+      return;
+    }
+
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] page timer created', {
+        cityName: cityData.name,
+        slug: cleanSlug,
+      });
+    }
+
     const timer = new PageTimer('city_pack', cityData.name);
     return () => {
+      if (import.meta.env.DEV) {
+        console.log('[ANALYTICS_DEBUG] page timer cleanup -> sendDuration', {
+          cityName: cityData.name,
+          slug: cleanSlug,
+        });
+      }
       timer.sendDuration();
     };
   }, [cityData?.name, cleanSlug]);

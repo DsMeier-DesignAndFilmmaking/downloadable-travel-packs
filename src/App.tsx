@@ -25,6 +25,7 @@ import SettingsView from './pages/SettingsView';
 import PageTransition from './components/PageTransition';
 import Footer from './components/Footer';
 import { SelectedAirportProvider } from './contexts/SelectedAirportContext';
+import PostHogPageView from './lib/PostHogPageView';
 
 /**
  * AnimatedRoutes with scroll restoration
@@ -180,6 +181,7 @@ export default function App() {
   return (
     <Router>
       <SelectedAirportProvider>
+        <PostHogPageView />
         <PWAStandaloneRedirect />
         <div className="flex flex-col min-h-screen bg-[#F7F7F7]">
           <main className="flex-grow">
