@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import React from 'react';
 // ... your other imports like 'Phone', 'Map', etc.
 import {
@@ -54,7 +54,14 @@ import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import SourceInfo from '@/components/SourceInfo';
 
-import { trackCityPackView, trackAddToDevice, PageTimer, captureEvent } from '@/lib/analytics';
+import {
+  trackCityPackView,
+  trackAddToDevice,
+  PageTimer,
+  captureEvent,
+  getSessionId,
+  posthog,
+} from '@/lib/analytics';
 
 function balanceText(text: string): string {
   const words = text.trim().split(/\s+/);
@@ -681,6 +688,7 @@ function resolveUsdToLocalRate(
 
 const DEFAULT_PASSPORT = 'US';
 const STANDALONE_FIRST_LAUNCH_KEY = 'travelpacks-standalone-first-launch';
+const POSTHOG_IDENTIFIED_SESSION_KEY = 'tp_posthog_identified_distinct_id';
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -690,6 +698,7 @@ export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     cityData,
@@ -1102,6 +1111,49 @@ const exchangeRateDisplay = useMemo(() => {
       window.clearTimeout(timeoutId);
     };
   }, [isStandalone, cityData?.name, cleanSlug]);
+
+  // ---------------------------------------------------------------------------
+  // Identify visitor once per browser session using persistent distinct ID
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const distinctId = getSessionId();
+    const identifiedId = window.sessionStorage.getItem(POSTHOG_IDENTIFIED_SESSION_KEY);
+
+    if (identifiedId === distinctId) {
+      if (import.meta.env.DEV) {
+        console.log('[ANALYTICS_DEBUG] distinct_id already identified', { distinct_id: distinctId });
+      }
+      return;
+    }
+
+    posthog.identify(distinctId);
+    window.sessionStorage.setItem(POSTHOG_IDENTIFIED_SESSION_KEY, distinctId);
+
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] identify distinct_id', { distinct_id: distinctId });
+    }
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Reserved PostHog pageview for city guide routes
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!cityData?.name || !location.pathname) return;
+
+    const pageviewPayload = {
+      pathname: location.pathname,
+      city_name: cityData.name,
+      session_id: getSessionId(),
+    };
+
+    captureEvent('$pageview', pageviewPayload);
+
+    if (import.meta.env.DEV) {
+      console.log('[ANALYTICS_DEBUG] $pageview', pageviewPayload);
+    }
+  }, [location.pathname, cityData?.name]);
 
   // ---------------------------------------------------------------------------
   // 2️⃣ Track city pack view on load

@@ -39,7 +39,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 }
 
 // Named export for TS safety
-export { posthog as posthogClient }
+export { posthog, posthog as posthogClient }
 
 // -----------------------------
 // Session Handling
@@ -61,6 +61,20 @@ export function captureEvent(
   properties: Record<string, unknown> = {},
 ): void {
   if (!POSTHOG_KEY) return
+
+  // Keep guide pageviews sourced from CityGuideView to avoid duplicate $pageview
+  // events from the global router tracker.
+  if (eventName === '$pageview') {
+    const pathname = properties.pathname
+    const cityName = properties.city_name
+    if (
+      typeof pathname === 'string' &&
+      pathname.startsWith('/guide/') &&
+      typeof cityName !== 'string'
+    ) {
+      return
+    }
+  }
 
   posthog.capture(eventName, {
     environment: import.meta.env.MODE,
