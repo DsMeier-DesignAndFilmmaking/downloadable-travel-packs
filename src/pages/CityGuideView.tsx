@@ -1647,65 +1647,71 @@ const exchangeRateDisplay = useMemo(() => {
 <section className="space-y-5 pt-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
           {cityData.transit_logic && (
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl"><Navigation size={20} /></div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Local Etiquette & Transit</p>
-              </div>
-              <div className="pl-5">
-  <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-line">
-    {cityData.transit_logic.payment_method.split('Note:').map((part, index, array) => (
-      <React.Fragment key={index}>
-        {part}
-        {/* If this isn't the last part, it means a "Note:" was here */}
-        {index < array.length - 1 && (
-          <span className="font-black text-black">Note:</span>
-        )}
-      </React.Fragment>
-    ))}
-  </p>
-</div>
-              <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-2">
-                {/* Label Row */}
-                <div className="flex items-center gap-2">
-                  <Phone size={12} className="text-slate-400" />
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em]">
-                    Primary Transit Apps
-                  </span>
-                </div>
-
-                {/* Value Row - High Contrast & Tactical Styling */}
-                <div className="pl-5 flex flex-col gap-2 mt-1">
-                {cityData.transit_logic.primary_app
-                  .split(/(?<=[;.])\s+/) // Splits after any ; or . followed by a space
-                  .filter(sentence => sentence.trim().length > 0) // Removes empty strings
-                  .map((sentence, index) => (
-                    <div key={index} className="flex items-start gap-2">
-                      {/* The Elite Bullet */}
-                      <span className="text-blue-400 mt-1.5 shrink-0 text-[10px]">•</span>
-                      
-                      {/* The Tactical Instruction */}
-                      <span className="text-sm font-medium text-blue-700 leading-snug">
-                        {sentence.trim()}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-              </div>
-              <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tactical Safety & Etiquette</p>
-                <p className="text-sm tracking-[0.01em] font-bold text-slate-600 italic leading-relaxed">
-                  {balanceText(cityData.transit_logic.etiquette)}
-                </p>
-              </div>
-              {'micromobility_alert' in cityData.transit_logic && cityData.transit_logic.micromobility_alert && (
-                <div className="mt-4 p-4 bg-amber-50/80 rounded-2xl border border-amber-100">
-                  <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Micro-Mobility Alert</p>
-                  <p className="text-sm tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
-                    {balanceText(cityData.transit_logic.micromobility_alert)}
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] px-5 py-6 md:p-8 shadow-sm relative overflow-hidden group">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
+                    <Navigation size={20} className="mt-1 shrink-0" />
+                  </div>
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-wide opacity-70">
+                    Local Etiquette & Transit
                   </p>
                 </div>
-              )}
+                <div className="pl-5">
+                  <p className="text-sm md:text-base font-medium text-slate-700 leading-relaxed whitespace-pre-line">
+                    {cityData.transit_logic.payment_method.split('Note:').map((part, index, array) => (
+                      <React.Fragment key={index}>
+                        {part}
+                        {/* If this isn't the last part, it means a "Note:" was here */}
+                        {index < array.length - 1 && (
+                          <span className="font-black text-black">Note:</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </p>
+                </div>
+                <div className="border-t border-slate-100 pt-4 space-y-4">
+                  {/* Label Row */}
+                  <div className="flex items-start gap-3">
+                    <Phone size={12} className="mt-1 shrink-0 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide opacity-70">
+                      Primary Transit Apps
+                    </span>
+                  </div>
+
+                  {/* Value Row - High Contrast & Tactical Styling */}
+                  <div className="pl-5 space-y-3">
+                    {cityData.transit_logic.primary_app
+                      .split(/(?<=[;.])\s+/) // Splits after any ; or . followed by a space
+                      .filter(sentence => sentence.trim().length > 0) // Removes empty strings
+                      .map((sentence, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          {/* The Elite Bullet */}
+                          <span className="text-blue-400 mt-1 shrink-0 text-[10px]">•</span>
+                          
+                          {/* The Tactical Instruction */}
+                          <span className="text-sm md:text-base font-medium text-blue-700 leading-relaxed">
+                            {sentence.trim()}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                <div className="px-5 py-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-wide opacity-70 mb-1">Tactical Safety & Etiquette</p>
+                  <p className="text-sm md:text-base tracking-[0.01em] font-bold text-slate-600 italic leading-relaxed">
+                    {balanceText(cityData.transit_logic.etiquette)}
+                  </p>
+                </div>
+                {'micromobility_alert' in cityData.transit_logic && cityData.transit_logic.micromobility_alert && (
+                  <div className="px-5 py-6 bg-amber-50/80 rounded-2xl border border-amber-100">
+                    <p className="text-xs font-black text-amber-800 uppercase tracking-wide opacity-70 mb-1">Micro-Mobility Alert</p>
+                    <p className="text-sm md:text-base tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
+                      {balanceText(cityData.transit_logic.micromobility_alert)}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 </section>

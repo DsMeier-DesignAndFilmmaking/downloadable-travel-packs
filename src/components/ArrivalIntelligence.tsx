@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, RotateCcw } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -112,6 +112,7 @@ export default function ArrivalIntelligence({
   onAirportChange,
 }: ArrivalIntelligenceProps) {
   const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
+  const stepIndicatorRef = useRef<HTMLDivElement | null>(null);
   const progressStageOrder: ArrivalStage[] = [
     'entry-immigration',
     'airport-exit',
@@ -122,6 +123,7 @@ export default function ArrivalIntelligence({
       ? 0
       : progressStageOrder.indexOf(arrivalStage) + 1;
   const totalStages = progressStageOrder.length;
+  const activeProtocolStep = arrivalStage === 'pre-arrival' ? 1 : currentStageIndex;
 
   const strategyText = preLandStrategy?.trim() || 'Confirm entry requirements and keep passport validity.';
   const laneText = laneSelection?.trim() || 'Use official airport lane signage.';
@@ -139,6 +141,34 @@ export default function ArrivalIntelligence({
     : visaError 
     ? "Standard visa rules apply" 
     : visaStatus;
+  const scrollToStepIndicator = () => {
+    requestAnimationFrame(() => {
+      stepIndicatorRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    });
+  };
+
+  const handleConfirmArrival = () => {
+    onConfirmArrival();
+    scrollToStepIndicator();
+  };
+
+  const handleMarkLanded = () => {
+    onMarkLanded();
+    scrollToStepIndicator();
+  };
+
+  const handleProceedToCity = () => {
+    onProceedToCity();
+    scrollToStepIndicator();
+  };
+
+  const handleResetStatus = () => {
+    onResetStatus();
+    scrollToStepIndicator();
+  };
 
   return (
     <section className="space-y-4">
@@ -259,244 +289,343 @@ export default function ArrivalIntelligence({
             </div>
             </div>
 
-            {arrivalStage !== 'pre-arrival' && (
-              <div className="mt-2 flex items-center justify-between text-[11px] text-cyan-100/70">
-                <span className="uppercase tracking-[0.14em]">
-                  Stage {currentStageIndex} of {totalStages}
-                </span>
-                <div className="flex items-center gap-1">
-                  {progressStageOrder.map((_, index) => (
-                    <span
-                      key={index}
-                      className={
-                        index + 1 <= currentStageIndex
-                          ? 'h-1.5 w-6 rounded-full bg-cyan-300'
-                          : 'h-1.5 w-6 rounded-full bg-cyan-300/30'
-                      }
-                    />
-                  ))}
-                </div>
+            <div
+              ref={stepIndicatorRef}
+              className="mb-6 scroll-mt-4"
+            >
+              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-slate-500">
+                <span>Arrival Protocol</span>
+                <span>Stage {activeProtocolStep} of {totalStages}</span>
               </div>
-            )}
+              <div className="mt-3 flex items-center">
+                {[1, 2, 3].map((step) => {
+                  const isCompleted = step < activeProtocolStep;
+                  const isActive = step === activeProtocolStep;
 
-            <AnimatePresence mode="wait" initial={false}>
-              {arrivalStage === 'pre-arrival' && (
-                <motion.div key="pre-arrival" className="space-y-3">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                    <h2 className="text-md font-bold text-slate-800">Welcome to {cityName}</h2>
-                    <p className="mt-2 text-xs text-slate-500">
-                      Tap below once you&apos;ve landed to begin guided arrival.
-                    </p>
-                  </div>
-                  <motion.button
-                    type="button"
-                    onClick={onConfirmArrival}
-                    whileTap={{ scale: 0.98 }}
-                    className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
+                  return (
+                    <Fragment key={step}>
+                      <span
+                        className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-xs font-bold ${
+                          isCompleted
+                            ? 'bg-blue-600 text-white'
+                            : isActive
+                              ? 'border-2 border-blue-600 text-blue-600 bg-white'
+                              : 'bg-slate-200 text-slate-400'
+                        }`}
+                      >
+                        {step}
+                      </span>
+                      {step < totalStages && (
+                        <span
+                          className={`mx-2 h-[2px] flex-1 ${
+                            step < activeProtocolStep ? 'bg-blue-600' : 'bg-slate-200'
+                          }`}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            <motion.div
+              layout
+              className="relative min-h-[65vh] overflow-hidden"
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {arrivalStage === 'pre-arrival' && (
+                  <motion.div
+                    key="pre-arrival"
+                    className="space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
                   >
-                    Confirm Arrival
-                  </motion.button>
-                </motion.div>
-              )}
-
-              {arrivalStage === 'entry-immigration' && (
-                <motion.div key="stage-1" className="space-y-3">
-                    <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                      <div className="mt-3 space-y-0.5">
-                        <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Visa Requirement" value={displayVisaStatus} />
-                        <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Lane Advice" value={laneText} />
-                        <InlineRow icon={<Plane size={14} className="text-slate-600" />} label="Entry Strategy" value={strategyText} />
-                        <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label="Digital Entry" value={digitalEntryText} bordered={false} />
+                    <div className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
+                      <div className="space-y-4">
+                        <h2 className="text-md font-bold text-slate-800">Welcome to {cityName}</h2>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Arrival Confirmation</p>
+                          <p className="text-sm text-slate-600 opacity-80 leading-relaxed">
+                            Tap below once you&apos;ve landed to begin guided arrival.
+                          </p>
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-slate-200">
+                          <motion.button
+                            type="button"
+                            onClick={handleConfirmArrival}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full rounded-xl bg-blue-600 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg transition-all duration-150 ease-out hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            Confirm Arrival
+                          </motion.button>
+                        </div>
                       </div>
                     </div>
-                    <motion.button
-                      onClick={onMarkLanded}
-                      whileTap={{ scale: 0.98 }}
-                      className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg"
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      className="mt-5 py-2 text-xs text-slate-500 text-center leading-relaxed"
                     >
-                      I've Cleared Customs!
-                    </motion.button>
+                      Tap "Confirm Arrival" to start your Arrival Support Flow
+                    </motion.p>
                   </motion.div>
-              )}
+                )}
 
-              {arrivalStage === 'airport-exit' && (
-                <motion.div key="stage-2" className="space-y-3">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Extraction Strategy</p>
-                    <ul className="mt-3 space-y-3 text-sm text-slate-700">
-                      <li className="flex gap-2">
-                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Terminal:</span>
-                        {/* Removed truncate, added leading-relaxed for better readability on wrap */}
-                        <span className="min-w-0 leading-relaxed">
-                          Verify your terminal: T1 (Inter) vs T2 (Aeromexico). The shuttle between them takes 15+ minutes.
-                        </span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Handshake:</span>
-                        <span className="min-w-0 leading-relaxed">
-                          Finalize your ride on airport Wi‑Fi before exiting. LTE/5G is unstable in the pickup lanes.
-                        </span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Pickup:</span>
-                        <span className="min-w-0 leading-relaxed">
-                          T1: Exit Gate 7, outer lane. T2: Ground Floor, follow &quot;Transporte por Aplicación&quot; signage.
-                        </span>
-                      </li>
-                      <li className="flex gap-2">
-                        <span className="text-slate-500 shrink-0 font-bold uppercase text-[10px] tracking-wider mt-0.5">Resilience:</span>
-                        <span className="min-w-0 leading-relaxed">
-                          Ignore solicitations in the hall. Use pre‑booked apps or &quot;Taxi Autorizado&quot; kiosks only.
-                        </span>
-                      </li>
-                    </ul>
-                    <div className="mt-3 space-y-1">
-                      <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
-                      <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
-                      <InlineRow
-  icon={<CheckCircle size={14} className="text-emerald-600" />}
-  label="Transit Estimates"
-  value={
-    (() => {
-      const pipe = ' | ';
-      const taxiColon = taxiEstimateText.indexOf(':');
-      const taxiValueRaw = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
-      const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
-      const taxiMiddle = taxiBefore.replace(/^Taxi\s*\/?\s*/i, '').trim() || null;
-      
-      const trainColon = trainEstimateText.indexOf(':');
-      const trainValueRaw = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
+                {arrivalStage === 'entry-immigration' && (
+                  <motion.div
+                    key="stage-1"
+                    className="space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                  >
+                    <div className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Immigration Checkpoint</p>
+                          <p className="text-sm text-slate-600 opacity-80 leading-relaxed">
+                            Confirm lane assignment and digital-entry readiness before moving to airport exit.
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Visa Requirement" value={displayVisaStatus} />
+                          <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Lane Advice" value={laneText} />
+                          <InlineRow icon={<Plane size={14} className="text-slate-600" />} label="Entry Strategy" value={strategyText} />
+                          <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label="Digital Entry" value={digitalEntryText} bordered={false} />
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-slate-200">
+                          <motion.button
+                            onClick={handleMarkLanded}
+                            whileTap={{ scale: 0.98 }}
+                            className="w-full rounded-xl bg-blue-600 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg transition-all duration-150 ease-out hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                          >
+                            I've Cleared Customs!
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
 
-      const formatValue = (val: string) => {
-        const modes = val.split(pipe);
+                {arrivalStage === 'airport-exit' && (
+                  <motion.div
+                    key="stage-2"
+                    className="space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                  >
+                    <div className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Exit Strategy</p>
+                        <ul className="space-y-4">
+                          <li className="flex items-start gap-3">
+                            <Plane size={14} className="mt-1 shrink-0 text-slate-500" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-800">Terminal</p>
+                              <p className="text-sm text-slate-700 opacity-80 leading-relaxed text-balance break-words">
+                                Verify your terminal: T1 (Inter) vs T2 (Aeromexico). The shuttle between them takes 15+ minutes.
+                              </p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <Wifi size={14} className="mt-1 shrink-0 text-slate-500" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-800">Handshake</p>
+                              <p className="text-sm text-slate-700 opacity-80 leading-relaxed text-balance break-words">
+                                Finalize your ride on airport Wi‑Fi before exiting. LTE/5G is unstable in the pickup lanes.
+                              </p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <Navigation size={14} className="mt-1 shrink-0 text-slate-500" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-800">Pickup</p>
+                              <p className="text-sm text-slate-700 opacity-80 leading-relaxed text-balance break-words">
+                                T1: Exit Gate 7, outer lane. T2: Ground Floor, follow &quot;Transporte por Aplicación&quot; signage.
+                              </p>
+                            </div>
+                          </li>
+                          <li className="flex items-start gap-3">
+                            <CheckCircle size={14} className="mt-1 shrink-0 text-slate-500" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-800">Resilience</p>
+                              <p className="text-sm text-slate-700 opacity-80 leading-relaxed text-balance break-words">
+                                Ignore solicitations in the hall. Use pre‑booked apps or &quot;Taxi Autorizado&quot; kiosks only.
+                              </p>
+                            </div>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="mt-4 space-y-1">
+                        <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
+                        <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
+                        <InlineRow
+                        icon={<CheckCircle size={14} className="text-emerald-600" />}
+                        label="Transit Estimates"
+                        value={
+                          (() => {
+                            const pipe = ' | ';
+                            const taxiColon = taxiEstimateText.indexOf(':');
+                            const taxiValueRaw = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
+                            const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
+                            const taxiMiddle = taxiBefore.replace(/^Taxi\s*\/?\s*/i, '').trim() || null;
+                            
+                            const trainColon = trainEstimateText.indexOf(':');
+                            const trainValueRaw = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
+
+                            const formatValue = (val: string) => {
+                              const modes = val.split(pipe);
+                              return (
+                                <div className="flex flex-col gap-1"> 
+                                  {modes.map((mode, idx) => {
+                                    const parts = mode.trim().split(/(\(.*?\))/g);
+                                    return (
+                                      <div key={idx} className="flex flex-wrap items-center gap-x-1.5 justify-start">
+                                        {parts.map((part, i) => {
+                                          if (part.startsWith('(') && part.endsWith(')')) {
+                                            return (
+                                              <span key={i} className="text-orange-600 font-black text-[10px] uppercase tracking-tight">
+                                                {part}
+                                              </span>
+                                            );
+                                          }
+                                          return (
+                                            <span key={i} className="font-bold text-slate-900 tabular-nums">
+                                              {part}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            };
+
         return (
-          <div className="flex flex-col gap-1"> 
-            {modes.map((mode, idx) => {
-              const parts = mode.trim().split(/(\(.*?\))/g);
-              return (
-                <div key={idx} className="flex flex-wrap items-center gap-x-1.5 justify-start">
-                  {parts.map((part, i) => {
-                    if (part.startsWith('(') && part.endsWith(')')) {
-                      return (
-                        <span key={i} className="text-orange-600 font-black text-[10px] uppercase tracking-tight">
-                          {part}
-                        </span>
-                      );
-                    }
-                    return (
-                      <span key={i} className="font-bold text-slate-900 tabular-nums">
-                        {part}
-                      </span>
-                    );
-                  })}
-                </div>
-              );
-            })}
+          /* grid-cols-1 on mobile, 2 columns on desktop with fixed label width */
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr] sm:gap-y-3 sm:gap-x-2">
+            
+            {/* Taxi Label */}
+            <div className="flex items-center gap-1.5 self-start pt-0.5">
+              <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
+                Taxi
+              </span>
+              <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
+                {taxiMiddle ?? 'to center'}
+              </span>
+            </div>
+            {/* Taxi Data */}
+            <div className="text-sm">
+              {formatValue(taxiValueRaw)}
+            </div>
+
+            {/* Rail Label */}
+            <div className="flex items-center gap-1.5 self-start pt-0.5">
+              <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
+                Rail
+              </span>
+              <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
+                to zones
+              </span>
+            </div>
+            {/* Rail Data */}
+            <div className="text-sm">
+              {formatValue(trainValueRaw)}
+            </div>
+
           </div>
         );
-      };
-
-      return (
-        /* grid-cols-1 on mobile, 2 columns on desktop with fixed label width */
-        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr] sm:gap-y-3 sm:gap-x-2">
-          
-          {/* Taxi Label */}
-          <div className="flex items-center gap-1.5 self-start pt-0.5">
-            <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
-              Taxi
-            </span>
-            <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
-              {taxiMiddle ?? 'to center'}
-            </span>
-          </div>
-          {/* Taxi Data */}
-          <div className="text-sm">
-            {formatValue(taxiValueRaw)}
-          </div>
-
-          {/* Rail Label */}
-          <div className="flex items-center gap-1.5 self-start pt-0.5">
-            <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
-              Rail
-            </span>
-            <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
-              to zones
-            </span>
-          </div>
-          {/* Rail Data */}
-          <div className="text-sm">
-            {formatValue(trainValueRaw)}
-          </div>
-
-        </div>
-      );
-    })()
-  }
-/>
-                      <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
+      })()
+    }
+  />
+                        <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-slate-200">
+                        <motion.button
+                          onClick={handleProceedToCity}
+                          whileTap={{ scale: 0.98 }}
+                          className="w-full rounded-xl bg-blue-600 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-lg transition-all duration-150 ease-out hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        >
+                          I've Left the Airport
+                        </motion.button>
+                      </div>
                     </div>
-                  </div>
-                  <motion.button
-                    onClick={onProceedToCity}
-                    whileTap={{ scale: 0.98 }}
-                    className="h-12 w-full rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 text-[11px] font-black uppercase tracking-[0.14em] text-white"
+                  </motion.div>
+                )}
+
+                {arrivalStage === 'left-airport' && (
+                  <motion.div
+                    key="stage-3"
+                    className="space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
                   >
-                    I've Left the Airport
-                  </motion.button>
-                </motion.div>
-              )}
-
-              {arrivalStage === 'left-airport' && (
-                <motion.div key="stage-3" className="space-y-3">
-                  <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-                      CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500 font-medium">
-                      Understand the social layout before committing time or money.
-                    </p>
-                    <div className="mt-3 space-y-0.5">
-                      <InlineRow
-                        icon={<CheckCircle size={14} className="text-emerald-600" />}
-                        label="Tourist Clusters"
-                        value="High-traffic zones with elevated pricing."
-                      />
-                      <InlineRow
-                        icon={<CheckCircle size={14} className="text-emerald-600" />}
-                        label="Local Districts"
-                        value="Primarily residential and culturally authentic."
-                      />
-                      <InlineRow
-                        icon={<CheckCircle size={14} className="text-emerald-600" />}
-                        label="Feels Unsafe vs Is Unsafe"
-                        value="Differentiate perception from crime statistics."
-                      />
-                      <InlineRow
-                        icon={<CheckCircle size={14} className="text-emerald-600" />}
-                        label="Gentrified vs Historic"
-                        value="Recently commercialized vs culturally rooted areas."
-                        bordered={false}
-                      />
+                    <div className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
+                      <div className="space-y-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                          CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
+                        </p>
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">Urban Pattern Read</p>
+                          <p className="text-sm text-slate-600 opacity-80 leading-relaxed">
+                            Understand the social layout before committing time or money.
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Tourist Clusters"
+                            value="High-traffic zones with elevated pricing."
+                          />
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Local Districts"
+                            value="Primarily residential and culturally authentic."
+                          />
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Feels Unsafe vs Is Unsafe"
+                            value="Differentiate perception from crime statistics."
+                          />
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Gentrified vs Historic"
+                            value="Recently commercialized vs culturally rooted areas."
+                            bordered={false}
+                          />
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-neutral-100">
+                          <CityPulseBlock citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-4 pt-3 border-t border-neutral-100">
-                      <CityPulseBlock citySlug={citySlug} cityName={cityName} hasLanded={hasLanded} />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
           {/* BOTTOM LEFT RESET STATUS */}
           {(arrivalStage === 'airport-exit' || arrivalStage === 'left-airport') && (
             <div className="mt-3 border-t border-slate-100/10 px-1 pt-3">
-              <button
+              <motion.button
                 type="button"
-                onClick={onResetStatus}
-                className="text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-100/75 underline underline-offset-2"
+                onClick={handleResetStatus}
+                whileTap={{ scale: 0.98 }}
+                className="text-[10px] font-bold uppercase tracking-[0.12em] text-cyan-100/75 underline underline-offset-2 transition-colors duration-150 ease-out hover:text-cyan-100 active:text-cyan-200"
               >
                 Reset Status
-              </button>
+              </motion.button>
             </div>
           )}
         </div>

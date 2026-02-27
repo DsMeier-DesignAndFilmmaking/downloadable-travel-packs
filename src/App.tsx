@@ -26,6 +26,9 @@ import PageTransition from './components/PageTransition';
 import Footer from './components/Footer';
 import { SelectedAirportProvider } from './contexts/SelectedAirportContext';
 import PostHogPageView from './lib/PostHogPageView';
+import FirstVisitOfflineIntroModal from './components/FirstVisitOfflineIntroModal';
+
+const OFFLINE_INTRO_STORAGE_KEY = 'hasSeenOfflineIntro';
 
 /**
  * AnimatedRoutes with scroll restoration
@@ -178,11 +181,30 @@ function PWAStandaloneRedirect() {
 }
 
 export default function App() {
+  const [showOfflineIntro, setShowOfflineIntro] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const hasSeenOfflineIntro = window.localStorage.getItem(OFFLINE_INTRO_STORAGE_KEY);
+    if (!hasSeenOfflineIntro) {
+      setShowOfflineIntro(true);
+    }
+  }, []);
+
+  const dismissOfflineIntro = () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(OFFLINE_INTRO_STORAGE_KEY, 'true');
+    }
+    setShowOfflineIntro(false);
+  };
+
   return (
     <Router>
       <SelectedAirportProvider>
         <PostHogPageView />
         <PWAStandaloneRedirect />
+        <FirstVisitOfflineIntroModal isOpen={showOfflineIntro} onClose={dismissOfflineIntro} />
         <div className="flex flex-col min-h-screen bg-[#F7F7F7]">
           <main className="flex-grow">
             <AnimatedRoutes />

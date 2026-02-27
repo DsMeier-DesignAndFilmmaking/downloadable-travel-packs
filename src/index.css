@@ -2,6 +2,7 @@
 
 html {
     background-color: #F7F7F7; /* Matches your light theme */
+    scroll-behavior: smooth;
   }
   
   /* Add a smooth global fade to the body on mount */
