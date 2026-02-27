@@ -51,6 +51,7 @@ import { getAirportArrivalInfo } from '@/data/multiAirport';
 import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
+import ImpactLedgerSkeleton from '@/components/ImpactLedgerSkeleton';
 
 import SourceInfo from '@/components/SourceInfo';
 
@@ -689,6 +690,7 @@ function resolveUsdToLocalRate(
 const DEFAULT_PASSPORT = 'US';
 const STANDALONE_FIRST_LAUNCH_KEY = 'travelpacks-standalone-first-launch';
 const POSTHOG_IDENTIFIED_SESSION_KEY = 'tp_posthog_identified_distinct_id';
+const ImpactLedger = React.lazy(() => import('@/components/ImpactLedger'));
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -1650,12 +1652,7 @@ const exchangeRateDisplay = useMemo(() => {
             <div className="bg-white border border-slate-200 rounded-[2.5rem] px-5 py-6 md:p-8 shadow-sm relative overflow-hidden group">
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl">
-                    <Navigation size={20} className="mt-1 shrink-0" />
-                  </div>
-                  <p className="text-xs font-black text-slate-500 uppercase tracking-wide opacity-70">
-                    Local Etiquette & Transit
-                  </p>
+                  
                 </div>
                 <div className="pl-5">
                   <p className="text-sm md:text-base font-medium text-slate-700 leading-relaxed whitespace-pre-line">
@@ -1687,7 +1684,7 @@ const exchangeRateDisplay = useMemo(() => {
                       .map((sentence, index) => (
                         <div key={index} className="flex items-start gap-3">
                           {/* The Elite Bullet */}
-                          <span className="text-blue-400 mt-1 shrink-0 text-[10px]">•</span>
+                          
                           
                           {/* The Tactical Instruction */}
                           <span className="text-sm md:text-base font-medium text-blue-700 leading-relaxed">
@@ -1715,6 +1712,23 @@ const exchangeRateDisplay = useMemo(() => {
             </div>
           )}
 </section>
+
+        <section className="space-y-6 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Impact Ledger</h2>
+          <React.Suspense fallback={<ImpactLedgerSkeleton />}>
+            <ImpactLedger
+              ActivityType="walk"
+              Location_ID={`${cleanSlug ?? cityData.slug}_park_001`}
+              Duration={45}
+              VendorType="indie"
+              distanceKm={0.8}
+              reusable
+              civicEngagement
+              offPeak
+              vendorName={quickFuelIntel?.staple ?? cityData.name}
+            />
+          </React.Suspense>
+        </section>
 
         <section className="space-y-6 pt-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>

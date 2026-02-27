@@ -1086,7 +1086,7 @@
         "toilets": "Carry tissue; many public toilets lack it. Cafés and malls are safest."
       },
       "transit_logic": {
-        "primary_app": "\nUber/DiDi for comfort;\nEcoBici for Roma/Condesa gridlock.\n\nNote: Use Metrobús Line 1 to bypass car traffic.",        
+        "primary_app": "\nUber/DiDi for comfort.\nEcoBici for Roma/Condesa gridlock.\n\nNote: Use Metrobús Line 1 to bypass car traffic.",        
         "payment_method": "Digital-First Transit: Metrobús turnstiles now accept Tap-to-Pay (Apple/Google Pay). Skip the MI card lines. Note: Small vendors still require physical Pesos.",
         "etiquette": "The First-Three-Cars Rule: On the Metro, the front three cars are strictly reserved for women/children—the most efficient way to maintain personal space. Keep phones stowed during transit; memorize your exit gate before arriving.",
         "micromobility_alert": "EcoBici Logic: Docks can be 'Dead Zones' (empty) in Roma/Condesa after 11:00 PM. Check app capacity before riding."
