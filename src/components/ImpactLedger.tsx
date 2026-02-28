@@ -18,6 +18,8 @@ export type ImpactLedgerProps = {
   civicEngagement?: boolean;
   offPeak?: boolean;
   vendorName?: string;
+  /** When provided, live vitals are fetched from Google Air Quality + Pollen API (server-side). */
+  coordinates?: { lat: number; lng: number };
 };
 
 const PULSE_INTENSITY_BY_NEIGHBORHOOD: Record<string, number> = {
@@ -41,14 +43,13 @@ function getNeighborhoodKey(locationId: string): string {
 const FALLBACK_REPORT: CityVitalsReport = {
   title: 'City Breath',
   contextId: 'city-breath-steady',
-  currentConditions: 'The city is breathing easy right now, with movement close to its seasonal rhythm.',
+  currentConditions: 'The district is breathing easy today with fresh, clear skies.',
   whatCanYouDo:
-    'Because conditions are steady, keep this leg walk-first and use transit for longer hops to preserve the lighter rhythm.',
-  howItHelps:
-    'This keeps streets calm and accessible for the families and neighborhood businesses who rely on them every day.',
+    "It's a perfect day for a walk or bike ride to keep the neighborhood quiet and vibrant.",
+  howItHelps: 'Your choice helps preserve the peaceful charm of these historic blocks.',
   neighborhoodInvestment: '80% Stays Local',
   isLive: false,
-  sourceRef: 'Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)',
+  sourceRef: 'Ref: Google Air Quality + Pollen (Maps Platform) — Seasonal Baseline',
 };
 
 export default function ImpactLedger(props: ImpactLedgerProps) {
@@ -61,6 +62,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
   const filterId = useId().replace(/:/g, '_');
 
   const neighborhoodKey = useMemo(() => getNeighborhoodKey(props.Location_ID), [props.Location_ID]);
+  const coordinates = props.coordinates;
 
   const pulseIntensity = useMemo(
     () => PULSE_INTENSITY_BY_NEIGHBORHOOD[neighborhoodKey] ?? 0.75,
@@ -74,6 +76,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
 
   useEffect(() => {
     let active = true;
+    const REVALIDATE_WINDOW_MS = 1000;
 
     void primeSeasonalBaselineCache();
 
@@ -83,30 +86,36 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
         setReport(cachedOrBaseline);
       }
 
-      const fresh = await fetchCityVitals(neighborhoodKey);
-      if (active) {
-        setReport((current) => {
-          if (
-            current &&
-            current.contextId === fresh.contextId &&
-            current.currentConditions === fresh.currentConditions &&
-            current.whatCanYouDo === fresh.whatCanYouDo &&
-            current.howItHelps === fresh.howItHelps &&
-            current.neighborhoodInvestment === fresh.neighborhoodInvestment &&
-            current.isLive === fresh.isLive
-          ) {
-            return current;
-          }
+      const fetchPromise = fetchCityVitals(neighborhoodKey, { coordinates: coordinates ?? undefined });
+      const timeoutPromise = new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), REVALIDATE_WINDOW_MS);
+      });
 
-          return fresh;
-        });
-      }
+      const result = await Promise.race([fetchPromise.then((r) => ({ report: r })), timeoutPromise.then(() => null)]);
+
+      if (!active || result === null) return;
+
+      const fresh = result.report;
+      setReport((current) => {
+        if (
+          current &&
+          current.contextId === fresh.contextId &&
+          current.currentConditions === fresh.currentConditions &&
+          current.whatCanYouDo === fresh.whatCanYouDo &&
+          current.howItHelps === fresh.howItHelps &&
+          current.neighborhoodInvestment === fresh.neighborhoodInvestment &&
+          current.isLive === fresh.isLive
+        ) {
+          return current;
+        }
+        return fresh;
+      });
     })();
 
     return () => {
       active = false;
     };
-  }, [neighborhoodKey]);
+  }, [neighborhoodKey, coordinates?.lat, coordinates?.lng]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -154,6 +163,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
   const display = report ?? FALLBACK_REPORT;
   const conditionNarrativeId = `city-vitals-condition-${display.contextId}`;
   const actionNarrativeId = `city-vitals-action-${display.contextId}`;
+  const contentKey = `${display.contextId}-${display.isLive}`;
 
   return (
     <motion.section
@@ -197,7 +207,13 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
         aria-hidden
       />
 
-      <div className="relative z-10 space-y-4">
+      <motion.div
+        key={contentKey}
+        initial={{ opacity: 0.92 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        className="relative z-10 space-y-4"
+      >
         <header className="space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-2">
@@ -338,7 +354,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
           Current conditions: {display.currentConditions}. What can you do: {display.whatCanYouDo}. How it helps:
           {` ${display.howItHelps}`}. Neighborhood investment: {display.neighborhoodInvestment}.
         </div>
-      </div>
+      </motion.div>
     </motion.section>
   );
 }

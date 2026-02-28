@@ -1775,6 +1775,11 @@ const exchangeRateDisplay = useMemo(() => {
               civicEngagement
               offPeak
               vendorName={quickFuelIntel?.staple ?? cityData.name}
+              coordinates={
+                typeof cityData.coordinates?.lat === 'number' && typeof cityData.coordinates?.lng === 'number'
+                  ? { lat: cityData.coordinates.lat, lng: cityData.coordinates.lng }
+                  : undefined
+              }
             />
           </React.Suspense>
         </section>

@@ -41,12 +41,16 @@ export type CityVitalsReport = {
 
 export { formatCityLabel };
 
-const CITY_VITALS_API_ENDPOINT = '/api/city-vitals';
+const GOOGLE_PULSE_ENDPOINT = '/api/vitals/google-pulse';
 const SEASONAL_BASELINE_URL = '/data/seasonal-baseline.json';
-const API_REQUEST_TIMEOUT_MS = 2000;
+const API_REQUEST_TIMEOUT_MS = 1000;
 const IDB_NAME = 'city-vitals-cache-db';
 const IDB_STORE = 'reports';
 const IDB_VERSION = 1;
+
+function getLocalStorageKey(cityId: string): string {
+  return `city-vitals-cache-${cityId}`;
+}
 
 let seasonalBaselineCache: SeasonalBaselineMap | null = null;
 
@@ -90,6 +94,42 @@ function isApiCityVitalsResponse(value: unknown): value is ApiCityVitalsResponse
     typeof value.is_live === 'boolean' &&
     typeof value.source_ref === 'string'
   );
+}
+
+function isCityVitalsReport(value: unknown): value is CityVitalsReport {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.title === 'string' &&
+    typeof value.contextId === 'string' &&
+    typeof value.currentConditions === 'string' &&
+    typeof value.whatCanYouDo === 'string' &&
+    typeof value.howItHelps === 'string' &&
+    typeof value.neighborhoodInvestment === 'string' &&
+    typeof value.isLive === 'boolean' &&
+    typeof value.sourceRef === 'string'
+  );
+}
+
+function readCityVitalsFromLocalStorage(cityId: string): CityVitalsReport | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(getLocalStorageKey(cityId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isCityVitalsReport(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCityVitalsToLocalStorage(cityId: string, report: CityVitalsReport): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(getLocalStorageKey(cityId), JSON.stringify(report));
+  } catch {
+    // Best-effort
+  }
 }
 
 function normalizeSeasonalBaselineMap(value: unknown): SeasonalBaselineMap | null {
@@ -137,7 +177,7 @@ function mapApiPayloadToReport(payload: ApiCityVitalsResponse): CityVitalsReport
     ),
     neighborhoodInvestment: sanitizeText(payload.neighborhood_investment, '80% Stays Local'),
     isLive: payload.is_live,
-    sourceRef: sanitizeText(payload.source_ref, 'Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)'),
+    sourceRef: sanitizeText(payload.source_ref, 'Ref: Google Air Quality + Pollen (Maps Platform)'),
   };
 }
 
@@ -149,16 +189,15 @@ function buildSteadyBaselineReport(cityId: string, baseline?: SeasonalBaselineEn
   return {
     title,
     contextId: `${cityId}-steady`,
-    currentConditions: `The city is breathing easy in ${title}, and street flow feels close to its seasonal rhythm.`,
+    currentConditions: 'The district is breathing easy today with fresh, clear skies.',
     whatCanYouDo:
-      'Because conditions are steady, keep this leg walk-first and use transit for longer hops to preserve the lighter rhythm.',
-    howItHelps:
-      'This keeps streets calm and accessible for the families and neighborhood businesses who rely on them every day.',
+      "It's a perfect day for a walk or bike ride to keep the neighborhood quiet and vibrant.",
+    howItHelps: 'Your choice helps preserve the peaceful charm of these historic blocks.',
     neighborhoodInvestment,
     isLive: false,
     sourceRef: sanitizeText(
       baseline?.source_ref,
-      'Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)',
+      'Ref: Google Air Quality + Pollen (Maps Platform) — Seasonal Baseline',
     ),
   };
 }
@@ -262,28 +301,34 @@ async function writeCityVitalsToIDB(cityId: string, report: CityVitalsReport): P
   }
 }
 
-async function fetchFromCityVitalsApi(cityId: string): Promise<CityVitalsReport> {
+async function fetchFromGooglePulseApi(
+  cityId: string,
+  lat: number,
+  lng: number,
+): Promise<CityVitalsReport> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
 
   try {
-    const endpoint = `${CITY_VITALS_API_ENDPOINT}?cityId=${encodeURIComponent(cityId)}`;
-    const response = await fetch(endpoint, {
-      method: 'GET',
+    const response = await fetch(GOOGLE_PULSE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng, cityId }),
       cache: 'no-store',
       signal: controller.signal,
     });
 
     if (!response.ok) {
-      throw new Error(`CityVitals API failed (${response.status})`);
+      throw new Error(`Google Pulse API failed (${response.status})`);
     }
 
     const payload = (await response.json()) as unknown;
     if (!isApiCityVitalsResponse(payload)) {
-      throw new Error('CityVitals API returned invalid shape');
+      throw new Error('Google Pulse API returned invalid shape');
     }
 
     const report = mapApiPayloadToReport(payload);
+    writeCityVitalsToLocalStorage(cityId, report);
     await writeCityVitalsToIDB(cityId, report);
     return report;
   } finally {
@@ -304,19 +349,48 @@ export async function getSteadyBaselineCityVitals(cityIdRaw: string): Promise<Ci
 export async function getCachedOrBaselineCityVitals(cityIdRaw: string): Promise<CityVitalsReport> {
   const cityId = normalizeCityId(cityIdRaw);
 
+  const fromStorage = readCityVitalsFromLocalStorage(cityId);
+  if (fromStorage) return fromStorage;
+
   const cached = await readCityVitalsFromIDB(cityId);
   if (cached) return cached;
 
   return getSteadyBaselineCityVitals(cityId);
 }
 
-export async function fetchCityVitals(cityIdRaw: string): Promise<CityVitalsReport> {
+export type FetchCityVitalsOptions = {
+  /** When provided, uses Google Air Quality + Pollen API (server-side). Omit when offline or no coords. */
+  coordinates?: { lat: number; lng: number };
+};
+
+/**
+ * Fetches city vitals. With coordinates, calls Google Pulse API; otherwise or on failure/offline,
+ * returns seasonal baseline only. Never shows "No data available" — strict SWR + offline = baseline.
+ */
+export async function fetchCityVitals(
+  cityIdRaw: string,
+  options?: FetchCityVitalsOptions,
+): Promise<CityVitalsReport> {
   const cityId = normalizeCityId(cityIdRaw);
+  const coords = options?.coordinates;
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+  const fallback = await getSteadyBaselineCityVitals(cityId);
+
+  if (isOffline || !coords) {
+    writeCityVitalsToLocalStorage(cityId, fallback);
+    return fallback;
+  }
+
+  const { lat, lng } = coords;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return fallback;
+  }
 
   try {
-    return await fetchFromCityVitalsApi(cityId);
+    return await fetchFromGooglePulseApi(cityId, lat, lng);
   } catch {
-    const fallback = await getSteadyBaselineCityVitals(cityId);
+    writeCityVitalsToLocalStorage(cityId, fallback);
     await writeCityVitalsToIDB(cityId, fallback);
     return fallback;
   }
