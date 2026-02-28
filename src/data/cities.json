@@ -69,8 +69,8 @@
             "strategy": "Use biometric/eGate lanes if eligible; most visitors should follow the manual foreign passport queue signs."
           },
           "transport": {
-            "taxiEstimate": "Taxi to city center: 350-550 THB (plus tolls).",
-            "trainEstimate": "Airport Rail Link + BTS: ~45-80 THB total to central zones."
+            "taxiEstimate": "Taxi to city center: 350-550 THB | ~45-75 mins (plus tolls).",
+            "trainEstimate": "Airport Rail Link + BTS: ~45-80 THB | ~30-50 mins to central zones."
           }
         },
         "borderStatus": {
@@ -207,8 +207,8 @@
             "strategy": "Eligible passports can use PARAFE eGates. Others should stay in staffed passport control lanes."
           },
           "transport": {
-            "taxiEstimate": "Official taxi to city center: ~55-65 EUR flat-zone pricing.",
-            "trainEstimate": "RER B to central Paris: ~11.80 EUR, fastest in normal conditions."
+            "taxiEstimate": "Official taxi to city center: ~55-65 EUR | ~35-60 mins (flat-zone pricing).",
+            "trainEstimate": "RER B to central Paris: ~11.80 EUR | ~35-45 mins in normal conditions."
           }
         }
       },
@@ -311,8 +311,8 @@
             "strategy": "Use ePassport gates if eligible; otherwise proceed to manual Border Force desks."
           },
           "transport": {
-            "taxiEstimate": "Taxi to central London: ~65-110 GBP depending on airport and traffic.",
-            "trainEstimate": "Elizabeth Line/Heathrow Express options: ~13-25 GBP to central areas."
+            "taxiEstimate": "Taxi to central London: ~65-110 GBP | ~50-90 mins depending on airport and traffic.",
+            "trainEstimate": "Elizabeth Line/Heathrow Express options: ~13-25 GBP | ~30-50 mins to central areas."
           }
         }
       },
@@ -424,8 +424,8 @@
             "strategy": "Follow automated immigration flow where available; otherwise use staffed arrival inspection counters."
           },
           "transport": {
-            "taxiEstimate": "Taxi to central Tokyo: ~7000-9000 JPY from major airports.",
-            "trainEstimate": "Airport rail options: ~500-3000 JPY depending on line and destination."
+            "taxiEstimate": "Taxi to central Tokyo: ~7000-9000 JPY | ~35-70 mins from major airports.",
+            "trainEstimate": "Airport rail options: ~500-3000 JPY | ~20-65 mins depending on line and destination."
           }
         }
       },
@@ -527,8 +527,8 @@
             "strategy": "Use Global Entry or Mobile Passport Control where eligible; otherwise join standard CBP lanes."
           },
           "transport": {
-            "taxiEstimate": "Taxi to Manhattan: ~70-95 USD including tolls and fees.",
-            "trainEstimate": "AirTrain + LIRR/subway: ~13-20 USD depending on route."
+            "taxiEstimate": "Taxi to Manhattan: ~70-95 USD | ~45-90 mins including tolls and fees.",
+            "trainEstimate": "AirTrain + LIRR/subway: ~13-20 USD | ~35-70 mins depending on route."
           }
         }
       },
@@ -631,8 +631,8 @@
             "strategy": "EU/EEA passports can use eGates where posted; others proceed to staffed immigration lanes."
           },
           "transport": {
-            "taxiEstimate": "FCO official taxi to central Rome: ~55 EUR fixed fare zone.",
-            "trainEstimate": "Leonardo Express to Termini: ~14 EUR."
+            "taxiEstimate": "FCO official taxi to central Rome: ~55 EUR | ~40-60 mins fixed fare zone.",
+            "trainEstimate": "Leonardo Express to Termini: ~14 EUR | ~32 mins."
           }
         }
       },
@@ -734,8 +734,8 @@
             "strategy": "Smart border eGates for eligible passports; manual lanes for all others."
           },
           "transport": {
-            "taxiEstimate": "Taxi to city center: ~35-45 EUR depending on traffic.",
-            "trainEstimate": "R2 Nord commuter rail: ~4.90 EUR, Aerobus: ~6.75 EUR."
+            "taxiEstimate": "Taxi to city center: ~35-45 EUR | ~25-40 mins depending on traffic.",
+            "trainEstimate": "R2 Nord commuter rail / Aerobus: ~4.90-6.75 EUR | ~25-40 mins."
           }
         }
       },
@@ -837,8 +837,8 @@
             "strategy": "Use Smart Gates if eligible. Otherwise follow staffed passport control and visa validation desks."
           },
           "transport": {
-            "taxiEstimate": "Taxi to central zones: ~70-110 AED depending on destination.",
-            "trainEstimate": "Metro Red Line from DXB: ~6-12 AED for most central stops."
+            "taxiEstimate": "Taxi to central zones: ~70-110 AED | ~20-40 mins depending on destination.",
+            "trainEstimate": "Metro Red Line from DXB: ~6-12 AED | ~30-50 mins for most central stops."
           }
         }
       },
@@ -941,8 +941,8 @@
             "strategy": "Use Smart Entry/eGates when available; otherwise proceed to staffed immigration counters."
           },
           "transport": {
-            "taxiEstimate": "Taxi to central Seoul: ~55000-75000 KRW.",
-            "trainEstimate": "AREX to Seoul Station: ~4450-9500 KRW depending on service type."
+            "taxiEstimate": "Taxi to central Seoul: ~55000-75000 KRW | ~55-80 mins.",
+            "trainEstimate": "AREX to Seoul Station: ~4450-9500 KRW | ~43-60 mins depending on service type."
           }
         }
       },
@@ -1058,7 +1058,7 @@
           },
           "transport": {
             "taxiEstimate": "Taxi/Uber to Zócalo: 15-20 mins | 250-450 MXN",
-            "trainEstimate": "Metrobús Line 4: 30 MXN (Req. Smart Card) | Metro: 5 MXN"
+            "trainEstimate": "Metrobús Line 4 / Metro: 5-30 MXN | ~35-60 mins (Req. Smart Card for Metrobús)"
           }
         }
       },

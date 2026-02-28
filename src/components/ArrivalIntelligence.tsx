@@ -48,6 +48,50 @@ type ArrivalIntelligenceProps = {
   onAirportChange?: (code: string) => void;
 };
 
+const MONEY_VALUE_SOURCE = String.raw`(?:[~≈]?(?:US\$|C\$|A\$|CA\$|NZ\$|HK\$|S\$|\$|€|£|¥)\s*\d[\d,.]*(?:\s*-\s*\d[\d,.]*)?)|(?:[~≈]?\d[\d,.]*(?:\s*-\s*\d[\d,.]*)?\s*(?:USD|EUR|GBP|JPY|CNY|THB|AED|KRW|MXN|CAD|AUD|CHF|INR|SGD|HKD|NZD|BRL|TRY|ZAR|SEK|NOK|DKK|PLN|CZK|HUF|RON|ILS|IDR|MYR|PHP|VND|RUB|ARS|CLP|COP|PEN|SAR|QAR|KWD|BHD|OMR|MAD|EGP|TWD))`;
+const TIME_VALUE_SOURCE = String.raw`(?:[~≈]?\d+(?:\.\d+)?(?:\s*-\s*\d+(?:\.\d+)?)?\s*(?:min|mins|minute|minutes|hr|hrs|hour|hours))`;
+const MONEY_VALUE_PATTERN = new RegExp(`^${MONEY_VALUE_SOURCE}$`, 'i');
+const TRANSIT_VALUE_PATTERN = new RegExp(`${MONEY_VALUE_SOURCE}|${TIME_VALUE_SOURCE}`, 'gi');
+
+function formatTransitSegment(part: string, keyPrefix: string): ReactNode {
+  TRANSIT_VALUE_PATTERN.lastIndex = 0;
+  const matches = Array.from(part.matchAll(TRANSIT_VALUE_PATTERN));
+
+  if (matches.length === 0) {
+    return part;
+  }
+
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+
+  matches.forEach((match, matchIndex) => {
+    const start = match.index ?? 0;
+    const value = match[0];
+    const end = start + value.length;
+
+    if (start > cursor) {
+      nodes.push(part.slice(cursor, start));
+    }
+
+    nodes.push(
+      <span
+        key={`${keyPrefix}-${matchIndex}`}
+        className={MONEY_VALUE_PATTERN.test(value) ? 'font-bold text-emerald-700 tabular-nums' : 'text-slate-700'}
+      >
+        {value}
+      </span>,
+    );
+
+    cursor = end;
+  });
+
+  if (cursor < part.length) {
+    nodes.push(part.slice(cursor));
+  }
+
+  return nodes;
+}
+
 function balanceText(text: string): string {
   const words = text.trim().split(/\s+/);
   if (words.length <= 2) return text;
@@ -134,6 +178,10 @@ export default function ArrivalIntelligence({
   const currencySimText = currencySimLocations?.trim() || 'Use official counters in arrivals.';
   const taxiEstimateText = taxiEstimate?.trim() || 'Varies by traffic.';
   const trainEstimateText = trainEstimate?.trim() || 'Varies by zone.';
+  const transitEstimates = {
+    taxi: taxiEstimateText,
+    rail: trainEstimateText,
+  };
 
   // Handling visa status for display
   const displayVisaStatus = visaLoading 
@@ -472,13 +520,15 @@ export default function ArrivalIntelligence({
                         value={
                           (() => {
                             const pipe = ' | ';
-                            const taxiColon = taxiEstimateText.indexOf(':');
-                            const taxiValueRaw = taxiColon >= 0 ? taxiEstimateText.slice(taxiColon + 1).trim() : taxiEstimateText;
-                            const taxiBefore = taxiColon >= 0 ? taxiEstimateText.slice(0, taxiColon).trim() : '';
+                            const taxiEstimateRaw = transitEstimates.taxi;
+                            const railEstimateRaw = transitEstimates.rail;
+                            const taxiColon = taxiEstimateRaw.indexOf(':');
+                            const taxiValueRaw = taxiColon >= 0 ? taxiEstimateRaw.slice(taxiColon + 1).trim() : taxiEstimateRaw;
+                            const taxiBefore = taxiColon >= 0 ? taxiEstimateRaw.slice(0, taxiColon).trim() : '';
                             const taxiMiddle = taxiBefore.replace(/^Taxi\s*\/?\s*/i, '').trim() || null;
                             
-                            const trainColon = trainEstimateText.indexOf(':');
-                            const trainValueRaw = trainColon >= 0 ? trainEstimateText.slice(trainColon + 1).trim() : trainEstimateText;
+                            const trainColon = railEstimateRaw.indexOf(':');
+                            const trainValueRaw = trainColon >= 0 ? railEstimateRaw.slice(trainColon + 1).trim() : railEstimateRaw;
 
                             const formatValue = (val: string) => {
                               const modes = val.split(pipe);
@@ -491,14 +541,14 @@ export default function ArrivalIntelligence({
                                         {parts.map((part, i) => {
                                           if (part.startsWith('(') && part.endsWith(')')) {
                                             return (
-                                              <span key={i} className="text-orange-600 font-black text-[10px] uppercase tracking-tight">
+                                              <span key={i} className="text-sm text-slate-700">
                                                 {part}
                                               </span>
                                             );
                                           }
                                           return (
-                                            <span key={i} className="font-bold text-slate-900 tabular-nums">
-                                              {part}
+                                            <span key={i} className="text-sm text-slate-700">
+                                              {formatTransitSegment(part, `${idx}-${i}`)}
                                             </span>
                                           );
                                         })}
@@ -523,7 +573,7 @@ export default function ArrivalIntelligence({
               </span>
             </div>
             {/* Taxi Data */}
-            <div className="text-sm">
+            <div className="text-sm text-slate-700">
               {formatValue(taxiValueRaw)}
             </div>
 
@@ -537,7 +587,7 @@ export default function ArrivalIntelligence({
               </span>
             </div>
             {/* Rail Data */}
-            <div className="text-sm">
+            <div className="text-sm text-slate-700">
               {formatValue(trainValueRaw)}
             </div>
 

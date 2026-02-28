@@ -53,7 +53,7 @@ import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 import ImpactLedgerSkeleton from '@/components/ImpactLedgerSkeleton';
 
-import SourceInfo from '@/components/SourceInfo';
+import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
 
 import {
   trackCityPackView,
@@ -756,6 +756,7 @@ const exchangeRateDisplay = useMemo(() => {
   const [lastSynced, setLastSynced] = useState<string>(() => new Date().toISOString());
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [dismissedInstallBanner, setDismissedInstallBanner] = useState(false);
+  const [isSourceInfoMobileOpen, setIsSourceInfoMobileOpen] = useState(false);
   const [climatePulseAdvice, setClimatePulseAdvice] = useState<string>(climateAdviceFallback);
   const [climatePulseTempC, setClimatePulseTempC] = useState<number | null>(null);
   const [climatePulseCondition, setClimatePulseCondition] = useState<string>('');
@@ -767,6 +768,27 @@ const exchangeRateDisplay = useMemo(() => {
   const [arrivalStage, setArrivalStage] = useState<ArrivalStage>('pre-arrival');
   const [showAirportModal, setShowAirportModal] = useState(false);
   const [nearestRestroom, setNearestRestroom] = useState<OverpassResult | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleMobileSourceInfoVisibility = (event: Event) => {
+      const customEvent = event as CustomEvent<{ open?: boolean }>;
+      setIsSourceInfoMobileOpen(Boolean(customEvent.detail?.open));
+    };
+
+    window.addEventListener(
+      SOURCE_INFO_MOBILE_VISIBILITY_EVENT,
+      handleMobileSourceInfoVisibility as EventListener,
+    );
+
+    return () => {
+      window.removeEventListener(
+        SOURCE_INFO_MOBILE_VISIBILITY_EVENT,
+        handleMobileSourceInfoVisibility as EventListener,
+      );
+    };
+  }, []);
 
   /** User/city latitude and longitude (used by Climate Pulse and Restroom fetch). */
   const coordinates = cityData?.coordinates;
@@ -1457,7 +1479,11 @@ const exchangeRateDisplay = useMemo(() => {
       </div>
 
       {showInstallBanner && shouldOfferInstall && (
-        <div className="fixed top-11 left-1/2 z-[70] w-full max-w-md -translate-x-1/2 px-4">
+        <div
+          className={`fixed top-11 left-1/2 z-[70] w-full max-w-md -translate-x-1/2 px-4 transition-opacity duration-200 ${
+            isSourceInfoMobileOpen ? 'opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto' : ''
+          }`}
+        >
           <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-sm">
             <div className="flex items-center gap-3">
               <div className={`rounded-xl p-2 ${hasActivePrompt ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
@@ -1714,7 +1740,7 @@ const exchangeRateDisplay = useMemo(() => {
 </section>
 
         <section className="space-y-6 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Impact Ledger</h2>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Environmental Impact Ledger</h2>
           <React.Suspense fallback={<ImpactLedgerSkeleton />}>
             <ImpactLedger
               ActivityType="walk"

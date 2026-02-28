@@ -9,6 +9,19 @@ interface SourceInfoProps {
   type?: 'transit' | 'climate' | 'currency';
 }
 
+export const SOURCE_INFO_MOBILE_VISIBILITY_EVENT = 'source-info-mobile-visibility';
+
+let openMobileSourceInfoCount = 0;
+
+function emitMobileSourceInfoVisibility(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent<{ open: boolean }>(SOURCE_INFO_MOBILE_VISIBILITY_EVENT, {
+      detail: { open: openMobileSourceInfoCount > 0 },
+    }),
+  );
+}
+
 function formatTimestamp(value: string): string {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value || 'Pending verification';
@@ -31,6 +44,7 @@ export default function SourceInfo({
   const [desktopPlacement, setDesktopPlacement] = useState<'above' | 'below'>('above');
   const [isDesktop, setIsDesktop] = useState(false);
   const [desktopStyle, setDesktopStyle] = useState<CSSProperties | undefined>(undefined);
+  const registeredMobileOpenRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -118,6 +132,30 @@ export default function SourceInfo({
     updateDesktopPosition();
     window.addEventListener('resize', updateDesktopPosition);
     return () => window.removeEventListener('resize', updateDesktopPosition);
+  }, [isDesktop, isOpen]);
+
+  useEffect(() => {
+    const isMobileOpen = isOpen && !isDesktop;
+
+    if (isMobileOpen && !registeredMobileOpenRef.current) {
+      openMobileSourceInfoCount += 1;
+      registeredMobileOpenRef.current = true;
+      emitMobileSourceInfoVisibility();
+    }
+
+    if (!isMobileOpen && registeredMobileOpenRef.current) {
+      openMobileSourceInfoCount = Math.max(0, openMobileSourceInfoCount - 1);
+      registeredMobileOpenRef.current = false;
+      emitMobileSourceInfoVisibility();
+    }
+
+    return () => {
+      if (registeredMobileOpenRef.current) {
+        openMobileSourceInfoCount = Math.max(0, openMobileSourceInfoCount - 1);
+        registeredMobileOpenRef.current = false;
+        emitMobileSourceInfoVisibility();
+      }
+    };
   }, [isDesktop, isOpen]);
 
   return (

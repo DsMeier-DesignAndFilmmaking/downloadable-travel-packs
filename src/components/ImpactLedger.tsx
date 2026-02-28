@@ -187,11 +187,9 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: 'easeOut' }}
-      className="relative overflow-hidden border border-slate-300 bg-[#f9f8f2] px-5 py-6 text-slate-800 shadow-[0_10px_25px_rgba(15,23,42,0.08)]"
+      className="relative overflow-hidden border border-slate-300 bg-[#f9f8f2] px-5 py-6 font-sans text-sm font-normal leading-relaxed text-slate-800 shadow-[0_10px_25px_rgba(15,23,42,0.08)]"
       style={{
         borderRadius: '26px 22px 30px 20px / 20px 30px 22px 28px',
-        fontFamily:
-          'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace',
         filter: `url(#${filterId})`,
       }}
       aria-labelledby="impact-ledger-title"
