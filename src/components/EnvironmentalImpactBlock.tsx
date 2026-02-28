@@ -296,69 +296,72 @@ const getOvertourismTheme = (index: number): ImpactTheme => {
   };
 };
 
-  const theme = getOvertourismTheme(report.overtourismIndex);
+const theme = getOvertourismTheme(report.overtourismIndex);
 
 const panelContent = (
-  <div className="relative p-4 max-w-[340px] bg-white rounded-xl shadow-sm">
-    {/* Header */}
-    <div className="relative flex items-center justify-between border-b border-slate-100 pb-2">
-      <div className="flex items-center gap-2">
-        <Users size={14} className="text-slate-900" />
-        <h3 className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-800">
-          Visitor Pressure Index
-        </h3>
+    <div className="relative p-5 max-w-[350px] bg-white rounded-xl shadow-md">
+      {/* Header */}
+      <div className="relative flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-2.5">
+          <Users size={16} className="text-slate-900" />
+          <h3 className="text-[12px] font-black uppercase tracking-[0.12em] text-slate-800">
+            Visitor Pressure Index
+          </h3>
+        </div>
+        <button 
+          onClick={() => setIsOpen(false)} 
+          className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+        >
+          <X size={16} />
+        </button>
       </div>
-      <button onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-slate-600 transition-colors">
-        <X size={14} />
-      </button>
+  
+      {/* UX Copy Body */}
+      <div className="mt-4">
+        <p className="text-[13px] leading-relaxed text-slate-600">
+          Quantifies the <span className="font-bold text-slate-900">socio-environmental impact</span> of footfall density relative to city resources and local resident wellbeing.
+        </p>
+      </div>
+  
+      {/* Impact Spectrum Widget */}
+      <div className="mt-5 bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+        <div className="flex justify-between items-end mb-2.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Impact Spectrum</span>
+          <span className={`text-[12px] font-black ${theme.color}`}>
+            Score: {report.overtourismIndex.toFixed(1)}
+          </span>
+        </div>
+        
+        {/* 4-Step Visual Indicator - Slightly taller for better touch/vis target */}
+        <div className="grid grid-cols-4 gap-2 h-2">
+          <div className={`rounded-full ${report.overtourismIndex <= 3 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+          <div className={`rounded-full ${report.overtourismIndex > 3 && report.overtourismIndex <= 6 ? 'bg-amber-500' : 'bg-slate-200'}`} />
+          <div className={`rounded-full ${report.overtourismIndex > 6 && report.overtourismIndex <= 8 ? 'bg-orange-500' : 'bg-slate-200'}`} />
+          <div className={`rounded-full ${report.overtourismIndex > 8 ? 'bg-rose-500' : 'bg-slate-200'}`} />
+        </div>
+  
+        <div className="flex justify-between mt-2.5 text-[10px] font-bold">
+          <div className="flex flex-col"><span className="text-emerald-600">Stable</span><span className="text-slate-400">0-3</span></div>
+          <div className="flex flex-col text-center"><span className="text-amber-600">Managed</span><span className="text-slate-400">4-6</span></div>
+          <div className="flex flex-col text-center"><span className="text-orange-600">Strained</span><span className="text-slate-400">7-8</span></div>
+          <div className="flex flex-col text-right"><span className="text-rose-600">Critical</span><span className="text-slate-400">9+</span></div>
+        </div>
+      </div>
+  
+      {/* Footer Meta */}
+      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Source Authority</span>
+          <span className="text-[11px] font-bold text-slate-700">UNWTO Global Monitor 2024</span>
+        </div>
+        
+        {/* Dynamic Status Badge */}
+        <div className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider shadow-sm border ${theme.bg} ${theme.color} border-black/[0.03]`}>
+          {theme.label}
+        </div>
+      </div>
     </div>
-
-    {/* UX Copy Body */}
-    <div className="mt-3">
-      <p className="text-[12px] leading-relaxed text-slate-600">
-        Quantifies the <span className="font-bold text-slate-900">socio-environmental impact</span> of footfall density relative to city resources and local resident wellbeing.
-      </p>
-    </div>
-
-    {/* Impact Spectrum Widget */}
-    <div className="mt-4 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100/80">
-      <div className="flex justify-between items-end mb-2">
-        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Impact Spectrum</span>
-        <span className={`text-[11px] font-black ${theme.color}`}>
-          Score: {report.overtourismIndex.toFixed(1)}
-        </span>
-      </div>
-      
-      {/* 4-Step Visual Indicator */}
-      <div className="grid grid-cols-4 gap-1.5 h-1.5">
-        <div className={`rounded-full ${report.overtourismIndex <= 3 ? 'bg-emerald-500' : 'bg-slate-200'}`} />
-        <div className={`rounded-full ${report.overtourismIndex > 3 && report.overtourismIndex <= 6 ? 'bg-amber-500' : 'bg-slate-200'}`} />
-        <div className={`rounded-full ${report.overtourismIndex > 6 && report.overtourismIndex <= 8 ? 'bg-orange-500' : 'bg-slate-200'}`} />
-        <div className={`rounded-full ${report.overtourismIndex > 8 ? 'bg-rose-500' : 'bg-slate-200'}`} />
-      </div>
-
-      <div className="flex justify-between mt-2 text-[9px] font-bold">
-        <div className="flex flex-col"><span className="text-emerald-600/80">Stable</span><span className="text-slate-400">0-3</span></div>
-        <div className="flex flex-col text-center"><span className="text-amber-600/80">Managed</span><span className="text-slate-400">4-6</span></div>
-        <div className="flex flex-col text-center"><span className="text-orange-600/80">Strained</span><span className="text-slate-400">7-8</span></div>
-        <div className="flex flex-col text-right"><span className="text-rose-600/80">Critical</span><span className="text-slate-400">9+</span></div>
-      </div>
-    </div>
-
-    {/* Footer Meta */}
-    <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-      <div className="flex flex-col">
-        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Source Authority</span>
-        <span className="text-[10px] font-semibold text-slate-600">UNWTO Global Monitor 2024</span>
-      </div>
-      
-      {/* Dynamic Status Badge */}
-      <div className={`px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wide shadow-sm border ${theme.bg} ${theme.color} border-black/5`}>
-        {theme.label}
-      </div>
-    </div>
-  </div>
-);
+  );
 
   return (
     <div ref={containerRef} className="space-y-2">
