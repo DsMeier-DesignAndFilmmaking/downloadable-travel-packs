@@ -1767,17 +1767,12 @@ const exchangeRateDisplay = useMemo(() => {
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
             Environmental & Local Impact
           </h2>
-          <LiveCityPulse
+
+          <EnvironmentalImpactBlock
             cityId={cleanSlug ?? cityData.slug}
             lat={cityData.coordinates?.lat}
             lng={cityData.coordinates?.lng}
           />
-          // AFTER
-<EnvironmentalImpactBlock
-  cityId={cleanSlug ?? cityData.slug}
-  lat={cityData.coordinates?.lat}
-  lng={cityData.coordinates?.lng}
-/>
         </section>
 
         <section className="space-y-6 pt-6">
