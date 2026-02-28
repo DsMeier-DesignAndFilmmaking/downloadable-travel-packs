@@ -1583,6 +1583,7 @@ const exchangeRateDisplay = useMemo(() => {
                 source={integritySource}
                 lastUpdated={integrityLastVerified}
                 isLive={!!visaData}
+                safetyIntelligence={cityData?.safety_intelligence ?? null}
                 hasLanded={arrivalStage === 'airport-exit' || arrivalStage === 'left-airport'}
                 arrivalStage={arrivalStage}
                 visaStatus={arrivalVisaStatus}
@@ -1767,7 +1768,6 @@ const exchangeRateDisplay = useMemo(() => {
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
             Environmental & Local Impact
           </h2>
-
           <EnvironmentalImpactBlock
             cityId={cleanSlug ?? cityData.slug}
             lat={cityData.coordinates?.lat}

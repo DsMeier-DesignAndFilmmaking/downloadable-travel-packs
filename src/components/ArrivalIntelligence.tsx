@@ -22,6 +22,10 @@ type ArrivalIntelligenceProps = {
   isLive: boolean;
   hasLanded: boolean;
   arrivalStage: ArrivalStage;
+  safetyIntelligence?: {
+    crimeStatsUrl: string;
+    crimeStatsSource: string;
+  } | null;
   visaStatus: string;
   visaLoading: boolean;
   visaError?: string | null;
@@ -154,6 +158,7 @@ export default function ArrivalIntelligence({
   airportArrivalInfo,
   airportOptions,
   onAirportChange,
+  safetyIntelligence,
 }: ArrivalIntelligenceProps) {
   const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
   const stepIndicatorRef = useRef<HTMLDivElement | null>(null);
@@ -510,42 +515,47 @@ export default function ArrivalIntelligence({
                           </li>
                         </ul>
                       </div>
-                      <div className="mt-4 space-y-1">
-                        <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
-                        <div className="flex flex-col gap-3">
-                        {/* Existing Row */}
-                        <InlineRow 
-                          icon={<Navigation size={14} className="text-amber-600" />} 
-                          label="Official Transport" 
-                          value={officialTransportText} 
-                        />
+                      <div className="flex flex-col gap-3">
+    <InlineRow 
+      icon={<Navigation size={14} className="text-amber-600" />} 
+      label="Official Transport" 
+      bordered={false} // This removes the bottom border
+      value={(
+        <div className="flex flex-col gap-3 w-full">
+          {/* The Text Description */}
+          <span className="text-sm text-slate-700 leading-relaxed">
+            {officialTransportText}
+          </span>
 
-                        {/* NEW: Dynamic Rail Link Button */}
-                        <a 
-                          href={officialTransportText.includes('AIFA') 
-                            ? "https://www.google.com/maps/dir/AIFA,+Aeropuerto+Internacional+Felipe+%C3%81ngeles,+Zumpango+de+Ocampo,+Edo.+de+M%C3%A9xico/Buenavista,+CDMX" 
-                            : "https://www.google.com/maps/dir/AICM,+Aeropuerto+Internacional+Benito+Ju%C3%A1rez,+CDMX/Z%C3%B3calo,+Centro+Hist%C3%B3rico,+CDMX"
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-1 ml-5 flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 rounded-xl transition-all active:scale-[0.98] group"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="bg-amber-100 p-2 rounded-lg text-amber-700">
-                              <Train size={16} strokeWidth={2.5} />
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
-                                Transit Route
-                              </p>
-                              <p className="text-xs font-bold text-slate-700">
-                                {officialTransportText.includes('AIFA') ? 'Tren Suburbano to Center' : 'Metro Line 5 to Center'}
-                              </p>
-                            </div>
-                          </div>
-                          <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
-                        </a>
-                      </div>
+          {/* The Nested Button Link */}
+          <a 
+            href={officialTransportText.includes('AIFA') 
+              ? "https://www.google.com/maps/dir/AIFA,+Aeropuerto+Internacional+Felipe+%C3%81ngeles,+Zumpango+de+Ocampo,+Edo.+de+M%C3%A9xico/Buenavista,+CDMX" 
+              : "https://www.google.com/maps/dir/AICM,+Aeropuerto+Internacional+Benito+Ju%C3%A1rez,+CDMX/Z%C3%B3calo,+Centro+Hist%C3%B3rico,+CDMX"
+            }
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 rounded-xl transition-all active:scale-[0.98] group"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="bg-amber-100 p-2 rounded-lg text-amber-700 shadow-sm">
+                <Train size={16} strokeWidth={2.5} />
+              </div>
+              <div className="flex flex-col">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
+                  Transit Route
+                </p>
+                <p className="text-xs font-bold text-slate-700">
+                  {officialTransportText.includes('AIFA') ? 'Tren Suburbano to Center' : 'Metro Line 5 to Center'}
+                </p>
+              </div>
+            </div>
+            <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
+          </a>
+        </div>
+      )} 
+    />
+
                       <div className="mt-8 pt-6 border-t border-slate-100"> {/* Added global top margin, padding, and border */}
                       <InlineRow
                         icon={<CheckCircle size={14} className="text-emerald-600" />}
@@ -594,11 +604,9 @@ export default function ArrivalIntelligence({
 
         return (
           /* grid-cols-1 on mobile, 2 columns on desktop with fixed label width */
-          <div className="mt-4 grid grid-cols-1 gap-y-5 sm:grid-cols-[140px_1fr] sm:gap-x-4 sm:gap-y-6">
-  
+          <div className="mt-4 grid grid-cols-1 gap-y-5 sm:grid-cols-[140px_1fr] sm:gap-x-8 sm:gap-y-8">  
                         {/* --- TAXI GROUP --- */}
-                        <div className="flex items-center gap-2 self-start pt-1 px-1">
-                          <span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">
+                        <div className="flex items-center gap-2 self-start pt-1 px-1 sm:pt-0 sm:flex-col sm:items-start sm:gap-0.5">                          <span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">
                             Taxi
                           </span>
                           <span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
@@ -608,7 +616,8 @@ export default function ArrivalIntelligence({
 
                         <div className="space-y-4">
                           {/* Taxi Data */}
-                          <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0"><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
+                          <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
+                          <span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap sm:mb-0">
                             cost
                           </span>
                             {formatValue(taxiValueRaw)}
@@ -729,6 +738,33 @@ export default function ArrivalIntelligence({
                             label="Feels Unsafe vs Is Unsafe"
                             value="Differentiate perception from crime statistics."
                           />
+                          {/* Only render if the safety_intelligence data exists in your pack */}
+                          {safetyIntelligence && (
+  <div className="ml-5 mt-1.5 pb-3">
+    <a 
+      href={safetyIntelligence.crimeStatsUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-3 px-4 py-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl transition-all active:scale-95 group shadow-sm"
+    >
+      <div className="flex flex-col text-left">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+          <span className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 leading-none">
+            Official Intelligence
+          </span>
+        </div>
+        <span className="text-[13px] font-bold text-slate-700 flex items-center gap-1.5">
+          {cityName} Crime Data Portal
+          <ArrowUpRight size={14} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
+        </span>
+      </div>
+    </a>
+    <p className="text-[10px] text-slate-400 italic mt-2 px-1 leading-tight">
+      Source: {safetyIntelligence.crimeStatsSource}
+    </p>
+  </div>
+)}
                           <InlineRow
                             icon={<CheckCircle size={14} className="text-emerald-600" />}
                             label="Gentrified vs Historic"
