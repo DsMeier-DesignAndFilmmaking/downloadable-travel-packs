@@ -50,35 +50,54 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
   const [isSealRendered, setIsSealRendered] = useState(false);
   const [isSourceTooltipOpen, setIsSourceTooltipOpen] = useState(false);
   const [report, setReport] = useState<CityVitalsReport | null>(null);
+  const [isLoadingLive, setIsLoadingLive] = useState(false);
   const filterId = useId().replace(/:/g, '_');
 
   const neighborhoodKey = useMemo(() => getNeighborhoodKey(props.Location_ID), [props.Location_ID]);
   const pulseIntensity = useMemo(() => PULSE_INTENSITY_BY_NEIGHBORHOOD[neighborhoodKey] ?? 0.75, [neighborhoodKey]);
+
+  // Extract primitives to prevent useEffect from re-running on every render (Avoids 429 errors)
+  const lat = props.coordinates?.lat;
+  const lng = props.coordinates?.lng;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setIsSlipVisible(true), 120);
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Simplified SWR Logic: Immediate Cache -> Background Live Fetch
   useEffect(() => {
-    let active = true;
+    let isMounted = true;
     
     const loadVitals = async () => {
       await primeSeasonalBaselineCache();
       
-      // 1. Get cached/baseline immediately for instant UI
+      // 1. Load baseline from cache/local immediately
       const initial = await getCachedOrBaselineCityVitals(neighborhoodKey);
-      if (active) setReport(initial);
+      if (isMounted) setReport(initial);
 
-      // 2. Fetch fresh live data
-      const fresh = await fetchCityVitals(neighborhoodKey, { coordinates: props.coordinates });
-      if (active) setReport(fresh);
+      // 2. If we have coordinates, attempt a live update
+      if (lat && lng) {
+        setIsLoadingLive(true);
+        try {
+          const fresh = await fetchCityVitals(neighborhoodKey, { 
+            coordinates: { lat, lng } 
+          });
+          
+          if (isMounted) {
+            console.log(`[ImpactLedger] Live data for ${neighborhoodKey}:`, fresh);
+            setReport(fresh);
+          }
+        } catch (error) {
+          console.warn('[ImpactLedger] Failed to fetch live pulse:', error);
+        } finally {
+          if (isMounted) setIsLoadingLive(false);
+        }
+      }
     };
 
     loadVitals();
-    return () => { active = false; };
-  }, [neighborhoodKey, props.coordinates?.lat, props.coordinates?.lng]);
+    return () => { isMounted = false; };
+  }, [neighborhoodKey, lat, lng]); // Only depends on primitives, not the whole 'props' object
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -102,27 +121,56 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
       initial={{ opacity: 0, y: 10 }}
       animate={isSlipVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
       className="relative overflow-hidden border border-stone-300 border-l-2 border-l-rose-600 bg-stone-50/85 px-5 py-6 text-sm leading-relaxed text-slate-800 shadow-[0_12px_28px_rgba(15,23,42,0.1)] backdrop-blur-sm"
-      style={{ borderRadius: '22px 18px 26px 18px / 18px 24px 18px 24px', filter: `url(#${filterId})` }}
+      style={{ 
+        borderRadius: '22px 18px 26px 18px / 18px 24px 18px 24px', 
+        filter: `url(#${filterId})` 
+      }}
     >
-      <svg width="0" height="0" className="absolute"><defs><filter id={filterId}><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="4" /><feDisplacementMap in="SourceGraphic" scale="0.5" /></filter></defs></svg>
+      <svg width="0" height="0" className="absolute" aria-hidden="true">
+        <defs>
+          <filter id={filterId}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="4" />
+            <feDisplacementMap in="SourceGraphic" scale="0.5" />
+          </filter>
+        </defs>
+      </svg>
+      
       <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(to right, rgba(148,163,184,0.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.14) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
       
-      <motion.div key={contentKey} initial={{ opacity: 0.92 }} animate={{ opacity: 1 }} className="relative z-10 space-y-4">
+      <motion.div 
+        key={contentKey} 
+        initial={{ opacity: 0.92 }} 
+        animate={{ opacity: 1 }} 
+        className="relative z-10 space-y-4"
+      >
         <header className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2">
-            <span className="mt-1 h-2.5 w-2.5 rounded-full border border-emerald-700/40" style={{ backgroundColor: `rgba(16,185,129,${pulseIntensity})` }} />
+            <span 
+              className={`mt-1 h-2.5 w-2.5 rounded-full border border-emerald-700/40 ${isLoadingLive ? 'animate-pulse' : ''}`} 
+              style={{ backgroundColor: `rgba(16,185,129,${pulseIntensity})` }} 
+            />
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-mono">City Vitals</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500 font-mono">City Vitals</p>
+                {display.isLive && (
+                  <span className="text-[8px] px-1.5 py-0.5 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded font-black uppercase">Live</span>
+                )}
+              </div>
               <h3 className="mt-1 text-base font-black tracking-tight text-slate-900 font-mono">{display.title}</h3>
             </div>
           </div>
           <div ref={tooltipRef} className="relative">
-            <button onClick={() => setIsSourceTooltipOpen(!isSourceTooltipOpen)} className="h-6 w-6 rounded-full border border-stone-400 bg-white/90 text-[11px] font-black text-slate-600 font-mono">i</button>
+            <button 
+              onClick={() => setIsSourceTooltipOpen(!isSourceTooltipOpen)} 
+              className="h-6 w-6 rounded-full border border-stone-400 bg-white/90 text-[11px] font-black text-slate-600 font-mono"
+            >
+              i
+            </button>
             <AnimatePresence>
               {isSourceTooltipOpen && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute right-0 top-8 z-20 w-[280px] rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] text-slate-700 shadow-lg">
                   <p className="font-black uppercase tracking-[0.14em] text-slate-500">Verified Sources</p>
-                  <p className="mt-1">{display.sourceRef}</p>
+                  <p className="mt-1 leading-normal">{display.sourceRef}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -147,7 +195,11 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
         <div className="border-t border-stone-200/80 pt-3">
           <AnimatePresence>
             {isSealRendered && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="ml-auto rounded-md bg-slate-900 px-3 py-2 text-white shadow-md">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                className="ml-auto rounded-md bg-slate-900 px-3 py-2 text-white shadow-md max-w-fit"
+              >
                 <p className="text-[9px] uppercase tracking-[0.18em] text-slate-300 font-mono">Neighborhood Investment</p>
                 <p className="mt-1 text-sm font-black text-emerald-300">{display.neighborhoodInvestment}</p>
               </motion.div>

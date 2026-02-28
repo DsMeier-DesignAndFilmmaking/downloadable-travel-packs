@@ -77,17 +77,42 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isApiCityVitalsResponse(value: unknown): value is ApiCityVitalsResponse {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.title === 'string' &&
-    typeof value.context_id === 'string' &&
-    typeof value.current_conditions === 'string' &&
-    typeof value.action === 'string' &&
-    typeof value.impact === 'string' &&
-    typeof value.neighborhood_investment === 'string' &&
-    typeof value.is_live === 'boolean' &&
-    typeof value.source_ref === 'string'
-  );
+  if (!isRecord(value)) {
+    console.warn('[Validation] API Response is not a valid object:', value);
+    return false;
+  }
+
+  // Create a checklist of all required keys and their expected types
+  const schema: Record<keyof ApiCityVitalsResponse, string> = {
+    title: 'string',
+    context_id: 'string',
+    current_conditions: 'string',
+    action: 'string',
+    impact: 'string',
+    neighborhood_investment: 'string',
+    is_live: 'boolean',
+    source_ref: 'string',
+  };
+
+  // Check each key individually to find the "silent killer"
+  const missingOrInvalid = Object.entries(schema).filter(([key, type]) => {
+    const actualValue = (value as any)[key];
+    return typeof actualValue !== type;
+  });
+
+  if (missingOrInvalid.length > 0) {
+    console.group('🚨 City Vitals Validation Failed');
+    console.error('The following keys are missing or have the wrong type:');
+    missingOrInvalid.forEach(([key, expectedType]) => {
+      const actualType = typeof (value as any)[key];
+      console.error(`- ${key}: Expected ${expectedType}, got ${actualType}`);
+    });
+    console.log('Raw Payload Received:', value);
+    console.groupEnd();
+    return false;
+  }
+
+  return true;
 }
 
 function isCityVitalsReport(value: unknown): value is CityVitalsReport {
@@ -157,16 +182,16 @@ function normalizeSeasonalBaselineMap(value: unknown): SeasonalBaselineMap | nul
   return Object.keys(normalized).length ? normalized : null;
 }
 
-function mapApiPayloadToReport(payload: ApiCityVitalsResponse): CityVitalsReport {
+function mapApiPayloadToReport(payload: any): CityVitalsReport {
   return {
-    title: sanitizeText(payload.title, 'City Breath'),
-    contextId: sanitizeText(payload.context_id, 'city-breath-steady'),
-    currentConditions: sanitizeText(payload.current_conditions, 'The city is breathing easy right now.'),
-    whatCanYouDo: sanitizeText(payload.action, 'Keep this leg walk-first to preserve low street pressure.'),
-    howItHelps: sanitizeText(payload.impact, 'This helps keep local streets accessible.'),
-    neighborhoodInvestment: sanitizeText(payload.neighborhood_investment, '80% Stays Local'),
-    isLive: payload.is_live,
-    sourceRef: sanitizeText(payload.source_ref, 'Ref: Google Air Quality + Pollen (Maps Platform)'),
+    title: payload.title || 'City Breath',
+    contextId: payload.context_id || 'city-breath-steady', // Mapping snake_case to camelCase
+    currentConditions: payload.current_conditions || 'Conditions are steady.',
+    whatCanYouDo: payload.action || 'Keep walking-first.',
+    howItHelps: payload.impact || 'Helps local streets.',
+    neighborhoodInvestment: payload.neighborhood_investment || '80% Stays Local',
+    isLive: Boolean(payload.is_live),
+    sourceRef: payload.source_ref || 'Ref: Google Air Quality',
   };
 }
 
@@ -208,20 +233,49 @@ async function getSeasonalBaselineEntry(cityId: string): Promise<SeasonalBaselin
 async function fetchFromGooglePulseApi(cityId: string, lat: number, lng: number): Promise<CityVitalsReport> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), API_REQUEST_TIMEOUT_MS);
+  
   try {
     const response = await fetch(GOOGLE_PULSE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        // Force the server AND the service worker to ignore any cached versions
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
       body: JSON.stringify({ lat, lng, cityId }),
+      // Directs the browser to fetch the resource from the remote server 
+      // without looking in the local cache/service worker first
       cache: 'no-store',
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`API Error ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error ${response.status}: ${errorText}`);
+    }
+
     const payload = await response.json();
-    if (!isApiCityVitalsResponse(payload)) throw new Error('Invalid API Shape');
+
+    // Log the raw payload so you can verify the coordinates were actually used by the backend
+    console.log(`[Service] Raw API Payload for ${cityId}:`, payload);
+
+    if (!isApiCityVitalsResponse(payload)) {
+      throw new Error('Invalid API Shape - check snake_case vs camelCase');
+    }
+
+    // Map snake_case API keys to camelCase UI keys
     const report = mapApiPayloadToReport(payload);
+    
+    // Persist the fresh data for offline use
     writeCityVitalsToLocalStorage(cityId, report);
+    
     return report;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.error(`[Service] Fetch timed out after ${API_REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw err;
   } finally {
     window.clearTimeout(timeout);
   }
