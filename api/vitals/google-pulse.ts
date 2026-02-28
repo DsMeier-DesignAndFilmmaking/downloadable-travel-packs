@@ -1,32 +1,35 @@
 /**
  * Google Pulse — City Vitals from Google Air Quality + Pollen APIs.
  * POST /api/vitals/google-pulse
- * Body: { lat: number; lng: number; cityId: string }
- *
- * All requests are server-side; API key is never sent to the client.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { formatCityLabel } from '../../src/utils/formatCityLabel';
+// --- INLINED UTILITIES (Fixes ERR_MODULE_NOT_FOUND) ---
+function formatCityLabel(label: string): string {
+  if (!label) return '';
+  return label
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
+// --- TYPES ---
 type VercelRequest = {
   method?: string;
-  body?: string;
+  body?: any; // Vercel can parse this automatically or pass as string
 };
 
 type VercelResponse = {
   status(code: number): VercelResponse;
   setHeader(name: string, value: string): VercelResponse;
+  json(body: any): void;
   end(body?: string): void;
 };
 
 type SeasonalBaselineEntry = {
-  steady: {
-    aqi: number;
-    traffic_delay_pct?: number;
-  };
+  steady: { aqi: number; traffic_delay_pct?: number };
   retention_rate?: number;
   source_ref?: string;
 };
@@ -49,86 +52,37 @@ type GoogleAirQualityResponse = {
   healthRecommendations?: { generalPopulation?: string };
 }
 
+// --- CONFIG & CONSTANTS ---
 const MAPS_API_KEY = (process.env.Maps_Platform_API_Key || process.env.MAPS_PLATFORM_API_KEY || '').trim();
 const SEASONAL_BASELINE_PATH = path.join(process.cwd(), 'public', 'data', 'seasonal-baseline.json');
-const GOOGLE_REQUEST_TIMEOUT_MS = 8000;
+const GOOGLE_REQUEST_TIMEOUT_MS = 5000;
 const AQI_HEAVY_DELTA_PCT = 15;
 
 let baselineCache: SeasonalBaselineMap | null = null;
 
+// --- HELPERS ---
 function normalizeCityId(value: string): string {
-  return value.trim().toLowerCase().replaceAll('_', '-');
+  return value.trim().toLowerCase().replace(/_/g, '-');
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function parseNumber(value: number | string | undefined): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string') {
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
 function readSeasonalBaselineMap(): SeasonalBaselineMap {
   if (baselineCache) return baselineCache;
-
   try {
+    if (!fs.existsSync(SEASONAL_BASELINE_PATH)) return {};
     const raw = fs.readFileSync(SEASONAL_BASELINE_PATH, 'utf8');
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') {
-      baselineCache = {};
-      return baselineCache;
-    }
-
-    const normalized: SeasonalBaselineMap = {};
-    for (const [cityIdRaw, entryRaw] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!entryRaw || typeof entryRaw !== 'object') continue;
-      const entry = entryRaw as Record<string, unknown>;
-      const steady = entry.steady;
-      if (!steady || typeof steady !== 'object') continue;
-      const steadyRecord = steady as Record<string, unknown>;
-      const aqi = parseNumber(steadyRecord.aqi as number | string | undefined);
-      if (aqi == null) continue;
-
-      normalized[normalizeCityId(cityIdRaw)] = {
-        steady: {
-          aqi: Math.round(clamp(aqi, 1, 500)),
-          traffic_delay_pct: parseNumber(steadyRecord.traffic_delay_pct as number | string | undefined) ?? undefined,
-        },
-        retention_rate: parseNumber(entry.retention_rate as number | string | undefined) ?? undefined,
-        source_ref: typeof entry.source_ref === 'string' ? entry.source_ref : undefined,
-      };
-    }
-    baselineCache = normalized;
+    baselineCache = JSON.parse(raw) as SeasonalBaselineMap;
     return baselineCache;
-  } catch {
-    baselineCache = {};
-    return baselineCache;
+  } catch (err) {
+    console.error("Baseline Read Error:", err);
+    return {};
   }
 }
 
-function getBaselineAqi(cityId: string): number {
-  const map = readSeasonalBaselineMap();
-  const entry = map[normalizeCityId(cityId)];
-  return entry?.steady?.aqi ?? 70;
-}
-
-function getRetentionRate(cityId: string): number {
-  const map = readSeasonalBaselineMap();
-  const entry = map[normalizeCityId(cityId)];
-  const rate = parseNumber(entry?.retention_rate);
-  return clamp(rate ?? 0.8, 0, 1);
-}
-
-async function fetchWithTimeout(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number
-): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -138,148 +92,83 @@ async function fetchWithTimeout(
   }
 }
 
-async function fetchGoogleAirQuality(lat: number, lng: number): Promise<GoogleAirQualityResponse | null> {
-  if (!MAPS_API_KEY) return null;
-
-  const url = `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${encodeURIComponent(MAPS_API_KEY)}`;
-  const body = JSON.stringify({
-    location: { latitude: lat, longitude: lng },
-    extraComputations: ['HEALTH_RECOMMENDATIONS', 'LOCAL_AQI'],
-    languageCode: 'en',
-  });
-
-  try {
-    const response = await fetchWithTimeout(
-      url,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      },
-      GOOGLE_REQUEST_TIMEOUT_MS
-    );
-    if (!response.ok) return null;
-    return (await response.json()) as GoogleAirQualityResponse;
-  } catch {
-    return null;
-  }
-}
-
-async function fetchGooglePollen(lat: number, lng: number): Promise<unknown> {
-  if (!MAPS_API_KEY) return null;
-
-  const url = `https://pollen.googleapis.com/v1/forecast:lookup?key=${encodeURIComponent(MAPS_API_KEY)}&location.latitude=${lat}&location.longitude=${lng}&days=1`;
-
-  try {
-    const response = await fetchWithTimeout(url, { method: 'GET' }, GOOGLE_REQUEST_TIMEOUT_MS);
-    if (!response.ok) return null;
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-function buildSteadyResponse(cityId: string): GooglePulseApiResponse {
-  const title = formatCityLabel(cityId);
-  const retentionRate = getRetentionRate(cityId);
-  const pct = Math.round(retentionRate * 100);
-  const sourceRef = 'Ref: Google Air Quality + Pollen (Maps Platform) — Seasonal Baseline';
-
-  return {
-    title,
-    context_id: `${cityId}-steady`,
-    current_conditions: 'The district is breathing easy today with fresh, clear skies.',
-    action: "It's a perfect day for a walk or bike ride to keep the neighborhood quiet and vibrant.",
-    impact: 'Your choice helps preserve the peaceful charm of these historic blocks.',
-    neighborhood_investment: `${pct}% Stays Local`,
-    is_live: false,
-    source_ref: sourceRef,
-  };
-}
-
-function sendJson(res: VercelResponse, status: number, body: GooglePulseApiResponse | { error: string }): void {
-  res
-    .status(status)
-    .setHeader('Content-Type', 'application/json')
-    .setHeader('Cache-Control', 'no-store')
-    .end(JSON.stringify(body));
-}
-
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+// --- CORE HANDLER ---
+export default async function handler(req: any, res: any): Promise<void> {
+  // 1. Method Guard
   if (req.method !== 'POST') {
-    sendJson(res, 405, { error: 'Method not allowed' });
-    return;
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let body: { lat?: number; lng?: number; cityId?: string } = {};
-  try {
-    if (req.body) body = JSON.parse(req.body) as typeof body;
-  } catch {
-    sendJson(res, 400, { error: 'Invalid JSON body' });
-    return;
-  }
-
-  const lat = typeof body.lat === 'number' && Number.isFinite(body.lat) ? body.lat : null;
-  const lng = typeof body.lng === 'number' && Number.isFinite(body.lng) ? body.lng : null;
-  const cityIdRaw = typeof body.cityId === 'string' ? body.cityId.trim() : '';
+  // 2. Parse Body (Vercel handles parsing usually, but we check both)
+  let parsedBody = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  const { lat, lng } = parsedBody;
+  const cityIdRaw = parsedBody.cityId || '';
   const cityId = normalizeCityId(cityIdRaw);
 
   if (!cityId) {
-    sendJson(res, 400, { error: 'Missing or invalid cityId' });
-    return;
+    return res.status(400).json({ error: 'Missing cityId' });
   }
 
-  if (lat == null || lng == null) {
-    sendJson(res, 200, buildSteadyResponse(cityId));
-    return;
-  }
-
-  const aqiBaseline = getBaselineAqi(cityId);
-  const [airData] = await Promise.all([
-    fetchGoogleAirQuality(lat, lng),
-    fetchGooglePollen(lat, lng),
-  ]);
-
-  const title = formatCityLabel(cityId);
-  const retentionRate = getRetentionRate(cityId);
+  // 3. Load Baselines
+  const baselines = readSeasonalBaselineMap();
+  const cityBaseline = baselines[cityId] || baselines[normalizeCityId(cityId)];
+  const aqiBaseline = cityBaseline?.steady?.aqi ?? 50;
+  const retentionRate = clamp(cityBaseline?.retention_rate ?? 0.8, 0, 1);
   const pct = Math.round(retentionRate * 100);
 
-  if (!airData?.indexes?.length) {
-    sendJson(res, 200, buildSteadyResponse(cityId));
-    return;
+  // 4. Default / Fallback Builder
+  const buildFallback = (isLive = false, isHeavy = false) => ({
+    title: formatCityLabel(cityId),
+    context_id: `${cityId}-${isHeavy ? 'heavy' : 'steady'}`,
+    current_conditions: isHeavy 
+        ? "The air feels a bit heavy today; consider lower-intensity activities." 
+        : "The district is breathing easy today with fresh, clear skies.",
+    action: isHeavy
+        ? "Since the roads are feeling the squeeze, taking the local rail keeps the streets clear."
+        : "It's a perfect day for a walk or bike ride to keep the neighborhood quiet and vibrant.",
+    impact: isHeavy
+        ? "By bypassing the gridlock, you're helping lower curbside emissions for local residents."
+        : "Your choice helps preserve the peaceful charm of these historic blocks.",
+    neighborhood_investment: `${pct}% Stays Local`,
+    is_live: isLive,
+    source_ref: isLive ? 'Ref: Google Maps Platform' : 'Ref: Seasonal Baseline'
+  });
+
+  // 5. Fetch Live Data if Coordinates exist
+  if (!lat || !lng || !MAPS_API_KEY) {
+    return res.status(200).json(buildFallback(false, false));
   }
 
-  const uaqiEntry = airData.indexes.find((i) => i.code === 'uaqi');
-  const liveAqi = uaqiEntry?.aqi != null ? Number(uaqiEntry.aqi) : null;
+  try {
+    const airUrl = `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${MAPS_API_KEY}`;
+    const airRes = await fetchWithTimeout(airUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: { latitude: lat, longitude: lng },
+        extraComputations: ['HEALTH_RECOMMENDATIONS', 'LOCAL_AQI'],
+        languageCode: 'en',
+      })
+    }, GOOGLE_REQUEST_TIMEOUT_MS);
 
-  const baselineThreshold = aqiBaseline * (1 + AQI_HEAVY_DELTA_PCT / 100);
-  const isHeavy = liveAqi != null && liveAqi > baselineThreshold;
+    if (!airRes.ok) throw new Error("Google API Health Check Failed");
 
-  const generalPopulation =
-    (airData.healthRecommendations?.generalPopulation ?? '').trim() || null;
+    const airData = (await airRes.json()) as GoogleAirQualityResponse;
+    const liveAqi = airData.indexes?.find(i => i.code === 'uaqi')?.aqi ?? aqiBaseline;
+    const isHeavy = liveAqi > (aqiBaseline * (1 + AQI_HEAVY_DELTA_PCT / 100));
+    
+    const googleAdvice = airData.healthRecommendations?.generalPopulation;
+    const finalResponse = buildFallback(true, isHeavy);
 
-  const current_conditions = isHeavy && generalPopulation
-    ? generalPopulation
-    : 'The district is breathing easy today with fresh, clear skies.';
+    // Override fallback text with live Google data if available
+    if (isHeavy && googleAdvice) {
+      finalResponse.current_conditions = googleAdvice;
+    }
 
-  const action = isHeavy
-    ? 'Since the air is feeling heavy, using the local rail or metrobus keeps you in a filtered environment and gives the streets a break.'
-    : "It's a perfect day for a walk or bike ride to keep the neighborhood quiet and vibrant.";
+    return res.status(200).json(finalResponse);
 
-  const impact = isHeavy
-    ? "By bypassing the gridlock, you're helping lower curbside emissions for the local shopkeepers."
-    : 'Your choice helps preserve the peaceful charm of these historic blocks.';
-
-  const response: GooglePulseApiResponse = {
-    title,
-    context_id: `${cityId}-${isHeavy ? 'heavy' : 'steady'}`,
-    current_conditions,
-    action,
-    impact,
-    neighborhood_investment: `${pct}% Stays Local`,
-    is_live: true,
-    source_ref: 'Ref: Google Air Quality + Pollen (Maps Platform)',
-  };
-
-  sendJson(res, 200, response);
+  } catch (err) {
+    console.error("Live Fetch Error, falling back to steady:", err);
+    return res.status(200).json(buildFallback(false, false));
+  }
 }
