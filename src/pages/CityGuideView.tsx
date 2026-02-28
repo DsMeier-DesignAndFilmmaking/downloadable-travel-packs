@@ -1087,6 +1087,29 @@ const exchangeRateDisplay = useMemo(() => {
     setArrivalStage('pre-arrival');
   }, [cleanSlug]);
 
+  // Mobile-only guard: ensure each city pack opens at top without touching desktop
+  // or global router scroll restoration behavior.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    if (!isMobile) return;
+
+    let rafOne = 0;
+    let rafTwo = 0;
+
+    rafOne = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      rafTwo = window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    });
+
+    return () => {
+      if (rafOne) window.cancelAnimationFrame(rafOne);
+      if (rafTwo) window.cancelAnimationFrame(rafTwo);
+    };
+  }, [cleanSlug]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
     if (arrivalStage === 'pre-arrival') {
@@ -1740,7 +1763,7 @@ const exchangeRateDisplay = useMemo(() => {
 </section>
 
         <section className="space-y-6 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Sustainability</h2>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Environmental & Local Impact</h2>
           <React.Suspense fallback={<ImpactLedgerSkeleton />}>
             <ImpactLedger
               ActivityType="walk"

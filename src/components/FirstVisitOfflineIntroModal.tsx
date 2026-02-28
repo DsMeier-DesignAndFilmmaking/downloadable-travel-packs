@@ -95,7 +95,7 @@ export default function FirstVisitOfflineIntroModal({
             </p>
 
             <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              Want to add city field note packs to your device's home screen? <br></br>Tap <span className="font-semibold text-slate-700">'How To'</span> inside any city pack.
+              Tap <span className="font-semibold text-slate-700">'How To'</span> inside any city pack to add to your local device's homescreen.
             </p>
 
             <button

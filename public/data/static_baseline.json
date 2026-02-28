@@ -1,0 +1,82 @@
+{
+  "bangkok-thailand": {
+    "seasonal_aqi": 88,
+    "seasonal_congestion": 0.59,
+    "seasonal_condition": "Heavy transit load in the basin can make the air feel thick during peak movement windows.",
+    "seasonal_action": "Because road pressure can stack quickly, taking BTS or MRT and finishing on foot gives the streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.79
+  },
+  "paris-france": {
+    "seasonal_aqi": 62,
+    "seasonal_congestion": 0.47,
+    "seasonal_condition": "Commuter corridors can tighten around station hubs, but average city pressure stays moderate.",
+    "seasonal_action": "Because intersections compress at peak times, metro plus short walking links keeps lanes clear for local traffic.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.84
+  },
+  "london-uk": {
+    "seasonal_aqi": 58,
+    "seasonal_congestion": 0.51,
+    "seasonal_condition": "Road-side load rises around transfer periods, especially in central movement corridors.",
+    "seasonal_action": "Because lane pressure builds quickly in central zones, rail-first routing gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.82
+  },
+  "tokyo-japan": {
+    "seasonal_aqi": 54,
+    "seasonal_congestion": 0.46,
+    "seasonal_condition": "Peak transfer windows increase corridor density, while seasonal air conditions remain relatively stable.",
+    "seasonal_action": "Because station corridors absorb demand efficiently, rail plus short sidewalk segments keeps pressure off road lanes.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.86
+  },
+  "new-york-us": {
+    "seasonal_aqi": 66,
+    "seasonal_congestion": 0.63,
+    "seasonal_condition": "Cross-town traffic and curb idling can create sustained road pressure through key daytime windows.",
+    "seasonal_action": "Because road delay stacks across central corridors, subway plus short walking links gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.74
+  },
+  "rome-italy": {
+    "seasonal_aqi": 68,
+    "seasonal_congestion": 0.56,
+    "seasonal_condition": "Historic center routes can saturate during overlap of commuter and visitor movement.",
+    "seasonal_action": "Because core lanes narrow under load, tram or metro routing with short walks reduces immediate street pressure.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.78
+  },
+  "barcelona-spain": {
+    "seasonal_aqi": 60,
+    "seasonal_congestion": 0.52,
+    "seasonal_condition": "Coastal heat pockets and intersection volume can elevate corridor stress through midday.",
+    "seasonal_action": "Because lane demand rises in midday windows, metro-to-sidewalk routing gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.81
+  },
+  "dubai-uae": {
+    "seasonal_aqi": 84,
+    "seasonal_congestion": 0.48,
+    "seasonal_condition": "Thermal load can intensify perceived air pressure while arterial roads carry sustained daytime demand.",
+    "seasonal_action": "Because daytime heat and road load stack quickly, metro-first trips with short links gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.72
+  },
+  "seoul-south-korea": {
+    "seasonal_aqi": 61,
+    "seasonal_congestion": 0.53,
+    "seasonal_condition": "Fine particulate swings and transfer crowding can raise city pressure during peak movement windows.",
+    "seasonal_action": "Because transfer peaks increase lane pressure, rail priority with walking connectors gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.83
+  },
+  "mexico-city-mexico": {
+    "seasonal_aqi": 95,
+    "seasonal_congestion": 0.61,
+    "seasonal_condition": "Basin conditions and heavy traffic can combine into sustained atmospheric tension during high-volume periods.",
+    "seasonal_action": "Because basin air and road congestion reinforce each other, metro and metrobus links gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.82
+  }
+}
