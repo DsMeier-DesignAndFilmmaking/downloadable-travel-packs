@@ -141,22 +141,43 @@ export default async function handler(req: any, res: any): Promise<void> {
 
   try {
     const airUrl = `https://airquality.googleapis.com/v1/currentConditions:lookup?key=${MAPS_API_KEY}`;
-    const airRes = await fetchWithTimeout(airUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: { latitude: lat, longitude: lng },
-        extraComputations: ['HEALTH_RECOMMENDATIONS', 'LOCAL_AQI'],
-        languageCode: 'en',
-      })
-    }, GOOGLE_REQUEST_TIMEOUT_MS);
+    const airRes = await fetchWithTimeout(
+      airUrl,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          location: { latitude: lat, longitude: lng },
+          extraComputations: ['HEALTH_RECOMMENDATIONS', 'LOCAL_AQI'],
+          languageCode: 'en',
+        }),
+      },
+      GOOGLE_REQUEST_TIMEOUT_MS,
+    );
 
-    if (!airRes.ok) throw new Error("Google API Health Check Failed");
+    if (!airRes.ok) {
+      let rawBody: string | null = null;
+      let parsedBody: unknown = null;
+
+      try {
+        rawBody = await airRes.text();
+        parsedBody = rawBody ? JSON.parse(rawBody) : null;
+      } catch {
+        // If parsing fails, fall back to raw text in the response
+      }
+
+      return res.status(airRes.status).json({
+        error: 'Google Air Quality API responded with an error',
+        status: airRes.status,
+        statusText: airRes.statusText,
+        body: parsedBody ?? rawBody,
+      });
+    }
 
     const airData = (await airRes.json()) as GoogleAirQualityResponse;
-    const liveAqi = airData.indexes?.find(i => i.code === 'uaqi')?.aqi ?? aqiBaseline;
-    const isHeavy = liveAqi > (aqiBaseline * (1 + AQI_HEAVY_DELTA_PCT / 100));
-    
+    const liveAqi = airData.indexes?.find((i) => i.code === 'uaqi')?.aqi ?? aqiBaseline;
+    const isHeavy = liveAqi > aqiBaseline * (1 + AQI_HEAVY_DELTA_PCT / 100);
+
     const googleAdvice = airData.healthRecommendations?.generalPopulation;
     const finalResponse = buildFallback(true, isHeavy);
 
@@ -166,9 +187,11 @@ export default async function handler(req: any, res: any): Promise<void> {
     }
 
     return res.status(200).json(finalResponse);
-
   } catch (err) {
-    console.error("Live Fetch Error, falling back to steady:", err);
-    return res.status(200).json(buildFallback(false, false));
+    console.error('Live Fetch Error (no baseline fallback):', err);
+    return res.status(502).json({
+      error: 'Failed to fetch live air quality data from Google Maps Platform',
+      details: err instanceof Error ? err.message : String(err),
+    });
   }
 }

@@ -51,7 +51,7 @@ import { getAirportArrivalInfo } from '@/data/multiAirport';
 import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
-import ImpactLedgerSkeleton from '@/components/ImpactLedgerSkeleton';
+import LiveCityPulse from '@/components/LiveCityPulse';
 
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
 
@@ -690,7 +690,6 @@ function resolveUsdToLocalRate(
 const DEFAULT_PASSPORT = 'US';
 const STANDALONE_FIRST_LAUNCH_KEY = 'travelpacks-standalone-first-launch';
 const POSTHOG_IDENTIFIED_SESSION_KEY = 'tp_posthog_identified_distinct_id';
-const ImpactLedger = React.lazy(() => import('@/components/ImpactLedger'));
 
 // ---------------------------------------------------------------------------
 // Main Component
@@ -1763,25 +1762,14 @@ const exchangeRateDisplay = useMemo(() => {
 </section>
 
         <section className="space-y-6 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Environmental & Local Impact</h2>
-          <React.Suspense fallback={<ImpactLedgerSkeleton />}>
-            <ImpactLedger
-              ActivityType="walk"
-              Location_ID={`${cleanSlug ?? cityData.slug}_park_001`}
-              Duration={45}
-              VendorType="indie"
-              distanceKm={0.8}
-              reusable
-              civicEngagement
-              offPeak
-              vendorName={quickFuelIntel?.staple ?? cityData.name}
-              coordinates={
-                typeof cityData.coordinates?.lat === 'number' && typeof cityData.coordinates?.lng === 'number'
-                  ? { lat: cityData.coordinates.lat, lng: cityData.coordinates.lng }
-                  : undefined
-              }
-            />
-          </React.Suspense>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+            Environmental & Local Impact
+          </h2>
+          <LiveCityPulse
+            cityId={cleanSlug ?? cityData.slug}
+            lat={cityData.coordinates?.lat}
+            lng={cityData.coordinates?.lng}
+          />
         </section>
 
         <section className="space-y-6 pt-6">
