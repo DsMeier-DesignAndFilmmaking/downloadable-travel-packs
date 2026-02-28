@@ -1,11 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  fetchUrbanDiagnostic,
-  generateCityPackData,
-  getCachedOrBaselineUrbanDiagnostic,
-  primeStaticBaselineCache,
-  type UrbanDiagnosticPayload,
+  fetchCityVitals,
+  getCachedOrBaselineCityVitals,
+  primeSeasonalBaselineCache,
+  type CityVitalsReport,
 } from '@/services/urbanDiagnosticService';
 
 export type ImpactLedgerProps = {
@@ -39,20 +38,29 @@ function getNeighborhoodKey(locationId: string): string {
   return locationId.split('_')[0]?.trim().toLowerCase() ?? '';
 }
 
+const FALLBACK_REPORT: CityVitalsReport = {
+  title: 'City Breath',
+  contextId: 'city-breath-steady',
+  currentConditions: 'The city is breathing easy right now, with movement close to its seasonal rhythm.',
+  whatCanYouDo:
+    'Because conditions are steady, keep this leg walk-first and use transit for longer hops to preserve the lighter rhythm.',
+  howItHelps:
+    'This keeps streets calm and accessible for the families and neighborhood businesses who rely on them every day.',
+  neighborhoodInvestment: '80% Stays Local',
+  isLive: false,
+  sourceRef: 'Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)',
+};
+
 export default function ImpactLedger(props: ImpactLedgerProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const [isSlipVisible, setIsSlipVisible] = useState(false);
   const [isSealRendered, setIsSealRendered] = useState(false);
   const [isSourceTooltipOpen, setIsSourceTooltipOpen] = useState(false);
-  const [diagnostic, setDiagnostic] = useState<UrbanDiagnosticPayload | null>(null);
+  const [report, setReport] = useState<CityVitalsReport | null>(null);
   const filterId = useId().replace(/:/g, '_');
 
   const neighborhoodKey = useMemo(() => getNeighborhoodKey(props.Location_ID), [props.Location_ID]);
-  const baselineDiagnostic = useMemo(
-    () => getCachedOrBaselineUrbanDiagnostic(neighborhoodKey),
-    [neighborhoodKey],
-  );
 
   const pulseIntensity = useMemo(
     () => PULSE_INTENSITY_BY_NEIGHBORHOOD[neighborhoodKey] ?? 0.75,
@@ -67,29 +75,38 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
   useEffect(() => {
     let active = true;
 
-    setDiagnostic(baselineDiagnostic);
-    void primeStaticBaselineCache();
+    void primeSeasonalBaselineCache();
 
-    fetchUrbanDiagnostic(neighborhoodKey).then((payload) => {
-      if (!active) return;
-      setDiagnostic((current) => {
-        if (
-          current &&
-          current.city_vital === payload.city_vital &&
-          current.diagnostic_nudge === payload.diagnostic_nudge &&
-          current.retention_rate === payload.retention_rate &&
-          current.source_ref === payload.source_ref
-        ) {
-          return current;
-        }
-        return payload;
-      });
-    });
+    (async () => {
+      const cachedOrBaseline = await getCachedOrBaselineCityVitals(neighborhoodKey);
+      if (active) {
+        setReport(cachedOrBaseline);
+      }
+
+      const fresh = await fetchCityVitals(neighborhoodKey);
+      if (active) {
+        setReport((current) => {
+          if (
+            current &&
+            current.contextId === fresh.contextId &&
+            current.currentConditions === fresh.currentConditions &&
+            current.whatCanYouDo === fresh.whatCanYouDo &&
+            current.howItHelps === fresh.howItHelps &&
+            current.neighborhoodInvestment === fresh.neighborhoodInvestment &&
+            current.isLive === fresh.isLive
+          ) {
+            return current;
+          }
+
+          return fresh;
+        });
+      }
+    })();
 
     return () => {
       active = false;
     };
-  }, [baselineDiagnostic, neighborhoodKey]);
+  }, [neighborhoodKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -134,13 +151,9 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSourceTooltipOpen]);
 
-  const transformedData = useMemo(
-    () => generateCityPackData(neighborhoodKey, diagnostic ?? baselineDiagnostic),
-    [baselineDiagnostic, diagnostic, neighborhoodKey],
-  );
-
-  const conditionNarrativeId = `city-vitals-condition-${transformedData.contextId}`;
-  const actionNarrativeId = `city-vitals-action-${transformedData.contextId}`;
+  const display = report ?? FALLBACK_REPORT;
+  const conditionNarrativeId = `city-vitals-condition-${display.contextId}`;
+  const actionNarrativeId = `city-vitals-action-${display.contextId}`;
 
   return (
     <motion.section
@@ -205,7 +218,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
                   className="mt-1 text-base font-black tracking-tight text-slate-900"
                   style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
                 >
-                  {transformedData.title}
+                  {display.title}
                 </h3>
               </div>
             </div>
@@ -232,9 +245,9 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
                     className="absolute right-0 top-8 z-20 w-[280px] rounded-lg border border-stone-300 bg-white px-3 py-2 text-[11px] text-slate-700 shadow-lg"
                   >
                     <p className="font-black uppercase tracking-[0.14em] text-slate-500">Verified Sources</p>
-                    <p className="mt-1 leading-relaxed">{transformedData.sourceRef}</p>
+                    <p className="mt-1 leading-relaxed">{display.sourceRef}</p>
                     <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                      Context ID: {transformedData.contextId}
+                      {display.isLive ? 'Live Signal' : 'Steady Baseline'}
                     </p>
                   </motion.div>
                 )}
@@ -245,7 +258,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
 
         <article
           id={conditionNarrativeId}
-          data-context-id={transformedData.contextId}
+          data-context-id={display.contextId}
           className="rounded-lg border border-rose-200 border-l-2 border-l-rose-600 bg-rose-50/80 p-3"
         >
           <p
@@ -254,12 +267,12 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
           >
             Current Conditions
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-700">{transformedData.currentConditions}</p>
+          <p className="mt-1 font-sans text-sm leading-relaxed text-slate-700">{display.currentConditions}</p>
         </article>
 
         <article
           id={actionNarrativeId}
-          data-context-id={transformedData.contextId}
+          data-context-id={display.contextId}
           aria-describedby={conditionNarrativeId}
           className="rounded-lg border border-emerald-200 border-l-2 border-l-emerald-600 bg-emerald-50/80 p-3"
         >
@@ -269,11 +282,11 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
           >
             What can you do?
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-700">{transformedData.whatCanYouDo}</p>
+          <p className="mt-1 font-sans text-sm leading-relaxed text-slate-700">{display.whatCanYouDo}</p>
         </article>
 
         <article
-          data-context-id={transformedData.contextId}
+          data-context-id={display.contextId}
           aria-describedby={actionNarrativeId}
           className="rounded-lg border border-amber-200 border-l-2 border-l-amber-500 bg-amber-50/80 p-3"
         >
@@ -283,7 +296,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
           >
             How it helps?
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-slate-700">{transformedData.howItHelps}</p>
+          <p className="mt-1 font-sans text-sm leading-relaxed text-slate-700">{display.howItHelps}</p>
         </article>
 
         <div className="border-t border-stone-200/80 pt-3">
@@ -313,20 +326,17 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
                   className="text-[9px] uppercase tracking-[0.18em] text-slate-300"
                   style={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
                 >
-                  Heritage Seal
+                  Neighborhood Investment
                 </p>
-                <p className="mt-1 text-sm font-black tracking-tight text-emerald-300">
-                  {transformedData.heritageSeal}
-                </p>
+                <p className="mt-1 text-sm font-black tracking-tight text-emerald-300">{display.neighborhoodInvestment}</p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
         <div className="sr-only" aria-live="polite">
-          Context {transformedData.contextId}. Current conditions: {transformedData.currentConditions}. What can you do:
-          {` ${transformedData.whatCanYouDo}`}. How it helps: {transformedData.howItHelps}. Heritage seal:
-          {` ${transformedData.heritageSeal}`}
+          Current conditions: {display.currentConditions}. What can you do: {display.whatCanYouDo}. How it helps:
+          {` ${display.howItHelps}`}. Neighborhood investment: {display.neighborhoodInvestment}.
         </div>
       </div>
     </motion.section>

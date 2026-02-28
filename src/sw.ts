@@ -13,7 +13,14 @@ const IMAGES_CACHE_NAME = 'guide-images-v6';
 
 /** Path used as start_url in manifest. Must be cached for PWA launch. */
 const START_URL_PATH = '/';
-const SHELL_ASSETS = [START_URL_PATH, '/index.html', '/pwa-192x192.png', '/vite.svg', '/data/static_baseline.json'];
+const SHELL_ASSETS = [
+  START_URL_PATH,
+  '/index.html',
+  '/pwa-192x192.png',
+  '/vite.svg',
+  '/data/static_baseline.json',
+  '/data/seasonal-baseline.json',
+];
 
 /** Ensures shell cache has the latest JS/CSS/HTML. Uses getEntryAssetUrls() for Vite-hashed assets. */
 async function ensureShellCached(): Promise<void> {

@@ -1,0 +1,82 @@
+{
+  "bangkok-thailand": {
+    "steady": {
+      "aqi": 88,
+      "traffic_delay_pct": 59
+    },
+    "retention_rate": 0.79,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "paris-france": {
+    "steady": {
+      "aqi": 62,
+      "traffic_delay_pct": 47
+    },
+    "retention_rate": 0.84,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "london-uk": {
+    "steady": {
+      "aqi": 58,
+      "traffic_delay_pct": 51
+    },
+    "retention_rate": 0.82,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "tokyo-japan": {
+    "steady": {
+      "aqi": 54,
+      "traffic_delay_pct": 46
+    },
+    "retention_rate": 0.86,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "new-york-us": {
+    "steady": {
+      "aqi": 66,
+      "traffic_delay_pct": 63
+    },
+    "retention_rate": 0.74,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "rome-italy": {
+    "steady": {
+      "aqi": 68,
+      "traffic_delay_pct": 56
+    },
+    "retention_rate": 0.78,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "barcelona-spain": {
+    "steady": {
+      "aqi": 60,
+      "traffic_delay_pct": 52
+    },
+    "retention_rate": 0.81,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "dubai-uae": {
+    "steady": {
+      "aqi": 84,
+      "traffic_delay_pct": 48
+    },
+    "retention_rate": 0.72,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "seoul-south-korea": {
+    "steady": {
+      "aqi": 61,
+      "traffic_delay_pct": 53
+    },
+    "retention_rate": 0.83,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "mexico-city-mexico": {
+    "steady": {
+      "aqi": 95,
+      "traffic_delay_pct": 61
+    },
+    "retention_rate": 0.82,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  }
+}
