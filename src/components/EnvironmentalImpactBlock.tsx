@@ -335,36 +335,41 @@ function VisitorPressureMeter({
     <div ref={containerRef} className="space-y-2">
 
       {/* Label row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users size={14} className="text-slate-500" />
-          <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-            Visitor Pressure
-          </span>
-          {/* ⓘ trigger — matches SourceInfo button style */}
-          <button
-            ref={triggerRef}
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setIsOpen((v) => !v); }}
-            className="p-1.5 -m-1.5 flex items-center justify-center rounded-full outline-none transition-all cursor-help"
-            aria-label="What is Visitor Pressure?"
-          >
-            <div className="relative">
-              <Info size={14} className={`${isOpen ? 'text-slate-600' : 'text-slate-400'} transition-colors`} />
-              <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
-                <span className="animate-ping absolute h-full w-full rounded-full bg-slate-300 opacity-75" />
-                <span className="relative rounded-full h-1.5 w-1.5 bg-slate-400" />
-              </span>
-            </div>
-          </button>
-        </div>
-        <span className={`text-sm font-black ${overtourismColor(report.overtourismIndex)}`}>
-          {report.overtourismLabel}
-          <span className="ml-1.5 text-xs font-bold opacity-60">
-            ({report.overtourismIndex.toFixed(1)}/10)
-          </span>
-        </span>
-      </div>
+<div className="flex items-baseline justify-between mb-1.5">
+  <div className="flex items-center">
+    {/* Leading Icon */}
+    <Users size={12} className="text-slate-400 mr-2 shrink-0" />
+    
+    {/* Label */}
+    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-none">
+      Visitor Pressure
+    </span>
+
+    {/* Info Trigger - Cleaned up positioning */}
+    <button
+      ref={triggerRef}
+      type="button"
+      onClick={(e) => { e.stopPropagation(); setIsOpen((v) => !v); }}
+      className={`
+        ml-1.5 p-0.5 rounded-md transition-all duration-200 outline-none
+        ${isOpen ? 'bg-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}
+      `}
+      aria-label="What is Visitor Pressure?"
+    >
+      <Info size={13} strokeWidth={2.5} />
+    </button>
+  </div>
+
+  {/* Value Display */}
+  <div className="flex items-baseline gap-1.5">
+    <span className={`text-sm font-bold tabular-nums ${overtourismColor(report.overtourismIndex)}`}>
+      {report.overtourismLabel}
+    </span>
+    <span className="text-[11px] font-medium text-slate-400 tabular-nums">
+      ({report.overtourismIndex.toFixed(1)}/10)
+    </span>
+  </div>
+</div>
 
       {/* Progress bar */}
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
