@@ -262,70 +262,73 @@ function VisitorPressureMeter({
   }, [isOpen, isDesktop]);
 
   const panelContent = (
-    <div className="relative p-5">
-      {/* Watermark */}
+    <div className="relative p-4 max-w-[320px] overflow-hidden">
+      {/* Watermark - Tucked further into the corner to stay out of the way */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-4 top-8 rotate-[-22deg] text-[44px] font-black tracking-[0.2em] text-slate-100/80 uppercase select-none">
+        <div className="absolute -right-2 top-4 rotate-[-15deg] text-[32px] font-black tracking-[0.2em] text-slate-100/60 uppercase select-none">
           INDEX
         </div>
       </div>
-
-      {/* Header */}
-      <div className="relative flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+  
+      {/* Header: More compact with Index value integrated */}
+      <div className="relative flex items-center justify-between border-b border-slate-100 pb-2.5">
         <div className="flex items-center gap-2">
-          <Users size={15} className="text-slate-600" />
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-700">
+          <Users size={14} className="text-indigo-500" />
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-700">
             Visitor Pressure Index
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsOpen(false)}
-          className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          <X size={14} />
-        </button>
+        <div className="flex items-center gap-3">
+          <span className={`text-[11px] font-black ${overtourismColor(report.overtourismIndex)}`}>
+            {report.overtourismIndex.toFixed(1)}/10
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
-
+  
       {/* Body */}
-      <div className="relative mt-4 space-y-3">
-        <p className="text-sm leading-relaxed text-slate-700">
-          A <span className="font-bold text-slate-900">0–10 index</span> measuring how
-          concentrated tourist footfall strains a city's infrastructure, housing costs,
-          and local communities relative to its residential population.
+      <div className="relative mt-3">
+        <p className="text-[12px] leading-snug text-slate-600 mb-4">
+          Measures infrastructure strain relative to residential population.
         </p>
-
-        {/* Scale breakdown */}
-        <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 space-y-2">
-          {[
-            { range: '0 – 3', label: 'Low',      desc: 'Tourism integrated with daily city life.',          bar: 'bg-emerald-400', text: 'text-emerald-700' },
-            { range: '4 – 6', label: 'Moderate', desc: 'Visible pressure in peak zones and seasons.',       bar: 'bg-amber-400',   text: 'text-amber-700' },
-            { range: '7 – 8', label: 'High',     desc: 'Resident quality of life measurably affected.',     bar: 'bg-orange-400',  text: 'text-orange-700' },
-            { range: '9 – 10', label: 'Critical', desc: 'Active policy interventions underway.',            bar: 'bg-rose-500',    text: 'text-rose-700' },
-          ].map(({ range, label, desc, bar, text }) => (
-            <div key={label} className="flex items-center gap-3">
-              <div className={`h-2 w-2 rounded-full shrink-0 ${bar}`} />
-              <span className={`text-[10px] font-black w-10 shrink-0 ${text}`}>{range}</span>
-              <span className="text-[10px] font-black text-slate-700 w-14 shrink-0">{label}</span>
-              <span className="text-[10px] text-slate-500 leading-snug">{desc}</span>
-            </div>
-          ))}
+  
+        {/* COMPACT HORIZONTAL SCALE: This replaces the 4-row list */}
+        <div className="space-y-2">
+          <div className="flex h-1.5 w-full rounded-full overflow-hidden bg-slate-100">
+            <div className="h-full w-[30%] bg-emerald-400" title="Low" />
+            <div className="h-full w-[30%] bg-amber-400" title="Moderate" />
+            <div className="h-full w-[20%] bg-orange-400" title="High" />
+            <div className="h-full w-[20%] bg-rose-500" title="Critical" />
+          </div>
+          
+          {/* Simple Legend - Single Row */}
+          <div className="flex justify-between text-[9px] font-bold uppercase tracking-tighter text-slate-400">
+            <span className="text-emerald-600">Low (0-3)</span>
+            <span className="text-amber-600">Med (4-6)</span>
+            <span className="text-orange-600">High (7-8)</span>
+            <span className="text-rose-600">Crit (9+)</span>
+          </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <div className="relative mt-4 border-t border-slate-200 pt-3 space-y-1.5">
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="font-bold uppercase text-slate-500">This City</span>
-          <span className={`font-black ${overtourismColor(report.overtourismIndex)}`}>
-            {report.overtourismLabel} · {report.overtourismIndex.toFixed(1)}/10
-          </span>
-        </div>
-        <div className="flex items-center justify-between text-[11px]">
-          <span className="font-bold uppercase text-slate-500">Methodology</span>
-          <span className="font-semibold text-slate-600 text-right max-w-[180px]">
-            UNWTO Overtourism Monitor 2024
-          </span>
+  
+      {/* Footer: Condensed Methodology */}
+      <div className="relative mt-4 pt-3 border-t border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[9px] font-bold uppercase text-slate-400 leading-none mb-1">Methodology</span>
+            <span className="text-[10px] font-semibold text-slate-600">UNWTO Monitor 2024</span>
+          </div>
+          <div className="text-right">
+             <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${overtourismColor(report.overtourismIndex).replace('text-', 'bg-').replace('700', '100')} ${overtourismColor(report.overtourismIndex)}`}>
+              {report.overtourismLabel}
+            </span>
+          </div>
         </div>
       </div>
     </div>
