@@ -158,6 +158,64 @@ export default function SourceInfo({
     };
   }, [isDesktop, isOpen]);
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!isOpen || isDesktop) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isDesktop, isOpen]);
+
+  const panelContent = (
+    <>
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -right-7 top-10 rotate-[-26deg] text-[52px] font-black tracking-[0.2em] text-slate-100/80 uppercase">
+          {type === 'climate' ? 'ATMOS' : type === 'currency' ? 'VAL' : 'OFFICIAL'}
+        </div>
+      </div>
+
+      <div className="relative p-5">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2">
+            {content.icon}
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">{content.title}</p>
+          </div>
+          <button onClick={() => setIsOpen(false)} className="p-1 text-slate-500 hover:text-slate-700"><X size={14} /></button>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <Globe size={16} className="mt-0.5 text-emerald-600 shrink-0" />
+            <p className="text-sm leading-relaxed text-slate-700">{content.primary}</p>
+          </div>
+          <p className="text-sm leading-relaxed text-slate-700">
+            Live-synced via high-bandwidth API. When offline, we use the most recent Hardened Cache from your last secure handshake.
+          </p>
+          <p className="text-sm leading-relaxed text-slate-700">{content.secondary}</p>
+        </div>
+
+        <div className="mt-4 border-t border-slate-200 pt-3 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold uppercase text-slate-500">Last Verified</span>
+            <span className="font-semibold text-slate-700">{formatTimestamp(lastUpdated)}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold uppercase text-slate-500">Data Freshness</span>
+            <span className={`font-black uppercase tracking-wider ${isLive ? 'text-emerald-700' : 'text-slate-500'}`}>{isLive ? 'Fresh' : 'Reliable Cache'}</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-bold uppercase text-slate-500">Source Feed</span>
+            <span className="font-semibold text-slate-700 text-right max-w-[180px]">{source}</span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div ref={containerRef} className="relative inline-block">
       <button
@@ -178,65 +236,49 @@ export default function SourceInfo({
       <AnimatePresence>
         {isOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOpen(false)} className="fixed inset-0 bg-black/20 z-[90] md:hidden" />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm md:hidden"
+            />
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:hidden"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                onClick={(event) => event.stopPropagation()}
+                className="relative w-full max-w-sm max-h-[80vh] overflow-y-auto overflow-x-hidden rounded-2xl border border-emerald-200 bg-white shadow-2xl"
+              >
+                {panelContent}
+              </motion.div>
+            </motion.div>
             <motion.div
               ref={panelRef}
               initial={{ opacity: 0, y: 10, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
-              style={isDesktop ? desktopStyle : undefined}
-              className={`fixed bottom-32 inset-x-6 mx-auto z-[100] w-auto max-w-[360px] md:inset-x-auto md:bottom-auto md:w-[340px] rounded-2xl border border-emerald-200 bg-white shadow-xl overflow-hidden ${isDesktop && !desktopStyle ? 'md:invisible' : ''}`}
+              style={desktopStyle}
+              className={`fixed z-[100] hidden w-[340px] rounded-2xl border border-emerald-200 bg-white shadow-xl overflow-hidden md:block ${isDesktop && !desktopStyle ? 'md:invisible' : ''}`}
             >
-              <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute -right-7 top-10 rotate-[-26deg] text-[52px] font-black tracking-[0.2em] text-slate-100/80 uppercase">
-                  {type === 'climate' ? 'ATMOS' : type === 'currency' ? 'VAL' : 'OFFICIAL'}
-                </div>
-              </div>
-
-              <div className="relative p-5">
-                <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
-                  <div className="flex items-center gap-2">
-                    {content.icon}
-                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-700">{content.title}</p>
-                  </div>
-                  <button onClick={() => setIsOpen(false)} className="p-1 text-slate-500 hover:text-slate-700"><X size={14} /></button>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <Globe size={16} className="mt-0.5 text-emerald-600 shrink-0" />
-                    <p className="text-sm leading-relaxed text-slate-700">{content.primary}</p>
-                  </div>
-                  <p className="text-sm leading-relaxed text-slate-700">
-                    Live-synced via high-bandwidth API. When offline, we use the most recent Hardened Cache from your last secure handshake.
-                  </p>
-                  <p className="text-sm leading-relaxed text-slate-700">{content.secondary}</p>
-                </div>
-
-                <div className="mt-4 border-t border-slate-200 pt-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold uppercase text-slate-500">Last Verified</span>
-                    <span className="font-semibold text-slate-700">{formatTimestamp(lastUpdated)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold uppercase text-slate-500">Data Freshness</span>
-                    <span className={`font-black uppercase tracking-wider ${isLive ? 'text-emerald-700' : 'text-slate-500'}`}>{isLive ? 'Fresh' : 'Reliable Cache'}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold uppercase text-slate-500">Source Feed</span>
-                    <span className="font-semibold text-slate-700 text-right max-w-[180px]">{source}</span>
-                  </div>
-                </div>
-              </div>
+              {panelContent}
               {isDesktop && (
-                <div 
+                <div
                   className={`
                     absolute left-1/2 -translate-x-1/2 border-8 border-transparent
-                    ${desktopPlacement === 'above' 
-                      ? 'top-full border-t-white' 
+                    ${desktopPlacement === 'above'
+                      ? 'top-full border-t-white'
                       : 'bottom-full border-b-white'
                     }
-                  `} 
+                  `}
                 />
               )}
             </motion.div>

@@ -91,7 +91,7 @@ export default function FirstVisitOfflineIntroModal({
             </h2>
 
             <p id="offline-intro-description" className="mt-3 text-sm leading-relaxed text-slate-700">
-              City packs have been stored in your browser. You can view them in this browser without internet while exploring.
+            City packs are saved for offline use in this browser.
             </p>
 
             <p className="mt-3 text-xs leading-relaxed text-slate-500">

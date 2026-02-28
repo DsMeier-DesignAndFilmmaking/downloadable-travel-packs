@@ -1740,7 +1740,7 @@ const exchangeRateDisplay = useMemo(() => {
 </section>
 
         <section className="space-y-6 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Environmental Impact Ledger</h2>
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Sustainability</h2>
           <React.Suspense fallback={<ImpactLedgerSkeleton />}>
             <ImpactLedger
               ActivityType="walk"
