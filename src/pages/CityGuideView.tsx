@@ -52,6 +52,8 @@ import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 import LiveCityPulse from '@/components/LiveCityPulse';
+import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
+
 
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
 
@@ -1770,6 +1772,12 @@ const exchangeRateDisplay = useMemo(() => {
             lat={cityData.coordinates?.lat}
             lng={cityData.coordinates?.lng}
           />
+          // AFTER
+<EnvironmentalImpactBlock
+  cityId={cleanSlug ?? cityData.slug}
+  lat={cityData.coordinates?.lat}
+  lng={cityData.coordinates?.lng}
+/>
         </section>
 
         <section className="space-y-6 pt-6">

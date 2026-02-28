@@ -58,13 +58,13 @@ type TomTomResponse = {
   };
 };
 
+// Single declaration — removed the duplicate that appeared after fetchLiveTrafficDelay
 type VitalState = 'steady' | 'heavy';
 
 const WAQI_TOKEN = (process.env.WAQI_TOKEN || process.env.VITE_WAQI_TOKEN || '').trim();
 const TOMTOM_API_KEY = (process.env.TOMTOM_API_KEY || process.env.VITE_TOMTOM_API_KEY || '').trim();
 const LIVE_TIMEOUT_MS = 1000;
 const AQI_HEAVY_DELTA = 15;
-/** Traffic Speed < FreeFlow * 0.8 => delay > 25% */
 const TRAFFIC_HEAVY_DELAY_PCT = 25;
 const SEASONAL_BASELINE_PATH = path.join(process.cwd(), 'public', 'data', 'seasonal-baseline.json');
 
@@ -272,7 +272,11 @@ async function fetchLiveTrafficDelay(point: { lat: number; lng: number }): Promi
     const currentTravelTime = payload.flowSegmentData?.currentTravelTime;
     const freeFlowTravelTime = payload.flowSegmentData?.freeFlowTravelTime;
 
-    if (typeof currentTravelTime !== 'number' || typeof freeFlowTravelTime !== 'number' || freeFlowTravelTime <= 0) {
+    if (
+      typeof currentTravelTime !== 'number' ||
+      typeof freeFlowTravelTime !== 'number' ||
+      freeFlowTravelTime <= 0
+    ) {
       return null;
     }
 
@@ -283,16 +287,13 @@ async function fetchLiveTrafficDelay(point: { lat: number; lng: number }): Promi
   }
 }
 
-type VitalState = 'steady' | 'heavy';
-
 function isHeavyState(
   liveAqi: number | null,
   liveTrafficDelayPct: number | null,
   baselineAqi: number,
 ): boolean {
   const aqiHeavy = liveAqi != null && liveAqi > baselineAqi + AQI_HEAVY_DELTA;
-  const trafficHeavy =
-    liveTrafficDelayPct != null && liveTrafficDelayPct > TRAFFIC_HEAVY_DELAY_PCT;
+  const trafficHeavy = liveTrafficDelayPct != null && liveTrafficDelayPct > TRAFFIC_HEAVY_DELAY_PCT;
   return aqiHeavy || trafficHeavy;
 }
 
@@ -338,7 +339,11 @@ function buildResponse(
   };
 }
 
-function sendJson(res: VercelResponse, status: number, body: CityVitalsApiResponse | { error: string }): void {
+function sendJson(
+  res: VercelResponse,
+  status: number,
+  body: CityVitalsApiResponse | { error: string },
+): void {
   res
     .status(status)
     .setHeader('Content-Type', 'application/json')
@@ -374,7 +379,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     hasLiveData && isHeavyState(liveAqi, liveTrafficDelay, baselineAqi) ? 'heavy' : 'steady';
 
   const sourceRef =
-    hasLiveData && (liveAqi != null || liveTrafficDelay != null)
+    hasLiveData
       ? 'Ref: WAQI + TomTom + GDS-Index 2026'
       : baselineEntry.source_ref || 'Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)';
 
