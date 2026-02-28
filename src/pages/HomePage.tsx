@@ -106,10 +106,14 @@ export default function HomePage() {
           <motion.h1 variants={itemVariants} className="text-6xl font-black tracking-tighter mb-4 uppercase italic leading-[0.85] text-[#222222]">
             Modern Travel<br /> Field Notes
           </motion.h1>
-          <motion.p variants={itemVariants} className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-relaxed max-w-xl">
-            <span className="text-[#222222] font-semibold">Instant updates</span> to solve on-the-ground friction as it happens.<br className="hidden md:block" />
-            <span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-4"> Offline Packs</span> for when the signal is spotty or dead.
-          </motion.p>
+          <motion.p 
+          variants={itemVariants} 
+          className="text-lg md:text-xl text-slate-500 font-light tracking-tight leading-[1.8] max-w-xl"
+        >
+          <span className="text-[#222222] font-semibold">Instant updates</span> to solve on-the-ground friction as it happens.
+          <br className="hidden md:block" />
+          &nbsp;<span className="text-[#222222] font-semibold underline decoration-[#FFDD00] decoration-2 underline-offset-8">Offline Packs</span> for when the signal is spotty or dead.
+        </motion.p>
         </header>
 
         {/* System Diagnostics Trigger */}
