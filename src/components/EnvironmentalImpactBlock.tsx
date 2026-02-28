@@ -169,21 +169,16 @@ function SourceDrawer({ sources }: { sources: string[] }) {
 
 // ─── Panel 1: Current Conditions ─────────────────────────────────────────────
 
-
 function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
-  const aqiPct = Math.min((report.aqiValue / 300) * 100, 100);
-  const tourismPct = Math.min((report.overtourismIndex / 10) * 100, 100);
-  const summary = report.currentConditionsSummary?.trim();
+  const aqiPct = Math.min(100, (report.aqiValue / 300) * 100);
+  const tourismPct = Math.min(100, (report.overtourismIndex / 10) * 100);
 
   return (
     <div className="space-y-5">
-
-      {/* Health advisory / critical callout — only shown when non-empty */}
-      {summary && (
-        <p className="text-sm leading-relaxed text-slate-600 italic border-l-2 border-slate-200 pl-3">
-          {summary}
-        </p>
-      )}
+      {/* Summary prose */}
+      <p className="text-sm leading-relaxed text-slate-700">
+        {report.currentConditionsSummary}
+      </p>
 
       {/* AQI meter */}
       {report.aqiValue > 0 && (
@@ -192,10 +187,10 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
             <div className="flex items-center gap-2">
               <Wind size={14} className="text-slate-500" />
               <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Air Quality
+                Air Quality Index
               </span>
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <div className="flex items-center gap-1.5">
               <TrendIcon trend={report.aqiTrend} />
               <span className={`text-sm font-black tabular-nums ${aqiColor(report.aqiValue, report.aqiCategory)}`}>
                 {report.aqiValue}
@@ -203,11 +198,6 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
               <span className={`text-xs font-bold ${aqiColor(report.aqiValue, report.aqiCategory)}`}>
                 {report.aqiCategory}
               </span>
-              {report.dominantPollutant && (
-                <span className="text-[10px] font-bold text-slate-400 tabular-nums">
-                  · {report.dominantPollutant.toUpperCase()}
-                </span>
-              )}
             </div>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -218,19 +208,24 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
               className={`h-full rounded-full ${aqiBgStrip(report.aqiValue, report.aqiCategory)}`}
             />
           </div>
+          {report.dominantPollutant && (
+            <p className="text-[11px] text-slate-500">
+              Dominant: <span className="font-bold text-slate-700">{report.dominantPollutant.toUpperCase()}</span>
+            </p>
+          )}
         </div>
       )}
 
       {/* Pollen row */}
       {report.highestPollenThreat !== 'None detected' && report.highestPollenThreat !== 'No data' && (
         <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
             <Flower2 size={13} className="text-violet-500" />
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-              Pollen
+              Pollen Today
             </span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-2">
             {[
               { label: 'Tree', band: report.pollenTreeBand },
               { label: 'Grass', band: report.pollenGrassBand },
@@ -241,7 +236,7 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
                 <span key={label} className="flex items-center gap-1">
                   <span className={`inline-block h-2 w-2 rounded-full ${pollenDot(band)}`} />
                   <span className={`text-[10px] font-bold ${pollenColor(band)}`}>
-                    {label} · {band}
+                    {label}
                   </span>
                 </span>
               ))}
@@ -252,20 +247,18 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
       {/* Overtourism meter */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2">
             <Users size={14} className="text-slate-500" />
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
               Visitor Pressure
             </span>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            <span className={`text-sm font-black ${overtourismColor(report.overtourismIndex)}`}>
-              {report.overtourismLabel}
+          <span className={`text-sm font-black ${overtourismColor(report.overtourismIndex)}`}>
+            {report.overtourismLabel}
+            <span className="ml-1.5 text-xs font-bold opacity-60">
+              ({report.overtourismIndex.toFixed(1)}/10)
             </span>
-            <span className="text-xs font-bold text-slate-400 tabular-nums">
-              {report.overtourismIndex.toFixed(1)}/10
-            </span>
-          </div>
+          </span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <motion.div
@@ -277,17 +270,14 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
         </div>
       </div>
 
-      {/* Primary stress pill — merged with icon, no redundant prose label */}
+      {/* Primary stress pill */}
       <div className="flex items-center gap-2">
         <StressIcon stress={report.primaryStress} />
-        <span className="text-[11px] font-black capitalize text-slate-600">
-          {report.primaryStress}
-        </span>
-        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">
-          primary stress
+        <span className="text-[11px] font-bold text-slate-500">
+          Primary environmental stress:{' '}
+          <span className="font-black capitalize text-slate-700">{report.primaryStress}</span>
         </span>
       </div>
-
     </div>
   );
 }
@@ -325,16 +315,23 @@ function ImpactPanel({ report }: { report: EnvironmentalImpactReport }) {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 
             <span className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700 leading-snug">
-              Local Economic{'\n'}Retention
+              Local Economic Retention
             </span>
 
-            <div className="flex items-baseline gap-1.5">
+            {/* items-center: number and annotation share the same vertical midpoint */}
+            <div className="flex items-center gap-2">
               <span className="text-3xl font-black tabular-nums leading-none text-amber-800">
                 {report.neighbourhoodRetentionPct}%
               </span>
-              <span className="text-xs font-bold text-amber-600 leading-tight">
-                of every dollar<br />stays local
-              </span>
+              {/* flex-col keeps both lines anchored as one unit beside the number */}
+              <div className="flex flex-col">
+                <span className="text-[11px] font-bold text-amber-600 leading-tight">
+                  of every dollar
+                </span>
+                <span className="text-[11px] font-bold text-amber-600 leading-tight">
+                  stays local
+                </span>
+              </div>
             </div>
 
           </div>
@@ -416,6 +413,9 @@ export default function EnvironmentalImpactBlock({
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between border-b border-slate-100 px-6 pt-6 pb-4">
         <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-mono">
+            Environmental & Local Impact
+          </p>
           <h3 className="mt-1 text-base font-black tracking-tight text-slate-900 font-mono">
             {report?.cityLabel ?? '—'}
           </h3>
