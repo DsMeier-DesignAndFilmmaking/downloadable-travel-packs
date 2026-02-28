@@ -479,6 +479,11 @@ function deriveAqiTrend(
 
 // ─── Condition summary builder ────────────────────────────────────────────────
 
+// buildConditionSummary returns ONLY what the visual meters cannot show.
+// AQI value/category/trend, pollen bands, and overtourism score are all
+// rendered as interactive meters in ConditionsPanel — repeating them in
+// prose creates noise. This function stays silent for benign conditions
+// and only speaks when it adds genuine context the visuals can't convey.
 function buildConditionSummary(
   cityLabel: string,
   aqiValue: number,
@@ -490,31 +495,26 @@ function buildConditionSummary(
   primaryStress: string,
   googleHealthAdvice: string,
 ): string {
-  const trendText =
-    aqiTrend === 'improving' ? ', improving over the past 24h' :
-    aqiTrend === 'worsening' ? ', worsening since this morning' : '';
+  // Google's health advisory is unique copy the meters don't show — always surface it
+  if (googleHealthAdvice) return googleHealthAdvice;
 
-  const aqiLine = `Air quality in ${cityLabel} is currently ${aqiCategory} (AQI ${aqiValue}${trendText}). ` +
-    (dominantPollutant ? `Dominant pollutant: ${dominantPollutant}. ` : '');
+  // Critical air quality: add urgency the colour band alone can't convey
+  if (
+    aqiCategory === 'Unhealthy' ||
+    aqiCategory === 'Very Unhealthy' ||
+    aqiCategory === 'Hazardous'
+  ) {
+    const trendText = aqiTrend === 'worsening' ? ', worsening since this morning' : '';
+    return `Air quality is ${aqiCategory}${trendText}${dominantPollutant ? ` — primary source: ${dominantPollutant.toUpperCase()}` : ''}. Consider limiting outdoor exertion.`;
+  }
 
-  const pollenLine = pollenThreat !== 'None detected'
-    ? `${pollenThreat} present today. `
-    : '';
+  // Critical overtourism: meters show the number, but not the human impact
+  if (overtourism >= 8) {
+    return `Visitor pressure on ${cityLabel} is critically high — concentrated footfall is straining local infrastructure and communities.`;
+  }
 
-  const tourismLine = overtourism >= 7
-    ? `Overtourism pressure on ${cityLabel} is ${overtourismLabel(overtourism)} (index ${overtourism.toFixed(1)}/10) — concentrated visitor patterns are straining infrastructure and local communities. `
-    : overtourism >= 4
-      ? `Visitor pressure on ${cityLabel} is ${overtourismLabel(overtourism)} (${overtourism.toFixed(1)}/10). `
-      : '';
-
-  const adviceLine = googleHealthAdvice
-    ? `Health advisory: ${googleHealthAdvice}`
-    : '';
-
-  return [aqiLine, pollenLine, tourismLine, adviceLine]
-    .filter(Boolean)
-    .join('')
-    .trim();
+  // All other conditions: meters speak for themselves — return empty
+  return '';
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────

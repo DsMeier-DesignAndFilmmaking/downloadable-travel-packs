@@ -169,16 +169,21 @@ function SourceDrawer({ sources }: { sources: string[] }) {
 
 // ─── Panel 1: Current Conditions ─────────────────────────────────────────────
 
+
 function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
-  const aqiPct = Math.min(100, (report.aqiValue / 300) * 100);
-  const tourismPct = Math.min(100, (report.overtourismIndex / 10) * 100);
+  const aqiPct = Math.min((report.aqiValue / 300) * 100, 100);
+  const tourismPct = Math.min((report.overtourismIndex / 10) * 100, 100);
+  const summary = report.currentConditionsSummary?.trim();
 
   return (
     <div className="space-y-5">
-      {/* Summary prose */}
-      <p className="text-sm leading-relaxed text-slate-700">
-        {report.currentConditionsSummary}
-      </p>
+
+      {/* Health advisory / critical callout — only shown when non-empty */}
+      {summary && (
+        <p className="text-sm leading-relaxed text-slate-600 italic border-l-2 border-slate-200 pl-3">
+          {summary}
+        </p>
+      )}
 
       {/* AQI meter */}
       {report.aqiValue > 0 && (
@@ -187,10 +192,10 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
             <div className="flex items-center gap-2">
               <Wind size={14} className="text-slate-500" />
               <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-                Air Quality Index
+                Air Quality
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
               <TrendIcon trend={report.aqiTrend} />
               <span className={`text-sm font-black tabular-nums ${aqiColor(report.aqiValue, report.aqiCategory)}`}>
                 {report.aqiValue}
@@ -198,6 +203,11 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
               <span className={`text-xs font-bold ${aqiColor(report.aqiValue, report.aqiCategory)}`}>
                 {report.aqiCategory}
               </span>
+              {report.dominantPollutant && (
+                <span className="text-[10px] font-bold text-slate-400 tabular-nums">
+                  · {report.dominantPollutant.toUpperCase()}
+                </span>
+              )}
             </div>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -208,24 +218,19 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
               className={`h-full rounded-full ${aqiBgStrip(report.aqiValue, report.aqiCategory)}`}
             />
           </div>
-          {report.dominantPollutant && (
-            <p className="text-[11px] text-slate-500">
-              Dominant: <span className="font-bold text-slate-700">{report.dominantPollutant.toUpperCase()}</span>
-            </p>
-          )}
         </div>
       )}
 
       {/* Pollen row */}
       {report.highestPollenThreat !== 'None detected' && report.highestPollenThreat !== 'No data' && (
         <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Flower2 size={13} className="text-violet-500" />
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-              Pollen Today
+              Pollen
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {[
               { label: 'Tree', band: report.pollenTreeBand },
               { label: 'Grass', band: report.pollenGrassBand },
@@ -236,7 +241,7 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
                 <span key={label} className="flex items-center gap-1">
                   <span className={`inline-block h-2 w-2 rounded-full ${pollenDot(band)}`} />
                   <span className={`text-[10px] font-bold ${pollenColor(band)}`}>
-                    {label}
+                    {label} · {band}
                   </span>
                 </span>
               ))}
@@ -247,18 +252,20 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
       {/* Overtourism meter */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Users size={14} className="text-slate-500" />
             <span className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
               Visitor Pressure
             </span>
           </div>
-          <span className={`text-sm font-black ${overtourismColor(report.overtourismIndex)}`}>
-            {report.overtourismLabel}
-            <span className="ml-1.5 text-xs font-bold opacity-60">
-              ({report.overtourismIndex.toFixed(1)}/10)
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <span className={`text-sm font-black ${overtourismColor(report.overtourismIndex)}`}>
+              {report.overtourismLabel}
             </span>
-          </span>
+            <span className="text-xs font-bold text-slate-400 tabular-nums">
+              {report.overtourismIndex.toFixed(1)}/10
+            </span>
+          </div>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
           <motion.div
@@ -270,14 +277,17 @@ function ConditionsPanel({ report }: { report: EnvironmentalImpactReport }) {
         </div>
       </div>
 
-      {/* Primary stress pill */}
+      {/* Primary stress pill — merged with icon, no redundant prose label */}
       <div className="flex items-center gap-2">
         <StressIcon stress={report.primaryStress} />
-        <span className="text-[11px] font-bold text-slate-500">
-          Primary environmental stress:{' '}
-          <span className="font-black capitalize text-slate-700">{report.primaryStress}</span>
+        <span className="text-[11px] font-black capitalize text-slate-600">
+          {report.primaryStress}
+        </span>
+        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">
+          primary stress
         </span>
       </div>
+
     </div>
   );
 }
@@ -307,19 +317,34 @@ function ActionsPanel({ report }: { report: EnvironmentalImpactReport }) {
 
 function ImpactPanel({ report }: { report: EnvironmentalImpactReport }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <p className="text-sm leading-relaxed text-slate-700">{report.howItHelps}</p>
 
-      {/* Local retention stat */}
       {report.neighbourhoodRetentionPct > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/60 px-4 py-3">
-          <span className="text-[11px] font-black uppercase tracking-[0.14em] text-amber-700">
-            Local Economic Retention
-          </span>
-          <span className="text-lg font-black tabular-nums text-amber-800">
-            {report.neighbourhoodRetentionPct}%
-            <span className="ml-1 text-xs font-bold text-amber-600">stays local</span>
-          </span>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
+            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-700 leading-snug">
+              Local Economic{'\n'}Retention
+            </span>
+
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-3xl font-black tabular-nums leading-none text-amber-800">
+                {report.neighbourhoodRetentionPct}%
+              </span>
+              <span className="text-xs font-bold text-amber-600 leading-tight">
+                of every dollar<br />stays local
+              </span>
+            </div>
+
+          </div>
+
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/60">
+            <div
+              className="h-full rounded-full bg-amber-500 transition-all duration-700"
+              style={{ width: `${report.neighbourhoodRetentionPct}%` }}
+            />
+          </div>
         </div>
       )}
     </div>
