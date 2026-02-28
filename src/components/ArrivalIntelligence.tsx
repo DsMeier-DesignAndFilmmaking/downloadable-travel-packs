@@ -395,7 +395,6 @@ export default function ArrivalIntelligence({
                       <div className="space-y-4">
                         <h2 className="text-md font-bold text-slate-800">Welcome to {cityName}</h2>
                         <div>
-                          <p className="text-sm font-medium text-slate-800">Arrival Confirmation</p>
                           <p className="text-sm text-slate-600 opacity-80 leading-relaxed">
                             Tap below once you&apos;ve landed to begin guided arrival.
                           </p>
