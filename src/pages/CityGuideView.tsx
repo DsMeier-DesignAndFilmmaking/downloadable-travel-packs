@@ -51,7 +51,7 @@ import { getAirportArrivalInfo } from '@/data/multiAirport';
 import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
-import LiveCityPulse from '@/components/LiveCityPulse';
+
 import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
 
 
