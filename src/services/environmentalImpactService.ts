@@ -185,11 +185,16 @@ export function getCachedEnvironmentalReport(
 
 // ─── Offline placeholder ──────────────────────────────────────────────────────
 
+function formatCityLabel(cityId: string): string {
+  const parts = cityId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  if (parts.length < 2) return parts.join(' ');
+  const country = parts[parts.length - 1];
+  const city = parts.slice(0, -1).join(' ');
+  return `${city}, ${country}`;
+}
+
 function buildOfflinePlaceholder(cityId: string): EnvironmentalImpactReport {
-  const label = cityId
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  const label = formatCityLabel(cityId);
 
   return {
     cityId,

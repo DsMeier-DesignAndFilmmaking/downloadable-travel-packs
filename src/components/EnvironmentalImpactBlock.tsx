@@ -391,9 +391,6 @@ export default function EnvironmentalImpactBlock({
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between border-b border-slate-100 px-6 pt-6 pb-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 font-mono">
-            Environmental & Local Impact
-          </p>
           <h3 className="mt-1 text-base font-black tracking-tight text-slate-900 font-mono">
             {report?.cityLabel ?? '—'}
           </h3>

@@ -299,10 +299,11 @@ function normaliseCityId(raw: string): string {
 }
 
 function formatCityLabel(cityId: string): string {
-  return cityId
-    .split('-')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  const parts = cityId.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1));
+  if (parts.length < 2) return parts.join(' ');
+  const country = parts[parts.length - 1];
+  const city = parts.slice(0, -1).join(' ');
+  return `${city}, ${country}`;
 }
 
 function clamp(v: number, lo: number, hi: number): number {
