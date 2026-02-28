@@ -91,6 +91,13 @@ export interface CityPackArrivalSystemHealth {
   offline_message?: string
 }
 
+export interface CityPackSafetyIntelligence {
+  crimeStatsUrl: string;     // Official Gov Portal URL
+  crimeStatsSource: string;  // e.g., "Portal de Datos Abiertos FGJ"
+  safetyLevel: 'high' | 'moderate' | 'caution';
+  localAdvice?: string;      // e.g., "Avoid the North exit after 10 PM"
+}
+
 export interface CityPackArrival {
   eSimAdvice: string
   eSimHack: string
@@ -159,6 +166,8 @@ export interface CityGuide {
   coordinates: CityCoordinates
   last_updated: string
   theme: string
+    // Added Safety Intel directly into the main object for easy access
+    safety_intelligence?: CityPackSafetyIntelligence;
   emergency: CityPackEmergency
   survival: CityPackSurvival
   arrival: CityPackArrival
@@ -170,6 +179,7 @@ export interface CityGuide {
   fuel?: CityPackFuel
   scam_alerts: string[]
   real_time_hacks: string[]
+
   basic_needs: {
     water_rule: string;
     street_food: string;

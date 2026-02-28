@@ -1,6 +1,6 @@
 import { Fragment, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, RotateCcw } from 'lucide-react';
+import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, RotateCcw, ArrowUpRight, Train } from 'lucide-react';
 import type { ReactNode } from 'react';
 import SourceInfo from '@/components/SourceInfo';
 import CityPulseBlock from '@/components/CityPulseBlock';
@@ -512,8 +512,42 @@ export default function ArrivalIntelligence({
                       </div>
                       <div className="mt-4 space-y-1">
                         <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
-                        <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" value={officialTransportText} />
-                        <InlineRow
+                        <div className="flex flex-col gap-3">
+                        {/* Existing Row */}
+                        <InlineRow 
+                          icon={<Navigation size={14} className="text-amber-600" />} 
+                          label="Official Transport" 
+                          value={officialTransportText} 
+                        />
+
+                        {/* NEW: Dynamic Rail Link Button */}
+                        <a 
+                          href={officialTransportText.includes('AIFA') 
+                            ? "https://www.google.com/maps/dir/AIFA,+Aeropuerto+Internacional+Felipe+%C3%81ngeles,+Zumpango+de+Ocampo,+Edo.+de+M%C3%A9xico/Buenavista,+CDMX" 
+                            : "https://www.google.com/maps/dir/AICM,+Aeropuerto+Internacional+Benito+Ju%C3%A1rez,+CDMX/Z%C3%B3calo,+Centro+Hist%C3%B3rico,+CDMX"
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 ml-5 flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 rounded-xl transition-all active:scale-[0.98] group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="bg-amber-100 p-2 rounded-lg text-amber-700">
+                              <Train size={16} strokeWidth={2.5} />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
+                                Transit Route
+                              </p>
+                              <p className="text-xs font-bold text-slate-700">
+                                {officialTransportText.includes('AIFA') ? 'Tren Suburbano to Center' : 'Metro Line 5 to Center'}
+                              </p>
+                            </div>
+                          </div>
+                          <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
+                        </a>
+                      </div>
+                      <div className="mt-8 pt-6 border-t border-slate-100"> {/* Added global top margin, padding, and border */}
+                      <InlineRow
                         icon={<CheckCircle size={14} className="text-emerald-600" />}
                         label="Transit Estimates"
                         value={
@@ -560,44 +594,93 @@ export default function ArrivalIntelligence({
 
         return (
           /* grid-cols-1 on mobile, 2 columns on desktop with fixed label width */
-          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-[140px_1fr] sm:gap-y-3 sm:gap-x-2">
-            
-            {/* Taxi Label */}
-            <div className="flex items-center gap-1.5 self-start pt-0.5">
-              <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
-                Taxi
-              </span>
-              <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
-                {taxiMiddle ?? 'to center'}
-              </span>
-            </div>
-            {/* Taxi Data */}
-            <div className="text-sm text-slate-700">
-              {formatValue(taxiValueRaw)}
-            </div>
+          <div className="mt-4 grid grid-cols-1 gap-y-5 sm:grid-cols-[140px_1fr] sm:gap-x-4 sm:gap-y-6">
+  
+                        {/* --- TAXI GROUP --- */}
+                        <div className="flex items-center gap-2 self-start pt-1 px-1">
+                          <span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">
+                            Taxi
+                          </span>
+                          <span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
+                            {taxiMiddle ?? 'to center'}
+                          </span>
+                        </div>
 
-            {/* Rail Label */}
-            <div className="flex items-center gap-1.5 self-start pt-0.5">
-              <span className="font-black uppercase tracking-wider text-slate-900 text-[11px] sm:text-xs">
-                Rail
-              </span>
-              <span className="text-slate-500 italic text-[11px] whitespace-nowrap">
-                to zones
-              </span>
-            </div>
-            {/* Rail Data */}
-            <div className="text-sm text-slate-700">
-              {formatValue(trainValueRaw)}
-            </div>
+                        <div className="space-y-4">
+                          {/* Taxi Data */}
+                          <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0"><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
+                            cost
+                          </span>
+                            {formatValue(taxiValueRaw)}
+                          </div>
 
-          </div>
-        );
-      })()
-    }
-  />
+                          {/* Primary Transit App Chips - Indented on mobile for hierarchy */}
+                          <div className="flex flex-wrap gap-2 pt-1 ml-1 sm:ml-0">
+                            <p className="w-full text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">
+                              App Shortcuts
+                            </p>
+                            
+                            <a 
+                              href="uber://?action=setPickup&pickup=my_location" 
+                              className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:bg-slate-800 active:scale-95 shadow-sm"
+                            >
+                              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                                <span className="text-black text-[8px] font-black">U</span>
+                              </div>
+                              Uber
+                            </a>
+
+                            <a 
+                              href="didi://" 
+                              className="flex items-center gap-2 bg-[#ff8d00] text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:bg-[#e67e00] active:scale-95 shadow-sm"
+                            >
+                              <div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-black text-[10px]">D</div>
+                              DiDi
+                            </a>
+
+                            <a 
+                              href="citymapper://directions?endcoord=19.4326,-99.1332" 
+                              className="flex items-center gap-2 bg-[#28d172] text-white px-3 py-2 rounded-xl text-[11px] font-bold transition-all hover:bg-[#22b361] active:scale-95 shadow-sm"
+                            >
+                              <Navigation size={12} fill="white" className="opacity-90" />
+                              Citymapper
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* --- DIVIDER (Visible on Mobile, hidden on SM Grid) --- */}
+                        <div className="sm:hidden border-t border-slate-100 mx-1" />
+
+                        {/* --- RAIL GROUP --- */}
+                        <div className="flex items-center gap-2 self-start pt-1 px-1">
+                          <span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">
+                            Rail
+                          </span>
+                          <span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
+                            to zones
+                          </span>
+                        </div>
+
+                        <div className="space-y-4 pb-6 sm:pb-8">
+                          {/* Rail Data */}
+                          <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0">
+                          <span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">
+                            cost
+                          </span>
+                            {formatValue(trainValueRaw)}
+                          </div>
+                          
+                          {/* Note: The Transit Route button from previous step would go here */}
+                        </div>
+                      </div>
+                              );
+                            })()
+                          }
+                        />
+                        </div>
                         <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value={currencySimText} bordered={false} />
                       </div>
-                      <div className="mt-6 pt-4 border-t border-slate-200">
+                      <div className="mt-8 pt-6 border-t border-slate-200">
                         <motion.button
                           onClick={handleProceedToCity}
                           whileTap={{ scale: 0.98 }}
@@ -625,7 +708,7 @@ export default function ArrivalIntelligence({
                           CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
                         </p>
                         <div>
-                          <p className="text-sm font-medium text-slate-800">Urban Pattern Read</p>
+                          
                           <p className="text-sm text-slate-600 opacity-80 leading-relaxed">
                             Understand the social layout before committing time or money.
                           </p>
