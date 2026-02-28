@@ -250,14 +250,23 @@ export async function fetchCityVitals(cityIdRaw: string, options?: FetchCityVita
   const cityId = normalizeCityId(cityIdRaw);
   const coords = options?.coordinates;
   const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
-  const fallback = await getSteadyBaselineCityVitals(cityId);
 
-  if (isOffline || !coords) return fallback;
+  // When offline or missing coordinates, prefer the best cached snapshot first,
+  // then fall back to the steady seasonal baseline.
+  if (isOffline || !coords) {
+    return getCachedOrBaselineCityVitals(cityId);
+  }
+
+  let fallback: CityVitalsReport | null = null;
 
   try {
-    return await fetchFromGooglePulseApi(cityId, coords.lat, coords.lng);
+    const liveReport = await fetchFromGooglePulseApi(cityId, coords.lat, coords.lng);
+    return liveReport;
   } catch (err) {
     console.warn("Pulse API Failed, falling back to baseline", err);
+    if (!fallback) {
+      fallback = await getSteadyBaselineCityVitals(cityId);
+    }
     return fallback;
   }
 }

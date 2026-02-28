@@ -135,7 +135,7 @@ export default function ImpactLedger(props: ImpactLedgerProps) {
         </article>
 
         <article className="rounded-lg border border-emerald-200 border-l-2 border-l-emerald-600 bg-emerald-50/80 p-3">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700 font-mono">What can you do?</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700 font-mono">What can I do?</p>
           <p className="mt-1 text-sm text-slate-700">{display.whatCanYouDo}</p>
         </article>
 
