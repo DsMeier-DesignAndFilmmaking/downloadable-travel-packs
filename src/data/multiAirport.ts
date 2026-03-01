@@ -21,6 +21,8 @@ export interface AirportArrivalInfo {
   wifiSsid?: string;
   wifiPassword?: string;
   currencySimLocations?: string;
+  airportCoordinates?: { lat: number; lng: number };
+  cityCenterCoordinates?: { lat: number; lng: number };
 }
 
 export type AirportArrivalDataByCode = Record<string, AirportArrivalInfo>;
@@ -47,17 +49,22 @@ export const AIRPORT_ARRIVAL_BY_CITY: Record<string, AirportArrivalDataByCode> =
       wifiSsid: 'MEX-Internet',
       wifiPassword: 'Portal login (no password)',
       currencySimLocations: 'Telcel SIM counters and exchange/ATM points in arrivals corridors.',
+      airportCoordinates: { lat: 19.4363, lng: -99.0721 },
+      cityCenterCoordinates: { lat: 19.4326, lng: -99.1332 }, // Zócalo
     },
     TLC: {
-      transport: ['Shuttle', 'Taxi'],
-      travelTimeMinutes: 60,
-      tips: ['Book shuttle in advance', 'Limited public transport'],
-      taxiEstimate: 'Taxi/Uber to CDMX: 60-70 mins | 800-1200 MXN',
-      trainEstimate: 'El Insurgente Train: 15 MXN (to Santa Fe) | Shuttle: 100 MXN',
-      officialTransport: 'Caminante Shuttles, El Insurgente Interurban Rail, Authorized Taxis',
+      transport: ['Shuttle', 'Taxi', 'Train'], // Added 'Train'
+      travelTimeMinutes: 45, // Reduced from 60 if using the train-shuttle combo
+      tips: ['Take a 15-min taxi to Metepec Station for the El Insurgente train', 'Use Integrated Mobility Card'],
+      taxiEstimate: 'Taxi/Uber direct to CDMX: 60-70 mins | 800-1200 MXN',
+      // Updated to reflect full route pricing and the shuttle leg
+      trainEstimate: 'El Insurgente Train: 100 MXN (to Observatorio) | Taxi to Station: ~120 MXN',
+      officialTransport: 'Caminante Shuttles, El Insurgente Interurban Rail (via Metepec Station), Authorized Taxis',
       wifiSsid: 'TLC-Free-WiFi',
       wifiPassword: 'Portal login',
-      currencySimLocations: 'Limited counters in arrivals; change at city center if needed.',
+      currencySimLocations: 'Limited counters; use ATMs in Arrivals or exchange in CDMX.',
+      airportCoordinates: { lat: 19.3371, lng: -99.5664 },
+      cityCenterCoordinates: { lat: 19.4326, lng: -99.1332 },
     },
     NLU: {
       transport: ['Airport Bus', 'Rideshare'],
@@ -69,6 +76,8 @@ export const AIRPORT_ARRIVAL_BY_CITY: Record<string, AirportArrivalDataByCode> =
       wifiSsid: 'AIFA-WiFi',
       wifiPassword: 'Portal login',
       currencySimLocations: 'SIM and exchange in arrivals; limited options.',
+      airportCoordinates: { lat: 19.7581, lng: -99.0151 },
+      cityCenterCoordinates: { lat: 19.4326, lng: -99.1332 },
     },
   },
 };

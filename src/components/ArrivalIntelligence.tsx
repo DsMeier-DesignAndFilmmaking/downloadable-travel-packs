@@ -161,7 +161,7 @@ export default function ArrivalIntelligence({
   citySlug, cityName, arrivalStage, visaStatus, visaLoading, visaError, digitalEntry,
   preLandStrategy, laneSelection, wifiSsid, wifiPassword, officialTransport,
   taxiEstimate, trainEstimate, onConfirmArrival, onMarkLanded, onProceedToCity, onResetStatus,
-  selectedAirportCode, airportOptions, onAirportChange, safetyIntelligence, coordinates,
+  selectedAirportCode, airportArrivalInfo, airportOptions, onAirportChange, safetyIntelligence, coordinates,
 }: ArrivalIntelligenceProps) {
   const [airportDropdownOpen, setAirportDropdownOpen] = useState(false);
   const stepIndicatorRef = useRef<HTMLDivElement | null>(null);
@@ -303,18 +303,62 @@ export default function ArrivalIntelligence({
                     <div className="space-y-1">
                       <InlineRow icon={<Wifi size={14} className="text-blue-600" />} label={`WiFi: ${wifiSsidText}`} value={`Password: ${wifiPasswordText}`} />
                       <div className="flex flex-col gap-3">
-                        <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" bordered={false} value={(
-                          <div className="flex flex-col gap-3 w-full">
-                            <span className="text-sm text-slate-700 leading-relaxed">{officialTransportText}</span>
-                            <a href={`https://google.com/maps/dir/?api=1&destination=${coordinates?.lat},${coordinates?.lng}&travelmode=transit`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl active:scale-[0.98] group">
-                              <div className="flex items-center gap-3">
-                                <div className="bg-amber-100 p-2 rounded-lg text-amber-700"><Train size={16} strokeWidth={2.5} /></div>
-                                <div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Transit Route</p><p className="text-xs font-bold text-slate-700">Metro/Rail to Center</p></div>
-                              </div>
-                              <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
-                            </a>
-                          </div>
-                        )} />
+                      <InlineRow 
+  icon={<Navigation size={14} className="text-amber-600" />} 
+  label="Official Transport" 
+  bordered={false} 
+  value={(
+    <div className="flex flex-col gap-3 w-full">
+      <span className="text-sm text-slate-700 leading-relaxed">{officialTransportText}</span>
+      
+      {selectedAirportCode === 'TLC' ? (
+        // --- TLC MULTI-STOP ROUTE (AIRPORT -> TRAIN -> CITY) ---
+        <div className="flex flex-col gap-2">
+          <a 
+            href={`https://www.google.com/maps/dir/?api=1&origin=${airportArrivalInfo?.airportCoordinates?.lat},${airportArrivalInfo?.airportCoordinates?.lng}&destination=${coordinates?.lat ?? 19.4326},${coordinates?.lng ?? -99.1332}&waypoints=19.2833,-99.5964&travelmode=driving`}
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center justify-between bg-blue-600 border border-blue-700 p-4 rounded-xl active:scale-[0.98] group transition-all shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg text-white">
+                <Train size={18} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-100 leading-none mb-1">View Full Connection Map</p>
+                <p className="text-xs font-bold text-white">Airport ➔ Metepec ➔ {cityName || 'CDMX'}</p>
+                <p className="text-[10px] text-blue-100/80 mt-0.5">Includes Taxi transfer + El Insurgente Rail</p>
+              </div>
+            </div>
+            <ArrowUpRight size={20} className="text-white/70 group-hover:text-white transition-colors" />
+          </a>
+          <p className="text-[10px] text-slate-400 italic px-1">
+            *Maps may show driving lines; follow "El Insurgente" rail signs at Metepec.
+          </p>
+        </div>
+      ) : (
+        // --- STANDARD TRANSIT ROUTE (MEX / NLU) ---
+        <a 
+          href={`https://www.google.com/maps/dir/?api=1&origin=${airportArrivalInfo?.airportCoordinates?.lat},${airportArrivalInfo?.airportCoordinates?.lng}&destination=${coordinates?.lat ?? ''},${coordinates?.lng ?? ''}&travelmode=transit`}
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl active:scale-[0.98] group transition-all hover:border-amber-200 hover:bg-amber-50/30 shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 p-2 rounded-lg text-amber-700 group-hover:bg-amber-200 transition-colors">
+              <Train size={16} strokeWidth={2.5} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Transit Route</p>
+              <p className="text-xs font-bold text-slate-700">Metro/Rail to Center</p>
+            </div>
+          </div>
+          <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
+        </a>
+      )}
+    </div>
+  )} 
+/>
                       </div>
                       <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="SIM / Currency" value="SIM desks and exchange booths are in arrivals before public exit doors." bordered={false} />
                     </div>

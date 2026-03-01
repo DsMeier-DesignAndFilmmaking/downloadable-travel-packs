@@ -925,10 +925,9 @@ const exchangeRateDisplay = useMemo(() => {
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
     [cleanSlug],
   );
-  const selectedAirportCode = useMemo(
-    () => (cleanSlug ? getAirport(cleanSlug) : null),
-    [cleanSlug, getAirport],
-  );
+
+const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
+
   const airportArrivalInfo = useMemo(
     () =>
       cleanSlug && selectedAirportCode
@@ -1577,7 +1576,7 @@ const exchangeRateDisplay = useMemo(() => {
                 onSelect={handleAirportSelect}
               />
               <ArrivalIntelligence
-                key={cleanSlug ?? cityData.slug}
+                key={`${cleanSlug ?? cityData.slug}-${selectedAirportCode ?? 'none'}`}
                 citySlug={cleanSlug ?? cityData.slug}
                 cityName={cityData.name}
                 source={integritySource}
