@@ -16,15 +16,10 @@ if (!POSTHOG_KEY) {
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
     persistence: 'localStorage',
-    capture_pageview: false, // SPA controlled manually
-    autocapture: false,      // manual control
-
-    // DEV-only flush settings for immediate Live Events
+    capture_pageview: false,
+    autocapture: false,
     ...(import.meta.env.DEV ? { flushAt: 1, flushInterval: 100 } as any : {}),
-
-    // recommended for newer PostHog versions
     person_profiles: 'identified_only',
-
     loaded: (ph) => {
       if (import.meta.env.DEV) {
         console.log('✅ PostHog loaded. Distinct ID:', ph.get_distinct_id())
@@ -33,12 +28,10 @@ if (!POSTHOG_KEY) {
   })
 }
 
-// Expose globally only in development for debugging
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   ;(window as any).posthog = posthog
 }
 
-// Named export for TS safety
 export { posthog, posthog as posthogClient }
 
 // -----------------------------
@@ -62,8 +55,6 @@ export function captureEvent(
 ): void {
   if (!POSTHOG_KEY) return
 
-  // Keep guide pageviews sourced from CityGuideView to avoid duplicate $pageview
-  // events from the global router tracker.
   if (eventName === '$pageview') {
     const pathname = properties.pathname
     const cityName = properties.city_name
@@ -100,6 +91,68 @@ export function trackAddToDevice(cityName: string): void {
 }
 
 // -----------------------------
+// Arrival Intelligence Events
+// -----------------------------
+
+/** "See Tourist Zone Map" tapped in City Dynamics. */
+export function trackTouristZoneMapOpened(cityName: string): void {
+  captureEvent('tourist_zone_map_opened', { city_name: cityName })
+}
+
+/** "Find Local Alternatives" tapped in City Dynamics. */
+export function trackLocalAlternativeClicked(cityName: string): void {
+  captureEvent('local_alternative_clicked', { city_name: cityName })
+}
+
+// -----------------------------
+// Environmental Impact Events
+// -----------------------------
+
+/**
+ * Fired when a user taps a weather/air-quality adaptive CTA.
+ * e.g. "See Indoor Spots Nearby", "Find Low-Pollution Parks"
+ *
+ * PostHog event: weather_adaptive_cta_clicked
+ *
+ * @param cityName    - City the action belongs to (e.g. "Bangkok")
+ * @param ctaLabel    - Button label as displayed (e.g. "See Indoor Spots Nearby")
+ * @param actionIndex - 0-based position in the actions list (for funnel analysis)
+ */
+export function trackWeatherAdaptiveCta(
+  cityName: string,
+  ctaLabel: string,
+  actionIndex: number,
+): void {
+  captureEvent('weather_adaptive_cta_clicked', {
+    city_name: cityName,
+    cta_label: ctaLabel,
+    action_index: actionIndex,
+  })
+}
+
+/**
+ * Fired when a user taps a sustainability / local-impact CTA.
+ * e.g. "View Rail Map", "Shop Or Tor Kor Market", "Explore Thonglor"
+ *
+ * PostHog event: sustainability_action_clicked
+ *
+ * @param cityName    - City the action belongs to (e.g. "Bangkok")
+ * @param ctaLabel    - Button label as displayed
+ * @param actionIndex - 0-based position in the actions list
+ */
+export function trackSustainabilityAction(
+  cityName: string,
+  ctaLabel: string,
+  actionIndex: number,
+): void {
+  captureEvent('sustainability_action_clicked', {
+    city_name: cityName,
+    cta_label: ctaLabel,
+    action_index: actionIndex,
+  })
+}
+
+// -----------------------------
 // Page Duration Tracker
 // -----------------------------
 export class PageTimer {
@@ -112,7 +165,6 @@ export class PageTimer {
     this.cityName = cityName
     this.startTime = Date.now()
 
-    // Send duration on tab close or hide
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
         this.sendDuration()
@@ -122,11 +174,8 @@ export class PageTimer {
 
   public sendDuration(): void {
     const durationMs = Date.now() - this.startTime
-
     captureEvent(
-      this.pageName === 'homepage'
-        ? 'homepage_duration'
-        : 'city_pack_duration',
+      this.pageName === 'homepage' ? 'homepage_duration' : 'city_pack_duration',
       {
         duration_ms: durationMs,
         ...(this.cityName ? { city_name: this.cityName } : {}),

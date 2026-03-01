@@ -1,9 +1,10 @@
 import { Fragment, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, ArrowUpRight, Train, RotateCcw } from 'lucide-react';
+import { CheckCircle, ChevronDown, Navigation, Plane, Wifi, ArrowUpRight, Train, RotateCcw, Map, Clock, Utensils } from 'lucide-react';
 import type { ReactNode } from 'react';
 import CityPulseBlock from '@/components/CityPulseBlock';
 import type { AirportArrivalInfo } from '@/data/multiAirport';
+import { trackTouristZoneMapOpened, trackLocalAlternativeClicked } from '@/lib/analytics';
 
 // --- TYPES & HELPERS ---
 
@@ -95,6 +96,67 @@ function InlineRow({ icon, label, value, bordered = true }: { icon: ReactNode; l
   );
 }
 
+// --- TOURIST CLUSTER ACTION BUTTONS ---
+
+function TouristClusterActions({ cityName, coordinates }: { cityName: string; coordinates?: { lat: number; lng: number } }) {
+  const lat = coordinates?.lat ?? 0;
+  const lng = coordinates?.lng ?? 0;
+
+  // Google Maps tourist areas search centered on city
+  const touristMapUrl = `https://www.google.com/maps/search/tourist+attractions/@${lat},${lng},14z`;
+
+  // Google Maps search for local/authentic restaurants away from tourist zones
+  const localAlternativesUrl = `https://www.google.com/maps/search/local+restaurants+authentic/@${lat},${lng},15z`;
+
+  // Google Maps popular times — links to the city center to surface peak hour data
+  const peakHoursUrl = `https://www.google.com/maps/place/${encodeURIComponent(cityName)}/@${lat},${lng},14z`;
+
+  return (
+    <div className="ml-5 mt-2 mb-1 flex flex-col gap-2">
+      {/* Row 1: Tourist Zone Map + Peak Hours */}
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={touristMapUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackTouristZoneMapOpened(cityName)}
+          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95 transition-all group"
+        >
+          <Map size={13} className="text-blue-500 shrink-0" />
+          See Tourist Zone Map
+          <ArrowUpRight size={11} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+        </a>
+
+        <a
+          href={peakHoursUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-95 transition-all group"
+        >
+          <Clock size={13} className="text-amber-500 shrink-0" />
+          Avoid Peak Hours
+          <ArrowUpRight size={11} className="text-slate-300 group-hover:text-amber-500 transition-colors" />
+        </a>
+      </div>
+
+      {/* Row 2: Find Local Alternatives */}
+      <a
+        href={localAlternativesUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => trackLocalAlternativeClicked(cityName)}
+        className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 shadow-sm hover:bg-emerald-100 active:scale-95 transition-all group w-fit"
+      >
+        <Utensils size={13} className="text-emerald-600 shrink-0" />
+        Find Local Alternatives
+        <ArrowUpRight size={11} className="text-emerald-400 group-hover:text-emerald-600 transition-colors" />
+      </a>
+    </div>
+  );
+}
+
+// --- MAIN COMPONENT ---
+
 export default function ArrivalIntelligence({
   citySlug, cityName, arrivalStage, visaStatus, visaLoading, visaError, digitalEntry,
   preLandStrategy, laneSelection, wifiSsid, wifiPassword, officialTransport,
@@ -114,7 +176,6 @@ export default function ArrivalIntelligence({
 
   const displayVisaStatus = visaLoading ? "Checking protocols..." : visaError ? "Standard rules apply" : visaStatus;
 
-  // --- Handlers with Syncronized Transitions ---
   const handleConfirmArrival = () => {
     onConfirmArrival();
     requestAnimationFrame(() => stepIndicatorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -193,6 +254,8 @@ export default function ArrivalIntelligence({
 
             <motion.div layout className="relative min-h-[50vh]">
               <AnimatePresence mode="wait">
+
+                {/* ── STAGE 0: PRE-ARRIVAL ── */}
                 {arrivalStage === 'pre-arrival' && (
                   <motion.div key="pre" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
                     <h2 className="text-md font-bold text-slate-800 mb-2">Have you arrived in {cityName}?</h2>
@@ -201,6 +264,7 @@ export default function ArrivalIntelligence({
                   </motion.div>
                 )}
 
+                {/* ── STAGE 1: ENTRY & IMMIGRATION ── */}
                 {arrivalStage === 'entry-immigration' && (
                   <motion.div key="stage1" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="rounded-xl border border-neutral-200 bg-white px-5 py-6 space-y-4">
                     <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Visa Requirement" value={displayVisaStatus} />
@@ -211,6 +275,7 @@ export default function ArrivalIntelligence({
                   </motion.div>
                 )}
 
+                {/* ── STAGE 2: AIRPORT EXIT ── */}
                 {arrivalStage === 'airport-exit' && (
                   <motion.div key="stage2" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
                     <div className="space-y-4 mb-6">
@@ -241,7 +306,7 @@ export default function ArrivalIntelligence({
                         <InlineRow icon={<Navigation size={14} className="text-amber-600" />} label="Official Transport" bordered={false} value={(
                           <div className="flex flex-col gap-3 w-full">
                             <span className="text-sm text-slate-700 leading-relaxed">{officialTransportText}</span>
-                            <a href={officialTransportText.includes('AIFA') ? "https://google.com/maps/dir/?api=1&destination=Mexico+City+Center" : "https://google.com/maps/dir/?api=1&destination=Mexico+City+Center"} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl active:scale-[0.98] group">
+                            <a href={`https://google.com/maps/dir/?api=1&destination=${coordinates?.lat},${coordinates?.lng}&travelmode=transit`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-xl active:scale-[0.98] group">
                               <div className="flex items-center gap-3">
                                 <div className="bg-amber-100 p-2 rounded-lg text-amber-700"><Train size={16} strokeWidth={2.5} /></div>
                                 <div><p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Transit Route</p><p className="text-xs font-bold text-slate-700">Metro/Rail to Center</p></div>
@@ -263,19 +328,19 @@ export default function ArrivalIntelligence({
                           <div className="mt-4 grid grid-cols-1 gap-y-5 sm:grid-cols-[140px_1fr] sm:gap-x-8 sm:gap-y-8">
                             <div className="flex items-center gap-2 self-start pt-1 px-1 sm:pt-0 sm:flex-col sm:items-start sm:gap-0.5"><span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">Taxi</span><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">to center</span></div>
                             <div className="space-y-4">
-                              <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2"><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">cost</span>{formatValue(taxiVal)}</div>
+                              <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2"><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">time/cost</span>{formatValue(taxiVal)}</div>
                               <div className="flex flex-wrap gap-2 pt-1 ml-1 sm:ml-0">
                                 <p className="w-full text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 mb-0.5">App Shortcuts</p>
-                                <a href="https://m.uber.com/ul/?action=setPickup&pickup=my_location" target="_blank" className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><div className="w-4 h-4 bg-white rounded-full flex items-center justify-center"><span className="text-black text-[8px] font-black">U</span></div>Uber</a>
-                                <a href="https://s.didiglobal.com/p/global-download" target="_blank" className="flex items-center gap-2 bg-[#ff8d00] text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-black text-[10px]">D</div>DiDi</a>
-                                <a href={`https://citymapper.com/directions?endcoord=${coordinates?.lat},${coordinates?.lng}`} target="_blank" className="flex items-center gap-2 bg-[#28d172] text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><Navigation size={12} fill="white" />Citymapper</a>
+                                <a href="https://m.uber.com/ul/?action=setPickup&pickup=my_location" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-black text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><div className="w-4 h-4 bg-white rounded-full flex items-center justify-center"><span className="text-black text-[8px] font-black">U</span></div>Uber</a>
+                                <a href="https://s.didiglobal.com/p/global-download" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#ff8d00] text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><div className="w-4 h-4 bg-white/20 rounded-full flex items-center justify-center font-black text-[10px]">D</div>DiDi</a>
+                                <a href={`https://citymapper.com/directions?endcoord=${coordinates?.lat},${coordinates?.lng}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 bg-[#28d172] text-white px-3 py-2 rounded-xl text-[11px] font-bold active:scale-95 shadow-sm"><Navigation size={12} fill="white" />Citymapper</a>
                               </div>
                             </div>
                             <div className="sm:hidden border-t border-slate-100 mx-1" />
                             <div className="flex items-center gap-2 self-start pt-1 px-1 sm:pt-0 sm:flex-col sm:items-start sm:gap-0.5"><span className="font-black uppercase tracking-wider text-slate-900 text-[14px] sm:text-xs">Rail</span><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">to zones</span></div>
                             <div className="space-y-4">
                               <div className="text-[14px] sm:text-sm text-slate-700 leading-relaxed pl-1 sm:pl-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-2"><span className="text-slate-400 italic text-[10px] sm:text-[11px] whitespace-nowrap">cost</span>{formatValue(railVal)}</div>
-                              <div className="pt-1 ml-1 sm:ml-0"><a href={`https://google.com/maps/dir/?api=1&destination=${coordinates?.lat},${coordinates?.lng}&travelmode=transit`} target="_blank" className="inline-flex items-center gap-2.5 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold active:scale-95 shadow-md"><Train size={14} className="text-cyan-400" />View Rail Route<ArrowUpRight size={14} className="opacity-50" /></a></div>
+                              <div className="pt-1 ml-1 sm:ml-0"><a href={`https://google.com/maps/dir/?api=1&destination=${coordinates?.lat},${coordinates?.lng}&travelmode=transit`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold active:scale-95 shadow-md"><Train size={14} className="text-cyan-400" />View Rail Route<ArrowUpRight size={14} className="opacity-50" /></a></div>
                             </div>
                           </div>
                         );
@@ -294,36 +359,75 @@ export default function ArrivalIntelligence({
                   </motion.div>
                 )}
 
+                {/* ── STAGE 3: LEFT AIRPORT / CITY DYNAMICS ── */}
                 {arrivalStage === 'left-airport' && (
                   <motion.div key="stage3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-3">
                     <div className="rounded-xl border border-neutral-200 bg-white px-5 py-6">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 mb-4">CITY DYNAMICS</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 mb-4">
+                        CITY DYNAMICS & NEIGHBORHOOD INTELLIGENCE
+                      </p>
+
                       <div className="space-y-1">
-                        <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Tourist Clusters" value="High-traffic zones with elevated pricing." />
+
+                        {/* Tourist Clusters + action buttons */}
+                        <div className="border-b border-neutral-100">
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Tourist Clusters"
+                            value="High-traffic zones with elevated pricing — know before you go."
+                            bordered={false}
+                          />
+                          <TouristClusterActions cityName={cityName} coordinates={coordinates} />
+                        </div>
+
+                        {/* Feels Unsafe vs Is Unsafe + optional crime data portal */}
                         <div className="flex flex-col">
-                          <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Feels Unsafe vs Is Unsafe" value="Differentiate perception from statistics." />
+                          <InlineRow
+                            icon={<CheckCircle size={14} className="text-emerald-600" />}
+                            label="Feels Unsafe vs Is Unsafe"
+                            value="Differentiate perception from statistics."
+                          />
                           {safetyIntelligence && (
                             <div className="ml-5 mt-1.5 pb-3">
-                              <a href={safetyIntelligence.crimeStatsUrl} target="_blank" className="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl active:scale-95 group">
+                              <a
+                                href={safetyIntelligence.crimeStatsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-3 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl active:scale-95 group"
+                              >
                                 <div className="flex flex-col text-left">
                                   <div className="flex items-center gap-1.5 mb-0.5">
                                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Official Intelligence</span>
                                   </div>
-                                  <span className="text-[13px] font-bold text-slate-700 flex items-center gap-1.5">{cityName} Crime Data Portal <ArrowUpRight size={14} /></span>
+                                  <span className="text-[13px] font-bold text-slate-700 flex items-center gap-1.5">
+                                    {cityName} Crime Data Portal
+                                    <ArrowUpRight size={14} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                  </span>
                                 </div>
                               </a>
+                              <p className="text-[10px] text-slate-400 italic mt-1.5 px-1 leading-tight">
+                                {safetyIntelligence.crimeStatsSource}
+                              </p>
                             </div>
                           )}
                         </div>
-                        <InlineRow icon={<CheckCircle size={14} className="text-emerald-600" />} label="Gentrified vs Historic" value="Recently commercialized vs rooted areas." bordered={false} />
+
+                        <InlineRow
+                          icon={<CheckCircle size={14} className="text-emerald-600" />}
+                          label="Gentrified vs Historic"
+                          value="Recently commercialized vs rooted areas."
+                          bordered={false}
+                        />
                       </div>
+
                       <div className="mt-4 pt-3 border-t border-neutral-100">
                         <CityPulseBlock citySlug={citySlug} cityName={cityName} hasLanded={true} />
                       </div>
                     </div>
                   </motion.div>
                 )}
+
               </AnimatePresence>
             </motion.div>
 
@@ -339,6 +443,7 @@ export default function ArrivalIntelligence({
                 </button>
               </motion.div>
             )}
+
           </div>
         </div>
       </div>
