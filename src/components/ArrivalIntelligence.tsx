@@ -515,46 +515,53 @@ export default function ArrivalIntelligence({
                           </li>
                         </ul>
                       </div>
-                      <div className="flex flex-col gap-3">
-    <InlineRow 
-      icon={<Navigation size={14} className="text-amber-600" />} 
-      label="Official Transport" 
-      bordered={false} // This removes the bottom border
-      value={(
-        <div className="flex flex-col gap-3 w-full">
-          {/* The Text Description */}
-          <span className="text-sm text-slate-700 leading-relaxed">
-            {officialTransportText}
-          </span>
+                      <div className="mt-4 space-y-1">
+                      <InlineRow 
+                        icon={<Wifi size={14} className="text-blue-600" />} 
+                        label={`WiFi: ${wifiSsidText}`} 
+                        value={`Password: ${wifiPasswordText}`} 
+                      />
+                                          <div className="flex flex-col gap-3">
+                        <InlineRow 
+                          icon={<Navigation size={14} className="text-amber-600" />} 
+                          label="Official Transport" 
+                          bordered={false} // This removes the bottom border
+                          value={(
+                            <div className="flex flex-col gap-3 w-full">
+                              {/* The Text Description */}
+                              <span className="text-sm text-slate-700 leading-relaxed">
+                                {officialTransportText}
+                              </span>
 
-          {/* The Nested Button Link */}
-          <a 
-            href={officialTransportText.includes('AIFA') 
-              ? "https://www.google.com/maps/dir/AIFA,+Aeropuerto+Internacional+Felipe+%C3%81ngeles,+Zumpango+de+Ocampo,+Edo.+de+M%C3%A9xico/Buenavista,+CDMX" 
-              : "https://www.google.com/maps/dir/AICM,+Aeropuerto+Internacional+Benito+Ju%C3%A1rez,+CDMX/Z%C3%B3calo,+Centro+Hist%C3%B3rico,+CDMX"
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 rounded-xl transition-all active:scale-[0.98] group"
-          >
-            <div className="flex items-center gap-3 text-left">
-              <div className="bg-amber-100 p-2 rounded-lg text-amber-700 shadow-sm">
-                <Train size={16} strokeWidth={2.5} />
-              </div>
-              <div className="flex flex-col">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
-                  Transit Route
-                </p>
-                <p className="text-xs font-bold text-slate-700">
-                  {officialTransportText.includes('AIFA') ? 'Tren Suburbano to Center' : 'Metro Line 5 to Center'}
-                </p>
-              </div>
-            </div>
-            <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
-          </a>
-        </div>
-      )} 
-    />
+                              {/* The Nested Button Link */}
+                              <a 
+                                href={officialTransportText.includes('AIFA') 
+                                  ? "https://www.google.com/maps/dir/AIFA,+Aeropuerto+Internacional+Felipe+%C3%81ngeles,+Zumpango+de+Ocampo,+Edo.+de+M%C3%A9xico/Buenavista,+CDMX" 
+                                  : "https://www.google.com/maps/dir/AICM,+Aeropuerto+Internacional+Benito+Ju%C3%A1rez,+CDMX/Z%C3%B3calo,+Centro+Hist%C3%B3rico,+CDMX"
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between bg-slate-50 hover:bg-slate-100 border border-slate-200 p-3 rounded-xl transition-all active:scale-[0.98] group"
+                              >
+                                <div className="flex items-center gap-3 text-left">
+                                  <div className="bg-amber-100 p-2 rounded-lg text-amber-700 shadow-sm">
+                                    <Train size={16} strokeWidth={2.5} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">
+                                      Transit Route
+                                    </p>
+                                    <p className="text-xs font-bold text-slate-700">
+                                      {officialTransportText.includes('AIFA') ? 'Tren Suburbano to Center' : 'Metro Line 5 to Center'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <ArrowUpRight size={18} className="text-slate-300 group-hover:text-amber-600 transition-colors" />
+                              </a>
+                              </div>
+                          )} 
+                        />
+                      </div>
 
                       <div className="mt-8 pt-6 border-t border-slate-100"> {/* Added global top margin, padding, and border */}
                       <InlineRow
