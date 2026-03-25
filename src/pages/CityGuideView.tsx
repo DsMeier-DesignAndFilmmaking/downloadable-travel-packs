@@ -44,7 +44,7 @@ import EntryAdvisoryBanner from '@/components/arrival/EntryAdvisoryBanner';
 import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
 import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard';
-import SpontaneityEnginePromo from '@/components/SpontaneityEnginePromo';
+import HadeDecisionCard from '@/components/HadeDecisionCard';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 import { getAirportArrivalInfo } from '@/data/multiAirport';
@@ -53,6 +53,7 @@ import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
+import { getCachedEnvironmentalReport } from '@/services/environmentalImpactService';
 
 
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
@@ -920,6 +921,10 @@ const exchangeRateDisplay = useMemo(() => {
   const landedStatusStorageKey = useMemo(
     () => (cleanSlug ? `landed_${cleanSlug}` : null),
     [cleanSlug],
+  );
+  const aqiData = useMemo(
+    () => getCachedEnvironmentalReport(cleanSlug ?? cityData?.slug ?? '')?.aqiValue ?? null,
+    [cleanSlug, cityData?.slug],
   );
   const arrivalTacticalIntel = useMemo(
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
@@ -1862,7 +1867,7 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
         </section>
 
         <section className="pt-2 pb-4">
-          <SpontaneityEnginePromo />
+          <HadeDecisionCard city={cityData} aqi={aqiData} />
         </section>
       </main>
 
