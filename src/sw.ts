@@ -6,7 +6,7 @@
  */
 
 const ctx = self as unknown as ServiceWorkerGlobalScope;
-const CACHE_VERSION = 'v9';
+const CACHE_VERSION = 'v10';
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
@@ -173,7 +173,6 @@ ctx.addEventListener('message', (event) => {
 
   // --- Safe city precache ---
   if (type === 'PRECACHE_CITY') {
-    const city = event.data?.city;
     if (!city) return;
 
     event.waitUntil(

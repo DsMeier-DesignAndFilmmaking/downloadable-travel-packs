@@ -92,6 +92,7 @@ function writeCache(cityId: string, report: EnvironmentalImpactReport): void {
   try {
     const stored: StoredReport = { report, savedAt: Date.now() };
     window.localStorage.setItem(cacheKey(cityId), JSON.stringify(stored));
+    window.dispatchEvent(new Event('hade:update'));
   } catch {
     // localStorage quota exceeded — non-fatal, skip silently
   }

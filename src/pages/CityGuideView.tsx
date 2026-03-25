@@ -53,7 +53,7 @@ import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
-import { getCachedEnvironmentalReport } from '@/services/environmentalImpactService';
+import { useAqi } from '@/lib/hade/useAqi';
 
 
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
@@ -922,10 +922,7 @@ const exchangeRateDisplay = useMemo(() => {
     () => (cleanSlug ? `landed_${cleanSlug}` : null),
     [cleanSlug],
   );
-  const aqiData = useMemo(
-    () => getCachedEnvironmentalReport(cleanSlug ?? cityData?.slug ?? '')?.aqiValue ?? null,
-    [cleanSlug, cityData?.slug],
-  );
+  const aqiData = useAqi(cleanSlug ?? cityData?.slug);
   const arrivalTacticalIntel = useMemo(
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
     [cleanSlug],

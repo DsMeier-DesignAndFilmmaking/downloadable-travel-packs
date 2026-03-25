@@ -1,5 +1,5 @@
 // /Users/danielmeier/Desktop/Downloadable_Travel-Packs/vite.config.ts
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -28,6 +28,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -37,7 +43,7 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       injectRegister: null, // Manual registration via CityGuideView
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       manifest: false,      // Allows Dynamic Blob Manifest to work
       injectManifest: {
         rollupFormat: 'iife',

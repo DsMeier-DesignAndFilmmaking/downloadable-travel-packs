@@ -6,7 +6,7 @@
 export type HadeContext = {
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
   aqiLevel: 'good' | 'moderate' | 'unhealthy';
-  arrivalStage: 'pre_arrival' | 'landed' | 'in_transit' | 'exploring';
+  arrivalStage: 'landed' | 'in_transit' | 'exploring';
 };
 
 // ─── Time of day ──────────────────────────────────────────────────────────────
@@ -38,6 +38,8 @@ function resolveAqiLevel(value: number): HadeContext['aqiLevel'] {
 // Cache key format: env-impact-cache-v1-${cityId}
 // Stored shape:     { report: EnvironmentalImpactReport, savedAt: number }
 
+const CACHE_TTL_MS = 30 * 60 * 1000; // must match environmentalImpactService.ts
+
 function readAqiFromCache(slug: string): number | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -47,6 +49,7 @@ function readAqiFromCache(slug: string): number | null {
       report?: { aqiValue?: unknown };
       savedAt?: number;
     };
+    if (typeof parsed.savedAt !== 'number' || Date.now() - parsed.savedAt > CACHE_TTL_MS) return null;
     const value = parsed?.report?.aqiValue;
     return typeof value === 'number' ? value : null;
   } catch {
@@ -58,7 +61,9 @@ function readAqiFromCache(slug: string): number | null {
 // Reads the arrived status written by CityGuideView.tsx.
 // Storage key: landed_${slug}
 // Stored values: 'entry-immigration' | 'airport-exit' | 'left-airport'
-// Key absent (pre-arrival) → 'exploring' (default browsing state)
+// Mapping: 'entry-immigration' | 'airport-exit' → 'landed'
+//          'left-airport'                        → 'in_transit'
+//          key absent (UI 'pre-arrival' state)   → 'exploring'
 
 export function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
   if (typeof window === 'undefined') return 'exploring';

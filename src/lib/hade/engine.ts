@@ -83,8 +83,6 @@ const TIME_OF_DAY_RECS: Record<HadeContext['timeOfDay'], HadeRecommendation[]> =
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
 export function getHadeRecommendations(context: HadeContext): HadeRecommendation[] {
-  console.log('[HADE] context:', context);
-
   let recs: HadeRecommendation[];
 
   // Priority 1: user has just landed — airport-exit guidance takes precedence
@@ -98,6 +96,5 @@ export function getHadeRecommendations(context: HadeContext): HadeRecommendation
     recs = [...TIME_OF_DAY_RECS[context.timeOfDay]];
   }
 
-  console.log('[HADE] recs:', recs);
   return recs;
 }

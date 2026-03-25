@@ -1,7 +1,7 @@
 // HADE Decision Card
 // Deterministic, rule-based recommendation card.
-// Computes context and recommendations synchronously at render — no loading state,
-// no API calls, no hooks.
+// Reactive via useArrivalStage hook.
+// No API calls, no loading state.
 
 import { buildHadeContext } from '@/lib/hade/context';
 import { getHadeRecommendations } from '@/lib/hade/engine';
@@ -29,9 +29,15 @@ function aqiDotClass(level: 'good' | 'moderate' | 'unhealthy'): string {
 function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
   return (
     <div>
-      <p className="text-sm font-bold text-[#222222]">{rec.title}</p>
-      <p className="mt-0.5 text-sm text-slate-500 leading-relaxed">{rec.description}</p>
-      <p className="mt-1 text-[11px] font-semibold text-slate-400">→ {rec.action}</p>
+      <p className="text-sm font-semibold text-[#222222]">
+        {rec.title}
+      </p>
+      <p className="mt-0.5 text-sm text-slate-500 leading-relaxed">
+        {rec.description}
+      </p>
+      <p className="mt-1 text-[11px] font-medium text-slate-400">
+        → {rec.action}
+      </p>
     </div>
   );
 }
@@ -40,10 +46,21 @@ function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
 
 export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
   const arrivalStage = useArrivalStage(city.slug);
-  const context = buildHadeContext({ slug: city.slug, aqi, arrivalStage });
+
+  // ✅ Corrected context input shape
+  const context = buildHadeContext({
+    slug: city.slug,
+    aqi,
+    arrivalStage
+  });
+
   const recs = getHadeRecommendations(context);
 
-  if (recs.length === 0) return null;
+  // ✅ Safety guard
+  if (!recs || recs.length === 0) return null;
+
+  // ✅ Limit to max 2 recommendations
+  const visibleRecs = recs.slice(0, 2);
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
@@ -51,7 +68,7 @@ export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-          Hade Decision Engine
+          HADE Decision Engine
         </p>
         <span
           className={`h-1.5 w-1.5 rounded-full shrink-0 ${aqiDotClass(context.aqiLevel)}`}
@@ -61,13 +78,22 @@ export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
 
       {/* Recommendations */}
       <div>
-        {recs.map((rec, index) => (
+        {visibleRecs.map((rec, index) => (
           <div key={rec.title}>
-            {index > 0 && <div className="border-t border-neutral-100 my-3" />}
+            {index > 0 && (
+              <div className="border-t border-neutral-100 my-3" />
+            )}
             <RecommendationRow rec={rec} />
           </div>
         ))}
       </div>
+
+      {/* Optional Debug View (remove in prod) */}
+      {/* 
+      <pre className="text-xs mt-4 opacity-40">
+        {JSON.stringify(context, null, 2)}
+      </pre> 
+      */}
 
     </div>
   );
