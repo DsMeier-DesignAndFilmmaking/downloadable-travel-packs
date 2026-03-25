@@ -46,9 +46,9 @@ describe('Priority 2 — unhealthy AQI', () => {
     expect(recs[1].title).toBe('Avoid Open Areas');
   });
 
-  it('returns UNHEALTHY_AQI_RECS for in_transit stage with bad air', () => {
+  it('in_transit stage beats unhealthy AQI — shows en-route recs not indoor recs', () => {
     const recs = getHadeRecommendations(ctx({ aqiLevel: 'unhealthy', arrivalStage: 'in_transit' }));
-    expect(recs[0].title).toBe('Shift Indoors');
+    expect(recs[0].title).toBe("You're En Route");
   });
 });
 

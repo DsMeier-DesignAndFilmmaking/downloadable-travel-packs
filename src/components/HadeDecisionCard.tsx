@@ -18,10 +18,11 @@ interface HadeDecisionCardProps {
 
 // ─── AQI dot ─────────────────────────────────────────────────────────────────
 
-function aqiDotClass(level: 'good' | 'moderate' | 'unhealthy'): string {
+function aqiDotClass(level: 'good' | 'moderate' | 'unhealthy' | 'unknown'): string {
   if (level === 'good') return 'bg-emerald-500';
   if (level === 'moderate') return 'bg-amber-400';
-  return 'bg-red-500';
+  if (level === 'unhealthy') return 'bg-red-500';
+  return 'bg-slate-300'; // unknown — no data yet
 }
 
 // ─── Recommendation row ───────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
       {/* Recommendations */}
       <div>
         {visibleRecs.map((rec, index) => (
-          <div key={rec.title}>
+          <div key={index}>
             {index > 0 && (
               <div className="border-t border-neutral-100 my-3" />
             )}

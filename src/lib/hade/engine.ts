@@ -26,6 +26,19 @@ const LANDED_RECS: HadeRecommendation[] = [
   },
 ];
 
+const IN_TRANSIT_RECS: HadeRecommendation[] = [
+  {
+    title: 'You\'re En Route',
+    description: 'Confirm your accommodation address and save it offline before you lose signal.',
+    action: 'Save your address',
+  },
+  {
+    title: 'First Stop: SIM or eSIM',
+    description: 'Get local data before leaving the transit corridor — airport rates are better than city kiosks.',
+    action: 'Check eSIM options',
+  },
+];
+
 const UNHEALTHY_AQI_RECS: HadeRecommendation[] = [
   {
     title: 'Shift Indoors',
@@ -88,10 +101,13 @@ export function getHadeRecommendations(context: HadeContext): HadeRecommendation
   // Priority 1: user has just landed — airport-exit guidance takes precedence
   if (context.arrivalStage === 'landed') {
     recs = [...LANDED_RECS];
-  // Priority 2: poor air quality — override time-based logic with indoor guidance
+  // Priority 2: user is en route from airport to accommodation
+  } else if (context.arrivalStage === 'in_transit') {
+    recs = [...IN_TRANSIT_RECS];
+  // Priority 3: poor air quality — override time-based logic with indoor guidance
   } else if (context.aqiLevel === 'unhealthy') {
     recs = [...UNHEALTHY_AQI_RECS];
-  // Priority 3: time-of-day fallback — always has a match (exhaustive record)
+  // Priority 4: time-of-day fallback — always has a match (exhaustive record)
   } else {
     recs = [...TIME_OF_DAY_RECS[context.timeOfDay]];
   }

@@ -155,6 +155,19 @@ describe('HADE engine — per-city integration', () => {
     );
   });
 
+  // ── 3b. in_transit produces dedicated en-route content ────────────────────
+
+  describe('in_transit — dedicated en-route content (not time-of-day fallback)', () => {
+    it.each(CITY_FIXTURES)(
+      '$name: in_transit → "You\'re En Route"',
+      ({ slug }) => {
+        const context = buildHadeContext({ slug, aqi: null, arrivalStage: 'in_transit' });
+        const recs = getHadeRecommendations(context);
+        expect(recs[0].title).toBe("You're En Route");
+      },
+    );
+  });
+
   // ── 4. Landed stage always surfaces airport-exit recs ─────────────────────
 
   describe('Landed stage — airport-exit guidance for all cities', () => {
@@ -203,11 +216,11 @@ describe('HADE engine — per-city integration', () => {
     );
   });
 
-  // ── 7. Cache TTL — expired cache falls back to AQI 0 (good) ──────────────
+  // ── 7. Cache TTL — expired cache falls back to unknown (no data) ─────────
 
-  describe('Expired AQI cache falls back to good', () => {
+  describe('Expired AQI cache falls back to unknown', () => {
     it.each(CITY_FIXTURES)(
-      '$name — expired cache behaves like no cache (aqiLevel = good)',
+      '$name — expired cache behaves like no cache (aqiLevel = unknown)',
       ({ slug }) => {
         const key = `env-impact-cache-v1-${slug}`;
         // savedAt set 31 minutes ago (TTL is 30 min)
@@ -216,7 +229,7 @@ describe('HADE engine — per-city integration', () => {
           savedAt: Date.now() - 31 * 60 * 1000,
         }));
         const context = buildHadeContext({ slug, aqi: null });
-        expect(context.aqiLevel).toBe('good');
+        expect(context.aqiLevel).toBe('unknown');
       },
     );
   });

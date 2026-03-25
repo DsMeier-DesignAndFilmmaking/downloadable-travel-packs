@@ -98,9 +98,9 @@ describe('buildHadeContext AQI priority', () => {
     expect(context.aqiLevel).toBe('unhealthy');
   });
 
-  it('falls back to good (0) when aqi prop is null and cache is empty', () => {
+  it('returns unknown when aqi prop is null and cache is empty', () => {
     const context = buildHadeContext({ slug, aqi: null });
-    expect(context.aqiLevel).toBe('good');
+    expect(context.aqiLevel).toBe('unknown');
   });
 
   it('uses explicit arrivalStage prop over localStorage', () => {

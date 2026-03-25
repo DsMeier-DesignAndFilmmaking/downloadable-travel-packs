@@ -78,16 +78,21 @@ export async function fetchNearestRestroom(
 out center;`;
 
   for (let i = 0; i <= retries; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 18_000); // 18s client cap (server timeout is 15s)
     try {
       const res = await fetch(OVERPASS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `data=${encodeURIComponent(query)}`,
+        signal: ctrl.signal,
       });
+      clearTimeout(timer);
 
       if (!res.ok) {
-        if (res.status === 429) { // Rate limit handling
-          await new Promise(r => setTimeout(r, 1000 * (i + 1))); 
+        // 429 rate-limit and 5xx server errors are transient — retry with backoff
+        if (res.status === 429 || res.status >= 500) {
+          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
           continue;
         }
         return null;
@@ -124,6 +129,7 @@ out center;`;
       }
       return best;
     } catch (error) {
+      clearTimeout(timer);
       if (i === retries) return null;
       // Exponential backoff
       await new Promise(r => setTimeout(r, Math.pow(2, i) * 500));

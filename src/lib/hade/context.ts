@@ -5,7 +5,7 @@
 
 export type HadeContext = {
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
-  aqiLevel: 'good' | 'moderate' | 'unhealthy';
+  aqiLevel: 'good' | 'moderate' | 'unhealthy' | 'unknown';
   arrivalStage: 'landed' | 'in_transit' | 'exploring';
 };
 
@@ -88,13 +88,13 @@ export function buildHadeContext(opts: {
   const { slug, aqi, arrivalStage } = opts;
   const hour = new Date().getHours();
 
-  // AQI priority: explicit prop → localStorage cache → safe default (0 → 'good')
+  // AQI priority: explicit prop → localStorage cache → null (unknown, no data)
   const resolvedAqi =
-    typeof aqi === 'number' ? aqi : (readAqiFromCache(slug) ?? 0);
+    typeof aqi === 'number' ? aqi : readAqiFromCache(slug);
 
   return {
     timeOfDay: resolveTimeOfDay(hour),
-    aqiLevel: resolveAqiLevel(resolvedAqi),
+    aqiLevel: resolvedAqi === null ? 'unknown' : resolveAqiLevel(resolvedAqi),
     arrivalStage: arrivalStage ?? resolveArrivalStage(slug),
   };
 }
