@@ -40,8 +40,10 @@ function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
 
 export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
   const arrivalStage = useArrivalStage(city.slug);
-  const context = buildHadeContext(city.slug, aqi, arrivalStage);
+  const context = buildHadeContext({ slug: city.slug, aqi, arrivalStage });
   const recs = getHadeRecommendations(context);
+
+  if (recs.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">

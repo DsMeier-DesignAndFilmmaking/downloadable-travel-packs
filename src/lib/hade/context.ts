@@ -75,20 +75,21 @@ export function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
 
 // ─── Public builder ───────────────────────────────────────────────────────────
 
-export function buildHadeContext(
-  slug: string,
-  aqiValue?: number | null,
-  arrivalStageOverride?: HadeContext['arrivalStage'],
-): HadeContext {
+export function buildHadeContext(opts: {
+  slug: string;
+  aqi?: number | null;
+  arrivalStage?: HadeContext['arrivalStage'];
+}): HadeContext {
+  const { slug, aqi, arrivalStage } = opts;
   const hour = new Date().getHours();
 
   // AQI priority: explicit prop → localStorage cache → safe default (0 → 'good')
   const resolvedAqi =
-    typeof aqiValue === 'number' ? aqiValue : (readAqiFromCache(slug) ?? 0);
+    typeof aqi === 'number' ? aqi : (readAqiFromCache(slug) ?? 0);
 
   return {
     timeOfDay: resolveTimeOfDay(hour),
     aqiLevel: resolveAqiLevel(resolvedAqi),
-    arrivalStage: arrivalStageOverride ?? resolveArrivalStage(slug),
+    arrivalStage: arrivalStage ?? resolveArrivalStage(slug),
   };
 }

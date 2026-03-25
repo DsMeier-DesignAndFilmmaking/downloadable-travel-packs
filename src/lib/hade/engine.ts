@@ -1,7 +1,7 @@
 // HADE Decision Engine
 // Pure deterministic function — no side effects, no imports beyond the context type.
 // Priority order: arrival stage → AQI → time of day.
-// Always returns exactly 2 recommendations.
+// Returns 1–2 recommendations based on context priority.
 
 import type { HadeContext } from './context';
 
@@ -84,16 +84,20 @@ const TIME_OF_DAY_RECS: Record<HadeContext['timeOfDay'], HadeRecommendation[]> =
 
 export function getHadeRecommendations(context: HadeContext): HadeRecommendation[] {
   console.log('[HADE] context:', context);
+
+  let recs: HadeRecommendation[];
+
   // Priority 1: user has just landed — airport-exit guidance takes precedence
   if (context.arrivalStage === 'landed') {
-    return [...LANDED_RECS];
-  }
-
+    recs = [...LANDED_RECS];
   // Priority 2: poor air quality — override time-based logic with indoor guidance
-  if (context.aqiLevel === 'unhealthy') {
-    return [...UNHEALTHY_AQI_RECS];
+  } else if (context.aqiLevel === 'unhealthy') {
+    recs = [...UNHEALTHY_AQI_RECS];
+  // Priority 3: time-of-day fallback — always has a match (exhaustive record)
+  } else {
+    recs = [...TIME_OF_DAY_RECS[context.timeOfDay]];
   }
 
-  // Priority 3: time-of-day fallback — always has a match (exhaustive record)
-  return [...TIME_OF_DAY_RECS[context.timeOfDay]];
+  console.log('[HADE] recs:', recs);
+  return recs;
 }
