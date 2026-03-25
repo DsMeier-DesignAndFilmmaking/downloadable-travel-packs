@@ -60,7 +60,7 @@ function readAqiFromCache(slug: string): number | null {
 // Stored values: 'entry-immigration' | 'airport-exit' | 'left-airport'
 // Key absent (pre-arrival) → 'exploring' (default browsing state)
 
-function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
+export function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
   if (typeof window === 'undefined') return 'exploring';
   try {
     const raw = window.localStorage.getItem(`landed_${slug}`);
@@ -75,7 +75,11 @@ function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
 
 // ─── Public builder ───────────────────────────────────────────────────────────
 
-export function buildHadeContext(slug: string, aqiValue?: number | null): HadeContext {
+export function buildHadeContext(
+  slug: string,
+  aqiValue?: number | null,
+  arrivalStageOverride?: HadeContext['arrivalStage'],
+): HadeContext {
   const hour = new Date().getHours();
 
   // AQI priority: explicit prop → localStorage cache → safe default (0 → 'good')
@@ -85,6 +89,6 @@ export function buildHadeContext(slug: string, aqiValue?: number | null): HadeCo
   return {
     timeOfDay: resolveTimeOfDay(hour),
     aqiLevel: resolveAqiLevel(resolvedAqi),
-    arrivalStage: resolveArrivalStage(slug),
+    arrivalStage: arrivalStageOverride ?? resolveArrivalStage(slug),
   };
 }

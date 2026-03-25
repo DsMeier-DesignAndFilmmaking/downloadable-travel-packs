@@ -5,6 +5,7 @@
 
 import { buildHadeContext } from '@/lib/hade/context';
 import { getHadeRecommendations } from '@/lib/hade/engine';
+import { useArrivalStage } from '@/lib/hade/useArrivalStage';
 import type { HadeRecommendation } from '@/lib/hade/engine';
 import type { CityPack } from '@/types/cityPack';
 
@@ -38,7 +39,8 @@ function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
-  const context = buildHadeContext(city.slug, aqi);
+  const arrivalStage = useArrivalStage(city.slug);
+  const context = buildHadeContext(city.slug, aqi, arrivalStage);
   const recs = getHadeRecommendations(context);
 
   return (

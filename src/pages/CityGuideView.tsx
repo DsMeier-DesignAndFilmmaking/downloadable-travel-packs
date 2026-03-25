@@ -1119,9 +1119,11 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
     if (typeof window === 'undefined' || !landedStatusStorageKey) return;
     if (arrivalStage === 'pre-arrival') {
       window.localStorage.removeItem(landedStatusStorageKey);
+      window.dispatchEvent(new Event('hade:update'));
       return;
     }
     window.localStorage.setItem(landedStatusStorageKey, arrivalStage);
+    window.dispatchEvent(new Event('hade:update'));
   }, [arrivalStage, landedStatusStorageKey]);
 
   useEffect(() => {
