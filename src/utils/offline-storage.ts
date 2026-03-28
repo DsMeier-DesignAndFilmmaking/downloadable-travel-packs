@@ -7,7 +7,8 @@ import type { CityPack } from '@/types/cityPack';
 
 const DB_NAME = 'travel-packs-db';
 const STORE_NAME = 'city-packs';
-const DB_VERSION = 1;
+const HADE_STORE_NAME = 'hade-insights';
+const DB_VERSION = 3;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,8 +63,13 @@ function openDB(): Promise<IDBDatabase> {
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
+      const oldVersion = event.oldVersion;
+
+      if (oldVersion < 1 && !db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, { keyPath: 'slug' });
+      }
+      if (oldVersion < 3 && !db.objectStoreNames.contains(HADE_STORE_NAME)) {
+        db.createObjectStore(HADE_STORE_NAME, { keyPath: 'slug' });
       }
     };
   });

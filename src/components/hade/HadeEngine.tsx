@@ -28,6 +28,28 @@ interface SignalState {
   llmChoice: LlmChoice;
 }
 
+interface HadeRequestPayload {
+  signal: string;
+  module: ModuleContext;
+  location: string;
+  neighborhoods: string[];
+  cityData: {
+    name: string;
+    theme: string;
+    neighborhoods: Array<{
+      name: string;
+      vibe: string;
+      safetyScore: number;
+    }>;
+    survival: {
+      tipping: string;
+      tapWater: string;
+      currentScams: string[];
+    };
+    real_time_hacks: string[];
+  };
+}
+
 export interface HadeEngineProps {
   cityPack: CityPack;
   accent?: string;
@@ -828,6 +850,19 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
     tags: response.tags.slice(0, 4),
   });
 
+  const applyHeuristicFallback = useCallback((inputSignal: string): boolean => {
+    try {
+      setGeneratedOutput(buildClientFallback(inputSignal));
+      setDataReady(true);
+      setStep("result");
+      setIsLoading(false);
+      return true;
+    } catch (fallbackError) {
+      console.warn("[HADE Engine] Heuristic fallback failed.", fallbackError);
+      return false;
+    }
+  }, [buildClientFallback]);
+
   // ─── handleExplore ──────────────────────────────────────────────────────────
 
   const handleExplore = useCallback(async () => {
@@ -856,28 +891,40 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       } catch (err) {
         console.warn("[HADE Engine] IDB read failed (offline path).", err);
       }
-      setGeneratedOutput(buildClientFallback(signal.combinedSignal));
-      setStep("result");
+      if (applyHeuristicFallback(signal.combinedSignal)) return;
+      setStep("input");
       setIsLoading(false);
+      setApiError("The HADE engine is offline. Please try again.");
       return;
     }
 
     try {
-      // Payload matches api/generate-hade.ts expected shape.
-      // cityPack.neighborhoods grounds the LLM response in real, local vibes.
-      const requestPayload = {
+      const mappedNeighborhoods = cityPack.neighborhoods.map((n) => ({
+        name: n.name,
+        vibe: n.vibe,
+        safetyScore: n.safetyScore,
+      }));
+
+      // Clean payload mapping for production transport safety.
+      const requestPayload: HadeRequestPayload = {
+        signal: signal.combinedSignal,
+        module: signal.moduleContext,
+        location: cityPack.name,
+        neighborhoods: mappedNeighborhoods.map((n) => n.name),
         cityData: {
           name: cityPack.name,
           theme: cityPack.theme,
-          neighborhoods: cityPack.neighborhoods,
+          neighborhoods: mappedNeighborhoods,
           survival: {
             tipping: cityPack.survival.tipping,
             tapWater: cityPack.survival.tapWater,
             currentScams: cityPack.survival.currentScams,
           },
-          real_time_hacks: cityPack.real_time_hacks,
+          real_time_hacks: cityPack.real_time_hacks ?? [],
         },
       };
+
+      console.log("[HADE Engine] Pre-flight payload:", JSON.stringify(requestPayload));
 
       const res = await fetch("/api/generate-hade", {
         method: "POST",
@@ -933,17 +980,20 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
         console.warn("[HADE Engine] IDB read failed after fetch error.", cacheErr);
       }
 
-      // All paths exhausted — return to input with error banner
+      if (applyHeuristicFallback(signal.combinedSignal)) return;
+
+      // All paths exhausted — API + IDB + heuristic fallback failed
       setStep("input");
       setIsLoading(false);
       setApiError("The HADE engine couldn't reach the API. Please try again.");
     }
   }, [
+    applyHeuristicFallback,
     cityPack,
     isLoading,
     signal.llmChoice,
-    buildClientFallback,
-    safeFirstNeighborhood,
+    signal.combinedSignal,
+    signal.moduleContext,
     toGeneratedOutput,
   ]);
 

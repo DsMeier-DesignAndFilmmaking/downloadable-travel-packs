@@ -81,15 +81,25 @@ export type ArrivalStage =
 // IndexedDB: persist city pack after load
 // ---------------------------------------------------------------------------
 
+const IDB_NAME = 'travel-packs-db';
+const IDB_VERSION = 3;
+const IDB_CITY_PACK_STORE = 'city-packs';
+const IDB_HADE_INSIGHT_STORE = 'hade-insights';
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open('travel-packs-db', 1);
+    const request = indexedDB.open(IDB_NAME, IDB_VERSION);
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains('city-packs')) {
-        db.createObjectStore('city-packs', { keyPath: 'slug' });
+      const oldVersion = event.oldVersion;
+
+      if (oldVersion < 1 && !db.objectStoreNames.contains(IDB_CITY_PACK_STORE)) {
+        db.createObjectStore(IDB_CITY_PACK_STORE, { keyPath: 'slug' });
+      }
+      if (oldVersion < 3 && !db.objectStoreNames.contains(IDB_HADE_INSIGHT_STORE)) {
+        db.createObjectStore(IDB_HADE_INSIGHT_STORE, { keyPath: 'slug' });
       }
     };
   });
@@ -97,8 +107,8 @@ function openDB(): Promise<IDBDatabase> {
 
 async function saveCityToIndexedDB(slug: string, cityData: CityPack): Promise<void> {
   const db = await openDB();
-  const tx = db.transaction('city-packs', 'readwrite');
-  const store = tx.objectStore('city-packs');
+  const tx = db.transaction(IDB_CITY_PACK_STORE, 'readwrite');
+  const store = tx.objectStore(IDB_CITY_PACK_STORE);
   store.put({
     slug,
     pack: cityData,

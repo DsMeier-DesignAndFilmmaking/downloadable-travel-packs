@@ -5,6 +5,8 @@
 
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 const SEARCH_RADIUS_METERS = 1000;
+const OVERPASS_CLIENT_TIMEOUT_MS = 3000;
+const OVERPASS_QUERY_TIMEOUT_SECONDS = 3;
 
 export interface OverpassElement {
   type: 'node' | 'way' | 'relation';
@@ -65,10 +67,9 @@ function getResultMetadata(el: OverpassElement): { name: string; type: 'sanborns
 export async function fetchNearestRestroom(
   lat: number,
   lng: number,
-  retries = 2
 ): Promise<OverpassResult | null> {
   // Query for both nodes (points) and ways (polygons) for better coverage in dense areas
-  const query = `[out:json][timeout:15];
+  const query = `[out:json][timeout:${OVERPASS_QUERY_TIMEOUT_SECONDS}];
 (
   node["amenity"="toilets"](around:${SEARCH_RADIUS_METERS},${lat},${lng});
   node["name"~"Sanborns",i](around:${SEARCH_RADIUS_METERS},${lat},${lng});
@@ -77,63 +78,51 @@ export async function fetchNearestRestroom(
 );
 out center;`;
 
-  for (let i = 0; i <= retries; i++) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 18_000); // 18s client cap (server timeout is 15s)
-    try {
-      const res = await fetch(OVERPASS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: ctrl.signal,
-      });
-      clearTimeout(timer);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), OVERPASS_CLIENT_TIMEOUT_MS);
 
-      if (!res.ok) {
-        // 429 rate-limit and 5xx server errors are transient — retry with backoff
-        if (res.status === 429 || res.status >= 500) {
-          await new Promise(r => setTimeout(r, 1000 * (i + 1)));
-          continue;
-        }
-        return null;
+  try {
+    const res = await fetch(OVERPASS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: ctrl.signal,
+    });
+
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as { elements?: OverpassElement[] };
+    const elements = json.elements ?? [];
+    let best: OverpassResult | null = null;
+
+    for (const el of elements) {
+      const c = getElementCoords(el);
+      if (!c) continue;
+
+      const dist = haversineMeters(lat, lng, c.lat, c.lon);
+      if (dist > SEARCH_RADIUS_METERS) continue;
+
+      const { name, type } = getResultMetadata(el);
+
+      // A Sanborns node gets higher priority than a generic restroom at the same distance.
+      const qualityWeight = type === 'sanborns' ? 0.6 : 1.0;
+      const weightedDist = dist * qualityWeight;
+
+      if (best === null || weightedDist < (best.distanceMeters * (best.type === 'sanborns' ? 0.6 : 1.0))) {
+        best = {
+          displayName: name,
+          distanceMeters: Math.round(dist),
+          type,
+          lat: c.lat,
+          lon: c.lon,
+        };
       }
-
-      const json = (await res.json()) as { elements?: OverpassElement[] };
-      const elements = json.elements ?? [];
-      
-      let best: OverpassResult | null = null;
-
-      for (const el of elements) {
-        const c = getElementCoords(el);
-        if (!c) continue;
-        
-        const dist = haversineMeters(lat, lng, c.lat, c.lon);
-        if (dist > SEARCH_RADIUS_METERS) continue;
-
-        const { name, type } = getResultMetadata(el);
-        
-        // Elite Logic: A Sanborns that is 500m away is better than a public toilet 100m away.
-        // We apply a "quality weight" to prioritize the premium option.
-        const qualityWeight = type === 'sanborns' ? 0.6 : 1.0;
-        const weightedDist = dist * qualityWeight;
-
-        if (best === null || weightedDist < (best.distanceMeters * (best.type === 'sanborns' ? 0.6 : 1.0))) {
-          best = { 
-            displayName: name, 
-            distanceMeters: Math.round(dist), 
-            type,
-            lat: c.lat, // Add this line
-            lon: c.lon  // Add this line
-          };
-        }
-      }
-      return best;
-    } catch (error) {
-      clearTimeout(timer);
-      if (i === retries) return null;
-      // Exponential backoff
-      await new Promise(r => setTimeout(r, Math.pow(2, i) * 500));
     }
+
+    return best;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
-  return null;
 }
