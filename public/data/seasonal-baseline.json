@@ -78,5 +78,13 @@
     },
     "retention_rate": 0.82,
     "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
+  },
+  "denver-colorado-us": {
+    "steady": {
+      "aqi": 62,
+      "traffic_delay_pct": 44
+    },
+    "retention_rate": 0.73,
+    "source_ref": "Ref: WAQI + TomTom + GDS-Index 2026 (Seasonal Baseline)"
   }
 }

@@ -78,5 +78,13 @@
     "seasonal_action": "Because basin air and road congestion reinforce each other, metro and metrobus links gives streets immediate relief.",
     "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
     "retention_rate": 0.82
+  },
+  "denver-colorado-us": {
+    "seasonal_aqi": 62,
+    "seasonal_congestion": 0.44,
+    "seasonal_condition": "Wildfire smoke in summer months and urban ozone can elevate air pressure; winter inversions occasionally trap exhaust in the basin.",
+    "seasonal_action": "Because road and air conditions can stack during peak windows, A Line light rail plus short walking links gives streets immediate relief.",
+    "source_ref": "WAQI Seasonal Average + TomTom Historical Flow + GDS-Index 2026",
+    "retention_rate": 0.73
   }
 }

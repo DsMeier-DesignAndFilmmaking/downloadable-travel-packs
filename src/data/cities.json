@@ -868,6 +868,130 @@
         "Mercados and street food are great but stick to busy, hygienic-looking stalls"
       ],
       "coordinates": { "lat": 19.4326, "lng": -99.1332 }
+    },
+    {
+      "slug": "denver-colorado-us",
+      "name": "Denver",
+      "countryCode": "US",
+      "countryName": "United States",
+      "last_updated": "2026-03-25",
+      "theme": "Mile High and outdoors-first. Altitude hits harder than expected — hydrate early, layer up, and use the A Line.",
+      "emergency": {
+        "police": "911",
+        "medical": "911",
+        "pharmacy24h": "Walgreens and CVS 24h locations throughout the metro; King Soopers pharmacy open late",
+        "health_note": "911 for all emergencies. UCHealth and Denver Health are the primary Level 1 trauma centers. Altitude sickness is real — descend or seek urgent care if symptoms worsen."
+      },
+      "safety_intelligence": {
+        "crimeStatsUrl": "https://www.denvergov.org/Government/Agencies-Departments-Offices/Agencies-Departments-Offices-Directory/Police-Department/Crime-Information/Crime-Map-Statistics",
+        "crimeStatsSource": "Denver Police Department — Official Crime Map & Statistics Portal"
+      },
+      "survival": {
+        "tipping": "18-20% in restaurants; $1-2 per drink at bars. Dispensary tipping not expected but appreciated.",
+        "tapWater": "Safe and clean — Denver Water is EPA-regulated and consistently rated among the best in the US.",
+        "power": { "type": "Type A & B", "voltage": "120V, 60Hz" },
+        "digitalEntry": "No entry requirements for domestic US travel. International arrivals use ESTA or valid visa; Global Entry/Mobile Passport at DEN.",
+        "touristTax": "Colorado lodging tax applies (~12-14% combined state and city on hotel stays).",
+        "currentScams": [
+          "Rideshare impersonators at DEN — always verify the license plate and driver name before entering",
+          "Unlicensed cannabis sellers near dispensary districts — use licensed dispensaries only",
+          "Fake event ticket sellers outside Ball Arena and Coors Field — buy from official box office or verified apps"
+        ]
+      },
+      "fuel": {
+        "staple": "Green Chile Breakfast Burrito (Santiago's or any neighborhood spot).",
+        "intel": "Santiago's on Colfax is the local institution — a green chile smothered burrito for under $9 is Denver's answer to the airport ATM line.",
+        "price_anchor": "$8-13 USD for a full burrito with green chile.",
+        "price_usd": 9.5,
+        "availability": "Open from 6-7am at most spots; order online to skip the morning rush.",
+        "source": ["Westword Denver Best Of", "Eater Denver 2026", "Local Expat Consensus"]
+      },
+      "facility_intel": {
+        "access": "Free in most Denver parks and public spaces; some venues are customer-only.",
+        "hygiene": "High in LoDo and Larimer Square; variable in Capitol Hill and Colfax corridor.",
+        "protocol": "Standard Western; well-maintained in REI and Union Station public areas.",
+        "availability": "Good — Union Station, Denver Art Museum, and large breweries all have reliable facilities."
+      },
+      "arrival": {
+        "eSimAdvice": "US eSIM from T-Mobile, Verizon, or Airalo. T-Mobile has strong coverage on the A Line and in mountain corridors.",
+        "eSimHack": "Activate Airalo or T-Mobile eSIM before landing — DEN WiFi is solid but the A Line has spotty coverage between stations.",
+        "airportHack": "DEN is 40 mins from downtown — the A Line light rail is the best value at $10.50. Rideshare surge pricing on arrival is high; use the A Line unless you have luggage for multiple people.",
+        "transitHack": "RTD A Line to Union Station is faster and cheaper than Uber in peak hours. Load the Denver B-Cycle or Lime app for city exploration. Parking downtown is expensive.",
+        "essentialApps": ["Uber", "Lyft", "RTD Denver", "Google Maps", "iOverlander"],
+        "tacticalPath": {
+          "connectivity": {
+            "wifiSsid": "DEN Free WiFi",
+            "wifiPassword": "No password (portal login)",
+            "note": "Airport WiFi is stable — activate eSIM and load RTD transit app before exiting baggage claim."
+          },
+          "immigration": { "strategy": "Domestic arrivals proceed directly to baggage claim. International arrivals use Global Entry kiosks if enrolled, otherwise follow CBP staffed lanes." },
+          "transport": {
+            "taxiEstimate": "Rideshare to downtown Denver: ~35-55 USD | ~35-50 mins (surge pricing common during peak hours).",
+            "trainEstimate": "RTD A Line to Union Station: $10.50 | ~37 mins — fastest option and immune to traffic."
+          }
+        },
+        "borderStatus": {
+          "live": true,
+          "source": "visa-requirement.p.rapidapi.com",
+          "last_checked": null,
+          "summary_note": "Visa rules dynamically verified based on destination.",
+          "offline_fallback": "Showing last verified visa rules. Confirm with embassy if travel is time-sensitive."
+        },
+        "first60Protocol": [
+          "Buy or activate eSIM before leaving arrivals.",
+          "Head to Level 5 for rideshare pickup OR follow signs to A Line platform.",
+          "Drink water immediately — altitude dehydration starts at the gate.",
+          "Screenshot your accommodation address and save it offline.",
+          "Avoid rideshare during post-flight surge — the A Line is 37 mins and $10.50."
+        ],
+        "arrivalMistakes": [
+          "Taking a rideshare during peak surge when the A Line is faster and cheaper.",
+          "Underestimating altitude — alcohol and exercise hit twice as hard above 5,280ft.",
+          "Not checking weather before leaving — Denver can shift 30°F in a few hours.",
+          "Forgetting to bring layers for evenings, even in summer."
+        ],
+        "transportMatrix": {
+          "cheapest": "RTD A Line to Union Station ($10.50, 37 mins).",
+          "fastest_traffic": "A Line — bypasses I-70 which can add 45+ mins in rush hour.",
+          "door_to_door": "Uber/Lyft direct (35-55 USD, varies with surge).",
+          "comfort_luggage": "Lyft XL or standard Uber for direct drop-off with bags."
+        },
+        "systemHealth": {
+          "transit": "Operational",
+          "security": "Low advisory level",
+          "weather": "Monitor for rapid temperature changes and afternoon thunderstorms",
+          "air_quality_note": "Wildfire smoke Jul-Sep can push AQI to unhealthy; check Colorado Air Quality app",
+          "dynamic_ready": true,
+          "offline_message": "Live system data unavailable. Showing last verified status."
+        }
+      },
+      "neighborhoods": [
+        { "name": "LoDo", "vibe": "Historic, Union Station, bars, breweries", "safetyScore": 8 },
+        { "name": "RiNo", "vibe": "Street art, craft beer, creative district", "safetyScore": 7 },
+        { "name": "Capitol Hill", "vibe": "Eclectic, LGBTQ+ hub, Colfax corridor", "safetyScore": 7 }
+      ],
+      "survival_kit": {
+        "tap_water": "Safe and clean — Denver Water is consistently EPA A-rated",
+        "power_plug": "Type A & B (120V, 60Hz). Standard US plugs.",
+        "tipping": "18-20% at restaurants; dispensary tips optional but appreciated",
+        "toilets": "Union Station and REI flagship are the cleanest public options downtown"
+      },
+      "transit_logic": {
+        "primary_app": "Google Maps or RTD Denver; Uber/Lyft for rideshare",
+        "payment_method": "Contactless or RTD myRide app for light rail; Lime/Bird scooters use their own apps",
+        "etiquette": "Validate RTD ticket before boarding; give way to cyclists on the Cherry Creek Trail; cannabis use is not permitted in public"
+      },
+      "scam_alerts": [
+        "Rideshare impersonators at DEN — always verify the license plate and driver name before entering",
+        "Unlicensed cannabis sellers near dispensary districts — use licensed dispensaries only",
+        "Fake event ticket sellers outside Ball Arena and Coors Field"
+      ],
+      "real_time_hacks": [
+        "Altitude is 5,280ft — drink water every hour and cut your first-day alcohol intake in half",
+        "Weather can swing 30°F in an afternoon — always pack a layer even in summer",
+        "Red Rocks Amphitheatre is 30 mins west — worth the trip even without a show for sunrise hiking"
+      ],
+      "coordinates": { "lat": 39.7392, "lng": -104.9903 }
     }
   ]
 }

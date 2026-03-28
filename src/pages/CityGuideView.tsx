@@ -44,7 +44,7 @@ import EntryAdvisoryBanner from '@/components/arrival/EntryAdvisoryBanner';
 import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
 import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard';
-import HadeDecisionCard from '@/components/HadeDecisionCard';
+import HadeEngine from '@/components/hade/HadeEngine';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 import { getAirportArrivalInfo } from '@/data/multiAirport';
@@ -53,9 +53,6 @@ import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
 
 import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
-import { useAqi } from '@/lib/hade/useAqi';
-
-
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
 
 import {
@@ -922,7 +919,6 @@ const exchangeRateDisplay = useMemo(() => {
     () => (cleanSlug ? `landed_${cleanSlug}` : null),
     [cleanSlug],
   );
-  const aqiData = useAqi(cleanSlug ?? cityData?.slug);
   const arrivalTacticalIntel = useMemo(
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
     [cleanSlug],
@@ -1866,7 +1862,7 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
         </section>
 
         <section className="pt-2 pb-4">
-          <HadeDecisionCard city={cityData} aqi={aqiData} />
+          <HadeEngine cityPack={cityData} />
         </section>
       </main>
 
