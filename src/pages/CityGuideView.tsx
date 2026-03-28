@@ -1533,6 +1533,7 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
   // their original relative order via JavaScript's stable sort.
 
   function renderSection(key: SectionType): React.ReactNode {
+    if (!cityData) return null;
     switch (key) {
       case 'essentials':
         return (
@@ -1966,9 +1967,11 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
         </section>
 
 
-        <section className="pt-2 pb-4">
-          <HadeEngine cityPack={filteredCityPack} />
-        </section>
+        {filteredCityPack && (
+          <section className="pt-2 pb-4">
+            <HadeEngine cityPack={filteredCityPack} />
+          </section>
+        )}
       </main>
 
       {filteredCityPack && (

@@ -2,10 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import type { CityPack, HadeContext } from "@/types/cityPack";
-import {
-  getHadeInsight,
-  type HadeDecisionResponse,
-} from "@/utils/cityPackIdb";
+import { getHadeInsight } from "@/utils/cityPackIdb";
 import { useHadeCtx } from "@/contexts/HadeContextProvider";
 import { getHadeRecommendations } from "@/lib/hade/engine";
 import { PivotScannerFAB } from "@/components/hade/PivotScannerFAB";

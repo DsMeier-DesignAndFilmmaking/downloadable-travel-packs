@@ -74,26 +74,6 @@ export function useCityPack(slug: string | undefined): UseCityPackResult {
     setLastSynced(Number.isFinite(parsed) ? parsed : null)
   }, [syncStorageKey])
 
-  // Real-time network listener
-  useEffect(() => {
-    const handleOnline = () => {
-      if (typeof navigator === 'undefined') return
-      setNetworkOffline(false)
-      loadData({ manual: false, silent: true })
-    }
-    const handleOffline = () => {
-      if (typeof navigator === 'undefined') return
-      setNetworkOffline(true)
-    }
-
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [loadData])
-
   // DEV: listen for debug "simulate offline" toggle
   useEffect(() => {
     if (typeof import.meta === 'undefined' || !import.meta.env?.DEV) return
@@ -168,6 +148,26 @@ export function useCityPack(slug: string | undefined): UseCityPackResult {
       }
     }
   }, [persistLastSynced, slug])
+
+  // Real-time network listener
+  useEffect(() => {
+    const handleOnline = () => {
+      if (typeof navigator === 'undefined') return
+      setNetworkOffline(false)
+      loadData({ manual: false, silent: true })
+    }
+    const handleOffline = () => {
+      if (typeof navigator === 'undefined') return
+      setNetworkOffline(true)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [loadData])
 
   // Initial load
   useEffect(() => {
