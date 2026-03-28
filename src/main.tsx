@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { posthogClient as posthog } from './lib/analytics'
 import { PostHogProvider } from '@posthog/react'
+import { HadeProvider } from './context/HadeProvider'
 
 import App from './App'
 import './index.css'
@@ -67,7 +68,9 @@ if (container) {
   createRoot(container).render(
     <React.StrictMode>
       <PostHogProvider client={posthog}>
-        <App />
+        <HadeProvider>
+          <App />
+        </HadeProvider>
       </PostHogProvider>
     </React.StrictMode>
   )
