@@ -188,19 +188,48 @@ export const HADE_RULES: HadeRule[] = [
   },
 ];
 
+// ─── Explored-nodes awareness ─────────────────────────────────────────────────
+
+const EXPLORED_NODES_KEY = 'explored-nodes-v1';
+
+function readExploredSubNodes(): Set<string> {
+  try {
+    const raw = localStorage.getItem(EXPLORED_NODES_KEY);
+    if (!raw) return new Set();
+    const entries = JSON.parse(raw) as Array<{ subNode: string }>;
+    return new Set(entries.map((e) => e.subNode));
+  } catch {
+    return new Set();
+  }
+}
+
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
-export function getHadeRecommendations(context: HadeContext): HadeRecommendation[] {
+export function getHadeRecommendations(
+  context: HadeContext,
+  candidateSubNode?: string,
+): HadeRecommendation[] {
   const sorted = HADE_RULES.slice().sort((a, b) => a.priority - b.priority);
   const matched = sorted.find((rule) => rule.test(context));
 
   // The catch-all rule (priority 5) always matches but has empty recs —
   // resolve those dynamically from the TIME_OF_DAY_RECS table.
+  let recs: HadeRecommendation[];
   if (!matched || matched.id === 'time-of-day') {
-    return applySignalWeight(TIME_OF_DAY_RECS[context.timeOfDay], context.signalWeight);
+    recs = applySignalWeight(TIME_OF_DAY_RECS[context.timeOfDay], context.signalWeight);
+  } else {
+    recs = applySignalWeight(matched.recs, context.signalWeight);
   }
 
-  return applySignalWeight(matched.recs, context.signalWeight);
+  // De-weight if the candidate neighbourhood has already been explored.
+  if (candidateSubNode && recs.length >= 2) {
+    const explored = readExploredSubNodes();
+    if (explored.has(candidateSubNode)) {
+      recs = [recs[1], recs[0], ...recs.slice(2)];
+    }
+  }
+
+  return recs;
 }
 
 // ─── Pivot Scanner ─────────────────────────────────────────────────────────────

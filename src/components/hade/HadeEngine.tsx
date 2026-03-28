@@ -4,51 +4,51 @@ import { GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
 import type { CityPack, HadeContext } from "@/types/cityPack";
 import {
   getHadeInsight,
-  saveHadeInsight,
   type HadeDecisionResponse,
 } from "@/utils/cityPackIdb";
 import { useHadeCtx } from "@/contexts/HadeContextProvider";
 import { getHadeRecommendations } from "@/lib/hade/engine";
 import { PivotScannerFAB } from "@/components/hade/PivotScannerFAB";
+import {
+  callHadeApi,
+  toGeneratedOutput,
+  type GeneratedOutput,
+  type ModuleContext,
+} from "@/lib/hade/llmService";
+
+// ─── Explored-nodes ring buffer ───────────────────────────────────────────────
+
+const EXPLORED_NODES_KEY = 'explored-nodes-v1';
+const EXPLORED_NODES_MAX = 50;
+
+interface ExploredNode {
+  slug: string;
+  subNode: string;
+  timestamp: number;
+}
+
+function appendExploredNode(slug: string, subNode: string): void {
+  try {
+    const raw = localStorage.getItem(EXPLORED_NODES_KEY);
+    const entries: ExploredNode[] = raw ? (JSON.parse(raw) as ExploredNode[]) : [];
+    entries.push({ slug, subNode, timestamp: Date.now() });
+    if (entries.length > EXPLORED_NODES_MAX) entries.splice(0, entries.length - EXPLORED_NODES_MAX);
+    localStorage.setItem(EXPLORED_NODES_KEY, JSON.stringify(entries));
+  } catch {
+    // localStorage unavailable or quota exceeded — silently skip
+  }
+}
 
 // ─── Types & Theme ────────────────────────────────────────────────────────────
 
 type StepId = "input" | "processing" | "result" | "mapping";
 type LlmChoice = "gemini" | "llama" | "claude";
-type ModuleContext =
-  | "weather-vibe"
-  | "expert-network"
-  | "mood-journey"
-  | "meet-someone"
-  | "the-wildcard";
 
 interface SignalState {
   combinedSignal: string;
   moduleContext: ModuleContext;
   location: string;
   llmChoice: LlmChoice;
-}
-
-interface HadeRequestPayload {
-  signal: string;
-  module: ModuleContext;
-  location: string;
-  neighborhoods: string[];
-  cityData: {
-    name: string;
-    theme: string;
-    neighborhoods: Array<{
-      name: string;
-      vibe: string;
-      safetyScore: number;
-    }>;
-    survival: {
-      tipping: string;
-      tapWater: string;
-      currentScams: string[];
-    };
-    real_time_hacks: string[];
-  };
 }
 
 export interface HadeEngineProps {
@@ -64,15 +64,6 @@ const DEFAULT_SIGNAL: SignalState = {
   location: "",
   llmChoice: "gemini",
 };
-
-// Flat display-layer type used internally by the multi-step UI.
-// Converted from HadeDecisionResponse (nested) via mapApiResponseToOutput().
-interface GeneratedOutput {
-  keyword: string;
-  description: string;
-  subNode: string;
-  tags: string[];
-}
 
 const MODULE_THEMES: Record<
   ModuleContext,
@@ -770,7 +761,7 @@ function buildAmbientOutput(
   context: HadeContext,
   safeFirstNeighborhood: string,
 ): GeneratedOutput {
-  const recs = getHadeRecommendations(context);
+  const recs = getHadeRecommendations(context, safeFirstNeighborhood);
   const primary = recs[0];
   return {
     keyword:     primary?.title       ?? 'Discovery',
@@ -863,25 +854,10 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
     if (step === "result") setIsLoading(false);
   }, [step]);
 
-  // ─── Response validation & mapping ─────────────────────────────────────────
-
-  const isValidHadeResponse = (value: unknown): value is HadeDecisionResponse => {
-    if (!value || typeof value !== "object") return false;
-    const record = value as Record<string, unknown>;
-    const primary = record.primary as Record<string, unknown> | undefined;
-    return (
-      typeof primary?.keyword === "string" &&
-      typeof primary?.description === "string" &&
-      typeof primary?.subNode === "string" &&
-      Array.isArray(record.tags) &&
-      (record.tags as unknown[]).every((t) => typeof t === "string")
-    );
-  };
-
   const buildClientFallback = useCallback((inputSignal: string): GeneratedOutput => {
     // Pull the engine-aligned description so the offline fallback matches what
     // HadeDecisionCard already shows — no parallel heuristic divergence.
-    const recs = getHadeRecommendations(hadeContext);
+    const recs = getHadeRecommendations(hadeContext, safeFirstNeighborhood);
     const primary = recs[0];
     return {
       keyword: extractHighSignalWord(inputSignal),
@@ -892,14 +868,6 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       tags: ["offline", "engine-aligned", "instant"],
     };
   }, [hadeContext, cityPack, safeFirstNeighborhood]);
-
-  // Convert HadeDecisionResponse (nested API shape) → GeneratedOutput (flat display shape)
-  const toGeneratedOutput = (response: HadeDecisionResponse): GeneratedOutput => ({
-    keyword: response.primary.keyword.trim() || "Discovery",
-    description: response.primary.description.trim(),
-    subNode: response.primary.subNode.trim() || safeFirstNeighborhood,
-    tags: response.tags.slice(0, 4),
-  });
 
   const applyHeuristicFallback = useCallback((inputSignal: string): boolean => {
     try {
@@ -934,7 +902,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       try {
         const cached = await getHadeInsight(cityPack.slug);
         if (cached) {
-          setGeneratedOutput(toGeneratedOutput(cached));
+          setGeneratedOutput(toGeneratedOutput(cached, safeFirstNeighborhood));
           setDataReady(true);
           setStep("result");
           setIsLoading(false);
@@ -951,52 +919,12 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
     }
 
     try {
-      const mappedNeighborhoods = cityPack.neighborhoods.map((n) => ({
-        name: n.name,
-        vibe: n.vibe,
-        safetyScore: n.safetyScore,
-      }));
+      const output = await callHadeApi(
+        { combinedSignal: signal.combinedSignal, moduleContext: signal.moduleContext },
+        cityPack,
+        hadeContext,
+      );
 
-      // Clean payload mapping for production transport safety.
-      const requestPayload: HadeRequestPayload = {
-        signal: signal.combinedSignal,
-        module: signal.moduleContext,
-        location: cityPack.name,
-        neighborhoods: mappedNeighborhoods.map((n) => n.name),
-        cityData: {
-          name: cityPack.name,
-          theme: cityPack.theme,
-          neighborhoods: mappedNeighborhoods,
-          survival: {
-            tipping: cityPack.survival.tipping,
-            tapWater: cityPack.survival.tapWater,
-            currentScams: cityPack.survival.currentScams,
-          },
-          real_time_hacks: cityPack.real_time_hacks ?? [],
-        },
-      };
-
-      console.log("[HADE Engine] Pre-flight payload:", JSON.stringify(requestPayload));
-
-      const res = await fetch("/api/generate-hade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestPayload),
-      });
-
-      if (!res.ok) throw new Error(`HADE request failed (${res.status})`);
-
-      const payload = (await res.json()) as unknown;
-      if (!isValidHadeResponse(payload)) {
-        throw new Error("Invalid HADE response shape from /api/generate-hade");
-      }
-
-      // Persist to IDB in the background — don't block the UI transition
-      void saveHadeInsight(cityPack.slug, payload).catch((err) => {
-        console.warn("[HADE Engine] IDB write failed. UI remains live.", err);
-      });
-
-      const output = toGeneratedOutput(payload);
       setGeneratedOutput(output);
       setIsAmbientResult(false);
       setDataReady(true);
@@ -1025,7 +953,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       try {
         const cached = await getHadeInsight(cityPack.slug);
         if (cached) {
-          setGeneratedOutput(toGeneratedOutput(cached));
+          setGeneratedOutput(toGeneratedOutput(cached, safeFirstNeighborhood));
           setStep("result");
           setIsLoading(false);
           return;
@@ -1044,11 +972,12 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
   }, [
     applyHeuristicFallback,
     cityPack,
+    hadeContext,
     isLoading,
+    safeFirstNeighborhood,
     signal.llmChoice,
     signal.combinedSignal,
     signal.moduleContext,
-    toGeneratedOutput,
   ]);
 
   // ─── Reset ──────────────────────────────────────────────────────────────────
@@ -1128,7 +1057,10 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
                 signal={signal}
                 generatedOutput={safeOutput}
                 onRestart={restart}
-                onGo={() => setStep("mapping")}
+                onGo={() => {
+                  appendExploredNode(cityPack.slug, safeOutput.subNode);
+                  setStep("mapping");
+                }}
                 cityPack={cityPack}
               />
               <AiRefinePanel

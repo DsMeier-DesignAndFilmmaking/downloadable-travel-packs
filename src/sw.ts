@@ -130,6 +130,25 @@ async function syncCityManifestToIdb(): Promise<void> {
   );
 }
 
+async function getTopRecentSlugs(n: number): Promise<string[]> {
+  const db = await openCityPackDb();
+  return new Promise<string[]>((resolve) => {
+    const tx = db.transaction(CITY_PACK_STORE_NAME, 'readonly');
+    const store = tx.objectStore(CITY_PACK_STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const rows = (req.result as Array<{ slug: string; savedAt: number }>) ?? [];
+      const slugs = rows
+        .sort((a, b) => b.savedAt - a.savedAt)
+        .slice(0, n)
+        .map((r) => r.slug);
+      resolve(slugs);
+      db.close();
+    };
+    req.onerror = () => { resolve([]); db.close(); };
+  });
+}
+
 // --- LIFECYCLE ---
 ctx.addEventListener('install', () => ctx.skipWaiting());
 
@@ -154,15 +173,68 @@ ctx.addEventListener('activate', (event) => {
   );
 });
 
+// --- PUSH NOTIFICATIONS ---
+ctx.addEventListener('push', (event: Event) => {
+  const pushEvent = event as PushEvent;
+  let slug = '';
+  let title = 'Travel Pack Update';
+  let body  = 'Your arrival intel has been refreshed.';
+
+  try {
+    const data = pushEvent.data?.json() as { slug?: string; title?: string; body?: string } | undefined;
+    if (data?.slug)  slug  = data.slug;
+    if (data?.title) title = data.title;
+    if (data?.body)  body  = data.body;
+  } catch {
+    // Malformed payload — use defaults above
+  }
+
+  const deepLink = slug ? `/guide/${slug}?section=arrival` : '/';
+
+  pushEvent.waitUntil(
+    ctx.registration.showNotification(title, {
+      body,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-192x192.png',
+      data: { url: deepLink },
+    })
+  );
+});
+
+ctx.addEventListener('notificationclick', (event: Event) => {
+  const notifEvent = event as NotificationEvent;
+  notifEvent.notification.close();
+
+  const url: string = (notifEvent.notification.data?.url as string | undefined) ?? '/';
+
+  notifEvent.waitUntil(
+    ctx.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes(url) && 'focus' in client) {
+            return (client as WindowClient).focus();
+          }
+        }
+        return ctx.clients.openWindow(url);
+      })
+  );
+});
+
 // --- PERIODIC BACKGROUND SYNC ---
 ctx.addEventListener('periodicsync', (event: Event) => {
   const periodicEvent = event as ExtendableEvent & { tag?: string };
   if (periodicEvent.tag !== PERIODIC_CITY_SYNC_TAG) return;
 
   periodicEvent.waitUntil(
-    syncCityManifestToIdb().catch((error) => {
-      console.warn('⚠️ SW: city-data-sync failed', error);
-    })
+    syncCityManifestToIdb()
+      .then(async () => {
+        const slugs = await getTopRecentSlugs(3);
+        await Promise.allSettled(slugs.map((s) => cacheCityIntel(s)));
+      })
+      .catch((error) => {
+        console.warn('⚠️ SW: city-data-sync failed', error);
+      })
   );
 });
 

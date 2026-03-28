@@ -45,5 +45,9 @@ export const SignalsDB = {
     const next = [...existing, feedback].slice(-MAX_FEEDBACK_ROWS);
     writeFeedbackRows(next);
   },
+
+  getRecentFeedback(n: number): SignalFeedback[] {
+    return readFeedbackRows().slice(-n);
+  },
 };
 

@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Zap, Database, Activity, RefreshCcw, ChevronRight } from 'lucide-react';
+import SyncButton from '@/components/SyncButton';
 
 interface DiagnosticsProps {
   city: string;
   isOpen: boolean;
   onClose: () => void;
+  syncStatus: 'idle' | 'loading' | 'success' | 'error';
+  lastSynced: number | null;
 }
 
-export default function DiagnosticsOverlay({ city, isOpen, onClose }: DiagnosticsProps) {
+export default function DiagnosticsOverlay({ city, isOpen, onClose, syncStatus, lastSynced }: DiagnosticsProps) {
   const [showTechnical, setShowTechnical] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
@@ -138,9 +141,13 @@ export default function DiagnosticsOverlay({ city, isOpen, onClose }: Diagnostic
               </p>
             </section>
 
-            <button 
+            <div className="mt-6">
+              <SyncButton status={syncStatus} lastSynced={lastSynced} />
+            </div>
+
+            <button
               onClick={onClose}
-              className="w-full mt-10 py-4 bg-white/5 hover:bg-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-colors"
+              className="w-full mt-6 py-4 bg-white/5 hover:bg-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-colors"
             >
               Close Diagnostics
             </button>

@@ -77,3 +77,33 @@ if (container) {
 }
 
 runPrecacheHandshake()
+
+async function subscribeToPush(): Promise<void> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+  const vapidKey = (import.meta.env as Record<string, string>).VITE_VAPID_PUBLIC_KEY;
+  if (!vapidKey) return;
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const registration = await navigator.serviceWorker.ready;
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) return; // already subscribed
+
+    const keyBytes = Uint8Array.from(
+      atob(vapidKey.replace(/-/g, '+').replace(/_/g, '/')),
+      (c) => c.charCodeAt(0),
+    );
+
+    await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyBytes,
+    });
+  } catch {
+    // Permission denied or push not supported — silently skip
+  }
+}
+
+void subscribeToPush()

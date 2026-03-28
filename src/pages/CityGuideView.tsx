@@ -37,7 +37,6 @@ import { isClimateSafetyWarning } from '@/constants/weatherAdvice';
 import DebugBanner from '@/components/DebugBanner';
 import DiagnosticsOverlay from '@/components/DiagnosticsOverlay';
 import SunSafetyAlert from '@/components/SunSafetyAlert';
-import SyncButton from '../components/SyncButton';
 import FacilityKit from '@/components/FacilityKit';
 import ArrivalIntelligence from '@/components/ArrivalIntelligence';
 import EntryAdvisoryBanner from '@/components/arrival/EntryAdvisoryBanner';
@@ -45,9 +44,15 @@ import ArrivalMistakesCard from '@/components/arrival/ArrivalMistakesCard';
 import SystemHealthCard from '@/components/arrival/SystemHealthCard';
 import ArrivalSafetyNotesCard from '@/components/arrival/ArrivalSafetyNotesCard';
 import HadeEngine from '@/components/hade/HadeEngine';
+import { PivotScannerFAB } from '@/components/hade/PivotScannerFAB';
+import { filterNeighborhoods, getSectionPriority } from '@/lib/hade/engine';
+import { useGeoArrivalDetector } from '@/hooks/useGeoArrivalDetector';
+import type { SectionType } from '@/types/cityPack';
 import { updateThemeColor } from '@/utils/manifest-generator';
 import { getArrivalTacticalBySlug } from '@/data/cities';
 import { getAirportArrivalInfo } from '@/data/multiAirport';
+import { getCurrentMonthEvent } from '@/data/annualEvents';
+import { useCrowdLevel } from '@/hooks/useCrowdLevel';
 import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
@@ -64,6 +69,13 @@ import {
   getSessionId,
   posthog,
 } from '@/lib/analytics';
+
+function formatRelativeTime(ts: number): string {
+  const mins = Math.round((Date.now() - ts) / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  return `${Math.round(mins / 60)}h ago`;
+}
 
 function balanceText(text: string): string {
   const words = text.trim().split(/\s+/);
@@ -732,7 +744,7 @@ function CityGuideViewInner() {
   // ── HADE unified context ────────────────────────────────────────────────────
   // setHadeArrivalStage writes localStorage AND updates React context in one call.
   // The hade:update event bus has been removed — all updates propagate via React state.
-  const { setArrivalStage: setHadeArrivalStage, setAqi } = useHadeCtx();
+  const { setArrivalStage: setHadeArrivalStage, setAqi, setCrowdLevel, setLocalEventFlag, context } = useHadeCtx();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -823,8 +835,17 @@ const exchangeRateDisplay = useMemo(() => {
     };
   }, []);
 
+
   /** User/city latitude and longitude (used by Climate Pulse and Restroom fetch). */
   const coordinates = cityData?.coordinates;
+
+  const filteredCityPack = useMemo(() => {
+    if (!cityData) return cityData;
+    return {
+      ...cityData,
+      neighborhoods: filterNeighborhoods(cityData.neighborhoods ?? [], context.profile),
+    };
+  }, [cityData, context.profile]);
 
   const { getAirport, setAirport, needsSelection, getOptions } = useSelectedAirport();
   const climatePulseSyncedCityRef = useRef<string | null>(null);
@@ -965,6 +986,41 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
         : undefined,
     [cleanSlug, selectedAirportCode],
   );
+  const { stage: geoStage } = useGeoArrivalDetector({
+    cityCoordinates: cityData?.coordinates ?? { lat: 0, lng: 0 },
+    airportCoordinates: airportArrivalInfo?.airportCoordinates
+      ? [airportArrivalInfo.airportCoordinates]
+      : [],
+  });
+
+  useEffect(() => {
+    if (geoStage === 'idle') return;
+    if (geoStage === 'landed') {
+      setArrivalStage('entry-immigration');
+      setHadeArrivalStage('entry-immigration');
+    } else if (geoStage === 'airport-exit') {
+      setArrivalStage('airport-exit');
+      setHadeArrivalStage('airport-exit');
+    }
+  }, [geoStage, setHadeArrivalStage]);
+
+  // ── Annual events — seed localEventFlag on mount ────────────────────────────
+  useEffect(() => {
+    if (!cleanSlug) return;
+    const event = getCurrentMonthEvent(cleanSlug);
+    setLocalEventFlag(event ? event.name : null);
+  }, [cleanSlug, setLocalEventFlag]);
+
+  // ── Crowd level — heuristic derived from timeOfDay + localEventFlag ─────────
+  const crowdLevel = useCrowdLevel({
+    timeOfDay: context.timeOfDay,
+    localEventFlag: context.localEventFlag,
+  });
+
+  useEffect(() => {
+    setCrowdLevel(crowdLevel);
+  }, [crowdLevel, setCrowdLevel]);
+
   const airportOptions = useMemo(
     () => (cleanSlug ? getOptions(cleanSlug) : []),
     [cleanSlug, getOptions],
@@ -1470,9 +1526,286 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
     </div>
   );
 
+  // ─── Profile-driven section ordering ────────────────────────────────────────
+  // Sections are sorted descending by getSectionPriority so profile boosts
+  // (e.g. Foodie → food +5, Wellness → wellness +5) float the relevant section
+  // to the top. Sections without a profile boost all have priority 0 and retain
+  // their original relative order via JavaScript's stable sort.
+
+  function renderSection(key: SectionType): React.ReactNode {
+    switch (key) {
+      case 'essentials':
+        return (
+<section key="essentials" className="space-y-6">
+    <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
+      MONEY
+    </h2>
+
+{/* CRITICAL FIX: Added 'relative' to this div so the absolute
+    positioned SourceInfo button stays inside this card.
+*/}
+<div className="relative bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm overflow-hidden">
+
+  {/* 1. Tooltip Button - Positioned absolutely in the top right corner */}
+  <div className="absolute top-8 right-8 z-20">
+  <SourceInfo
+  source="Interbank Mid-Market Feed"
+  /* We use String() to ensure an object never gets passed,
+     and a fallback to 'Syncing...' */
+  lastUpdated={typeof lastUpdated === 'string' ? lastUpdated : String(lastUpdated || 'Syncing...')}
+  isLive={true}
+  type="currency"
+/>
+  </div>
+
+  {/* 2. Header - Added pr-10 to prevent text from running under the button */}
+  <div className="flex items-center gap-2 mb-2 pr-10">
+    <Globe size={14} className="text-slate-400 shrink-0" />
+    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
+      Quick Spending Reference
+    </p>
+  </div>
+
+  {/* 3. Exchange Rate Display */}
+  <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4 pr-10">
+  <span className="text-emerald-700">1 USD</span> = {exchangeRateDisplay} {currencyCodeDisplay}
+  {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
+</p>
+
+  {/* 4. Conversion Table */}
+  <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
+    {quickReferenceRows.map((row) => (
+      <div
+        key={row.localAmount}
+        className="grid grid-cols-[1fr_auto_auto] items-center gap-3 bg-white py-3
+                  px-0 sm:px-4
+                  border-none sm:border-b sm:border-slate-100 sm:last:border-b-0"
+      >
+        <span className="text-sm font-semibold text-slate-700">{row.context}</span>
+        <span className="text-sm font-black text-slate-800 tabular-nums">
+          {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
+        </span>
+        <span className="text-sm font-bold text-emerald-700 tabular-nums">
+          ≈ ${row.usdAmount}
+        </span>
+      </div>
+    ))}
+  </div>
+
+  {/* 5. Tipping Culture Section */}
+  <div className="mt-4 p-0 sm:p-5 bg-transparent sm:bg-amber-50 rounded-none sm:rounded-2xl border-none sm:border sm:border-amber-200/50">
+    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">
+      Tip Culture
+    </p>
+    <p className="mt-1 sm:mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
+      {cityData.survival?.tipping || 'Standard 10% is expected.'}
+    </p>
+  </div>
+</div>
+</section>
+        );
+      case 'emergency':
+        return (
+<section key="emergency" className="space-y-5 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {primaryEmergencyItems.map(({ key, label, number }) => (
+              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
+                <Phone size={22} className="mb-2 text-[#FFDD00]" />
+                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
+                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-4 pt-2">
+            <ArrivalSafetyNotesCard notes={cityData.real_time_hacks} title="Real-time tips" />
+            <ArrivalMistakesCard arrivalMistakes={cityData.arrival?.arrivalMistakes} />
+            <SystemHealthCard systemHealth={cityData.arrival?.systemHealth} liveData={arrivalLiveData} />
+          </div>
+</section>
+        );
+      case 'transit':
+        return (
+<section key="transit" className="space-y-5 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
+          {cityData.transit_logic && (
+            <div className="bg-white border border-slate-200 rounded-[2.5rem] px-5 py-6 md:p-8 shadow-sm relative overflow-hidden group">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+
+                </div>
+                <div className="pl-5">
+                  <p className="text-sm md:text-base font-medium text-slate-700 leading-relaxed whitespace-pre-line">
+                    {cityData.transit_logic.payment_method.split('Note:').map((part, index, array) => (
+                      <React.Fragment key={index}>
+                        {part}
+                        {/* If this isn't the last part, it means a "Note:" was here */}
+                        {index < array.length - 1 && (
+                          <span className="font-black text-black">Note:</span>
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </p>
+                </div>
+                <div className="border-t border-slate-100 pt-4 space-y-4">
+                  {/* Label Row */}
+                  <div className="flex items-start gap-3">
+                    <Phone size={12} className="mt-1 shrink-0 text-slate-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide opacity-70">
+                      Primary Transit Apps
+                    </span>
+                  </div>
+
+                  {/* Value Row - High Contrast & Tactical Styling */}
+                  <div className="pl-5 space-y-3">
+                    {cityData.transit_logic.primary_app
+                      .split(/(?<=[;.])\s+/) // Splits after any ; or . followed by a space
+                      .filter(sentence => sentence.trim().length > 0) // Removes empty strings
+                      .map((sentence, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          {/* The Elite Bullet */}
+
+
+                          {/* The Tactical Instruction */}
+                          <span className="text-sm md:text-base font-medium text-blue-700 leading-relaxed">
+                            {sentence.trim()}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+                <div className="px-5 py-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-xs font-black text-slate-500 uppercase tracking-wide opacity-70 mb-1">Tactical Safety & Etiquette</p>
+                  <p className="text-sm md:text-base tracking-[0.01em] font-bold text-slate-600 italic leading-relaxed">
+                    {balanceText(cityData.transit_logic.etiquette)}
+                  </p>
+                </div>
+                {'micromobility_alert' in cityData.transit_logic && cityData.transit_logic.micromobility_alert && (
+                  <div className="px-5 py-6 bg-amber-50/80 rounded-2xl border border-amber-100">
+                    <p className="text-xs font-black text-amber-800 uppercase tracking-wide opacity-70 mb-1">Micro-Mobility Alert</p>
+                    <p className="text-sm md:text-base tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
+                      {balanceText(cityData.transit_logic.micromobility_alert)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+</section>
+        );
+      case 'survival':
+        return (
+        <section key="survival" className="space-y-6 pt-6">
+          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
+              <Droplets className="text-blue-600 mb-4" size={32} />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
+                {balanceText(`${cityData.survival?.tapWater || 'Check Local Intel'}`)}
+              </p>
+            </div>
+
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
+              <Utensils size={32} className="text-orange-500 mb-4" />
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Quick Fuel</h3>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex h-2.5 w-2.5 rounded-full ${
+                      quickFuelOpen24h
+                        ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse'
+                        : 'bg-amber-500'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    {quickFuelOpen24h ? 'Open 24h Path' : 'Timed Windows'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
+                {balanceText(quickFuelIntel?.staple ?? deriveFallbackFuelStaple(cityData))}
+              </p>
+              <p className="mt-2 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
+                {balanceText(quickFuelIntel?.intel ?? 'Cheap, fast, and safe survival fuel. Pay cash at stalls.')}
+              </p>
+              <p className="mt-1 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
+                {balanceText(`Budget: ${quickFuelIntel?.priceAnchor ?? deriveQuickFuelBudget(cityData).replace(/^Budget\s*~/, '')}`)}
+              </p>
+              <p className="mt-3 text-[13px] tracking-[0.02em] font-bold text-amber-800 leading-relaxed">
+              {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
+            </p>
+            </div>
+
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
+              <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
+              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
+              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
+                {balanceText(
+                  typeof cityData.survival?.power === 'object'
+                    ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
+                    : (cityData.survival?.power || 'Check Local Intel'),
+                )}
+              </p>
+            </div>
+
+            <div className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
+  climatePulseSafetyWarning ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
+}`}
+>
+  <ClimatePulseIcon size={32} className={climatePulseIconClass} />
+
+  <div className="flex items-center gap-2 mb-2">
+    <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">
+      Climate Pulse
+    </h3>
+    {/* Explicitly passing type="climate" triggers the meteorological copy rewrite */}
+    <SourceInfo
+      source="Open-Meteo API"
+      lastUpdated={String(lastUpdated || '')} // String() ensures {} becomes "[object Object]" instead of crashing, or '' if null
+      isLive={true}
+      type="climate"
+    />
+  </div>
+
+  <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
+    {balanceText(climatePulseSummary)}
+  </p>
+</div>
+          </div>
+
+          {cityData.facility_intel && (
+            <div className="space-y-3">
+              <FacilityKit data={cityData.facility_intel} nearestRestroom={nearestRestroom} />
+            </div>
+          )}
+        </section>
+        );
+      default:
+        return null;
+    }
+  }
+
+  const isEarlyArrival =
+    arrivalStage === 'pre-arrival' || context.arrivalStage === 'landed';
+
+  const ARRIVAL_PINNED = new Set<SectionType>(['transit', 'essentials']);
+  const ARRIVAL_PIN_BOOST = 100;
+
+  const sectionOrder = (['essentials', 'emergency', 'transit', 'survival'] as SectionType[])
+    .sort((a, b) => {
+      const boost = (key: SectionType) =>
+        isEarlyArrival && ARRIVAL_PINNED.has(key) ? ARRIVAL_PIN_BOOST : 0;
+      return (
+        getSectionPriority(b, context) + boost(b) -
+        (getSectionPriority(a, context) + boost(a))
+      );
+    });
+
   return (
     <motion.div key={cleanSlug} initial="hidden" animate="visible" exit="exit" variants={containerVariants} className="min-h-screen bg-[#F7F7F7] text-[#222222] pb-20 w-full overflow-x-hidden">
-      <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} />
+      <DiagnosticsOverlay city={cityData.name} isOpen={isDiagnosticsOpen} onClose={() => setIsDiagnosticsOpen(false)} syncStatus={syncStatus} lastSynced={packLastSynced} />
       
       {/* Fixed Modal Call with passed Props */}
       <OfflineAccessModal 
@@ -1553,7 +1886,11 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
                 </span>
               </div>
               <div className="h-8 w-[1px] bg-slate-200" />
-              <SyncButton status={syncStatus} lastSynced={packLastSynced} />
+              {packLastSynced && (
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Synced {formatRelativeTime(packLastSynced)}
+                </span>
+              )}
               <AgenticSystemTrigger onClick={() => setIsDiagnosticsOpen(true)} />
             </div>
           </div>
@@ -1614,158 +1951,7 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
           </section>
         )}
 
-<section className="space-y-6">
-    <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
-      MONEY
-    </h2>
-
-{/* CRITICAL FIX: Added 'relative' to this div so the absolute 
-    positioned SourceInfo button stays inside this card. 
-*/}
-<div className="relative bg-white border border-slate-200 rounded-[2.5rem] p-8 shadow-sm overflow-hidden">
-  
-  {/* 1. Tooltip Button - Positioned absolutely in the top right corner */}
-  <div className="absolute top-8 right-8 z-20">
-  <SourceInfo 
-  source="Interbank Mid-Market Feed" 
-  /* We use String() to ensure an object never gets passed, 
-     and a fallback to 'Syncing...' */
-  lastUpdated={typeof lastUpdated === 'string' ? lastUpdated : String(lastUpdated || 'Syncing...')} 
-  isLive={true} 
-  type="currency"
-/>
-  </div>
-
-  {/* 2. Header - Added pr-10 to prevent text from running under the button */}
-  <div className="flex items-center gap-2 mb-2 pr-10">
-    <Globe size={14} className="text-slate-400 shrink-0" />
-    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
-      Quick Spending Reference
-    </p>
-  </div>
-  
-  {/* 3. Exchange Rate Display */}
-  <p className="text-sm font-semibold text-slate-600 leading-relaxed mb-4 pr-10">
-  <span className="text-emerald-700">1 USD</span> = {exchangeRateDisplay} {currencyCodeDisplay}
-  {currencyNameDisplay ? ` (${currencyNameDisplay})` : ''}
-</p>
-
-  {/* 4. Conversion Table */}
-  <div className="border-none sm:border sm:border-slate-200 sm:rounded-2xl overflow-hidden">
-    {quickReferenceRows.map((row) => (
-      <div 
-        key={row.localAmount} 
-        className="grid grid-cols-[1fr_auto_auto] items-center gap-3 bg-white py-3 
-                  px-0 sm:px-4 
-                  border-none sm:border-b sm:border-slate-100 sm:last:border-b-0"
-      >
-        <span className="text-sm font-semibold text-slate-700">{row.context}</span>
-        <span className="text-sm font-black text-slate-800 tabular-nums">
-          {row.localAmount} {currencyCodeDisplay || 'LOCAL'}
-        </span>
-        <span className="text-sm font-bold text-emerald-700 tabular-nums">
-          ≈ ${row.usdAmount}
-        </span>
-      </div>
-    ))}
-  </div>
-
-  {/* 5. Tipping Culture Section */}
-  <div className="mt-4 p-0 sm:p-5 bg-transparent sm:bg-amber-50 rounded-none sm:rounded-2xl border-none sm:border sm:border-amber-200/50">
-    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-800">
-      Tip Culture
-    </p>
-    <p className="mt-1 sm:mt-2 text-[15px] md:text-[14px] tracking-[0.01em] font-bold text-amber-900 leading-snug">
-      {cityData.survival?.tipping || 'Standard 10% is expected.'}
-    </p>
-  </div>
-</div>
-</section>
-
-<section className="space-y-5 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Safety & Emergency</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {primaryEmergencyItems.map(({ key, label, number }) => (
-              <div key={key} className="flex flex-col justify-center items-center bg-[#222222] text-white p-6 rounded-[2rem] shadow-lg">
-                <Phone size={22} className="mb-2 text-[#FFDD00]" />
-                <span className="text-[10px] font-black text-[#FFDD00] uppercase tracking-widest">{label}</span>
-                <span className="text-xl font-bold mt-1 tabular-nums">{number}</span>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-4 pt-2">
-            <ArrivalSafetyNotesCard notes={cityData.real_time_hacks} title="Real-time tips" />
-            <ArrivalMistakesCard arrivalMistakes={cityData.arrival?.arrivalMistakes} />
-            <SystemHealthCard systemHealth={cityData.arrival?.systemHealth} liveData={arrivalLiveData} />
-          </div>
-</section>
-
-<section className="space-y-5 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Getting Around</h2>
-          {cityData.transit_logic && (
-            <div className="bg-white border border-slate-200 rounded-[2.5rem] px-5 py-6 md:p-8 shadow-sm relative overflow-hidden group">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  
-                </div>
-                <div className="pl-5">
-                  <p className="text-sm md:text-base font-medium text-slate-700 leading-relaxed whitespace-pre-line">
-                    {cityData.transit_logic.payment_method.split('Note:').map((part, index, array) => (
-                      <React.Fragment key={index}>
-                        {part}
-                        {/* If this isn't the last part, it means a "Note:" was here */}
-                        {index < array.length - 1 && (
-                          <span className="font-black text-black">Note:</span>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </p>
-                </div>
-                <div className="border-t border-slate-100 pt-4 space-y-4">
-                  {/* Label Row */}
-                  <div className="flex items-start gap-3">
-                    <Phone size={12} className="mt-1 shrink-0 text-slate-400" />
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide opacity-70">
-                      Primary Transit Apps
-                    </span>
-                  </div>
-
-                  {/* Value Row - High Contrast & Tactical Styling */}
-                  <div className="pl-5 space-y-3">
-                    {cityData.transit_logic.primary_app
-                      .split(/(?<=[;.])\s+/) // Splits after any ; or . followed by a space
-                      .filter(sentence => sentence.trim().length > 0) // Removes empty strings
-                      .map((sentence, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          {/* The Elite Bullet */}
-                          
-                          
-                          {/* The Tactical Instruction */}
-                          <span className="text-sm md:text-base font-medium text-blue-700 leading-relaxed">
-                            {sentence.trim()}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-                <div className="px-5 py-6 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-xs font-black text-slate-500 uppercase tracking-wide opacity-70 mb-1">Tactical Safety & Etiquette</p>
-                  <p className="text-sm md:text-base tracking-[0.01em] font-bold text-slate-600 italic leading-relaxed">
-                    {balanceText(cityData.transit_logic.etiquette)}
-                  </p>
-                </div>
-                {'micromobility_alert' in cityData.transit_logic && cityData.transit_logic.micromobility_alert && (
-                  <div className="px-5 py-6 bg-amber-50/80 rounded-2xl border border-amber-100">
-                    <p className="text-xs font-black text-amber-800 uppercase tracking-wide opacity-70 mb-1">Micro-Mobility Alert</p>
-                    <p className="text-sm md:text-base tracking-[0.01em] font-medium text-slate-700 leading-relaxed">
-                      {balanceText(cityData.transit_logic.micromobility_alert)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-</section>
+        {sectionOrder.map(renderSection)}
 
         <section className="space-y-6 pt-6">
           <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">
@@ -1779,97 +1965,20 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
           />
         </section>
 
-        <section className="space-y-6 pt-6">
-          <h2 className="px-2 text-[12px] font-black text-slate-600 uppercase tracking-[0.3em]">Basic Needs</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
-              <Droplets className="text-blue-600 mb-4" size={32} />
-              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Tap Water</h3>
-              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
-                {balanceText(`${cityData.survival?.tapWater || 'Check Local Intel'}`)}
-              </p>
-            </div>
-
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
-              <Utensils size={32} className="text-orange-500 mb-4" />
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">Quick Fuel</h3>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex h-2.5 w-2.5 rounded-full ${
-                      quickFuelOpen24h
-                        ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse'
-                        : 'bg-amber-500'
-                    }`}
-                    aria-hidden="true"
-                  />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    {quickFuelOpen24h ? 'Open 24h Path' : 'Timed Windows'}
-                  </span>
-                </div>
-              </div>
-              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
-                {balanceText(quickFuelIntel?.staple ?? deriveFallbackFuelStaple(cityData))}
-              </p>
-              <p className="mt-2 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
-                {balanceText(quickFuelIntel?.intel ?? 'Cheap, fast, and safe survival fuel. Pay cash at stalls.')}
-              </p>
-              <p className="mt-1 text-sm tracking-[0.01em] font-medium text-slate-600 leading-relaxed">
-                {balanceText(`Budget: ${quickFuelIntel?.priceAnchor ?? deriveQuickFuelBudget(cityData).replace(/^Budget\s*~/, '')}`)}
-              </p>
-              <p className="mt-3 text-[13px] tracking-[0.02em] font-bold text-amber-800 leading-relaxed">
-              {balanceText(`TIP: In ${cityData.name}, always carry small change for street vendors; most don't take cards.`)}
-            </p>
-            </div>
-
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px]">
-              <Zap className="text-[#d4b900] mb-4" size={32} fill="#d4b900" />
-              <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest mb-2">Power System</h3>
-              <p className="text-2x font-bold text-[#1a1a1a] leading-tight">
-                {balanceText(
-                  typeof cityData.survival?.power === 'object'
-                    ? `${cityData.survival.power.type} (${cityData.survival.power.voltage})`
-                    : (cityData.survival?.power || 'Check Local Intel'),
-                )}
-              </p>
-            </div>
-
-            <div className={`p-6 md:p-8 rounded-[2rem] border shadow-sm flex flex-col justify-center min-h-[170px] md:min-h-[200px] ${
-  climatePulseSafetyWarning ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'
-}`}
->
-  <ClimatePulseIcon size={32} className={climatePulseIconClass} />
-  
-  <div className="flex items-center gap-2 mb-2">
-    <h3 className="text-[12px] font-black text-slate-500 uppercase tracking-widest">
-      Climate Pulse
-    </h3>
-    {/* Explicitly passing type="climate" triggers the meteorological copy rewrite */}
-    <SourceInfo 
-      source="Open-Meteo API" 
-      lastUpdated={String(lastUpdated || '')} // String() ensures {} becomes "[object Object]" instead of crashing, or '' if null
-      isLive={true} 
-      type="climate" 
-    />
-  </div>
-
-  <p className="text-sm md:text-[15px] tracking-[0.01em] font-semibold text-[#222222] leading-relaxed">
-    {balanceText(climatePulseSummary)}
-  </p>
-</div>
-          </div>
-
-          {cityData.facility_intel && (
-            <div className="space-y-3">
-              <FacilityKit data={cityData.facility_intel} nearestRestroom={nearestRestroom} />
-            </div>
-          )}
-        </section>
 
         <section className="pt-2 pb-4">
-          <HadeEngine cityPack={cityData} />
+          <HadeEngine cityPack={filteredCityPack} />
         </section>
       </main>
+
+      {filteredCityPack && (
+        <PivotScannerFAB
+          cityPack={filteredCityPack}
+          hadeContext={context}
+          themeColor="#3B82F6"
+          onPivotTo={(_name) => {}}
+        />
+      )}
 
       <footer className="px-6 pt-8 pb-12 max-w-2xl mx-auto">
         <section className="pt-8 text-center">

@@ -76,18 +76,23 @@ export function useCityPack(slug: string | undefined): UseCityPackResult {
 
   // Real-time network listener
   useEffect(() => {
-    const handleStatus = () => {
+    const handleOnline = () => {
       if (typeof navigator === 'undefined') return
-      setNetworkOffline(!navigator.onLine)
+      setNetworkOffline(false)
+      loadData({ manual: false, silent: true })
+    }
+    const handleOffline = () => {
+      if (typeof navigator === 'undefined') return
+      setNetworkOffline(true)
     }
 
-    window.addEventListener('online', handleStatus)
-    window.addEventListener('offline', handleStatus)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
     return () => {
-      window.removeEventListener('online', handleStatus)
-      window.removeEventListener('offline', handleStatus)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, [loadData])
 
   // DEV: listen for debug "simulate offline" toggle
   useEffect(() => {

@@ -16,11 +16,12 @@
  *   const { context, setArrivalStage, setAqi } = useHadeCtx();
  */
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import {
   useHadeContext,
   type UseHadeContextResult,
 } from '@/lib/hade/useHadeContext';
+import { SignalsDB } from '@/lib/hade/signalsDb';
 
 // ─── Internal context ─────────────────────────────────────────────────────────
 
@@ -36,6 +37,13 @@ export function HadeContextProvider({
   slug: string;
 }) {
   const value = useHadeContext(slug);
+
+  useEffect(() => {
+    const rows = SignalsDB.getRecentFeedback(10);
+    if (rows.length === 0) return;
+    const sum = rows.reduce((acc, r) => acc + (r.type === 'positive' ? 1 : -1), 0);
+    value.setSignalWeight(sum / rows.length);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — mount-only seed
 
   return (
     <HadeReactContext.Provider value={value}>
