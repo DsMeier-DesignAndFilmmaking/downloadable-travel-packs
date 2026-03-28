@@ -15,7 +15,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { ArrivalStage, HadeContext, TravelerProfile } from '@/types/cityPack';
 import { buildHadeContext, mapArrivalStageToHade } from './context';
-import { getActiveProfile, setActiveProfile } from './profile';
+import { setActiveProfile } from './profile';
 
 // ─── Public interface ─────────────────────────────────────────────────────────
 
