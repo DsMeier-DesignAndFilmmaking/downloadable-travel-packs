@@ -3,11 +3,9 @@
 // structured HadeContext used by the decision engine.
 // No side effects — all localStorage reads are guarded and wrapped in try/catch.
 
-export type HadeContext = {
-  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
-  aqiLevel: 'good' | 'moderate' | 'unhealthy' | 'unknown';
-  arrivalStage: 'landed' | 'in_transit' | 'exploring';
-};
+import type { ArrivalStage, HadeContext } from '@/types/cityPack';
+
+export type { ArrivalStage, HadeContext } from '@/types/cityPack';
 
 // ─── Time of day ──────────────────────────────────────────────────────────────
 // morning:   05:00–10:59
@@ -38,7 +36,8 @@ function resolveAqiLevel(value: number): HadeContext['aqiLevel'] {
 // Cache key format: env-impact-cache-v1-${cityId}
 // Stored shape:     { report: EnvironmentalImpactReport, savedAt: number }
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // must match environmentalImpactService.ts
+/** Exported so environmentalImpactService.ts can import it — eliminates the "must match" risk. */
+export const CACHE_TTL_MS = 30 * 60 * 1000;
 
 function readAqiFromCache(slug: string): number | null {
   if (typeof window === 'undefined') return null;
@@ -76,6 +75,16 @@ export function resolveArrivalStage(slug: string): HadeContext['arrivalStage'] {
   } catch {
     return 'exploring';
   }
+}
+
+// ─── ArrivalStage → HadeArrivalStage mapping ──────────────────────────────────
+// Converts the 4-value UI stage (CityGuideView) to the 3-value engine stage.
+// Extracted so useHadeContext.ts can call it without duplicating the logic.
+
+export function mapArrivalStageToHade(stage: ArrivalStage | null): HadeContext['arrivalStage'] {
+  if (stage === 'entry-immigration' || stage === 'airport-exit') return 'landed';
+  if (stage === 'left-airport') return 'in_transit';
+  return 'exploring'; // covers 'pre-arrival' and null
 }
 
 // ─── Public builder ───────────────────────────────────────────────────────────

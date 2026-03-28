@@ -156,6 +156,29 @@ export interface CityCoordinates {
   lng: number
 }
 
+/**
+ * The four-value UI arrival stage used by CityGuideView and ArrivalIntelligence.
+ * Maps to the three-value HadeContext['arrivalStage'] via mapArrivalStageToHade().
+ */
+export type ArrivalStage =
+  | 'pre-arrival'
+  | 'entry-immigration'
+  | 'airport-exit'
+  | 'left-airport';
+
+/** HADE runtime context (core + optional 2026 signal delta fields). */
+export interface HadeContext {
+  timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night'
+  aqiLevel: 'good' | 'moderate' | 'unhealthy' | 'unknown'
+  arrivalStage: 'landed' | 'in_transit' | 'exploring'
+  crowdLevel?: 'light' | 'moderate' | 'heavy'
+  accommodationStatus?: 'on-track' | 'delayed' | 'checked-in'
+  localEventFlag?: string | null
+  userDisplaced?: boolean
+  timeWindow?: number
+  signalWeight?: number
+}
+
 /** 2026 Superior Schema — main city guide type. */
 export interface CityGuide {
   slug: string

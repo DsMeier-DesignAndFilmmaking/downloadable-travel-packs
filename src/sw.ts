@@ -10,6 +10,11 @@ const CACHE_VERSION = 'v10';
 const CACHE_PREFIX = 'travel-guide';
 const SHELL_CACHE_NAME = `${CACHE_PREFIX}-shell-${CACHE_VERSION}`;
 const IMAGES_CACHE_NAME = 'guide-images-v6';
+const PERIODIC_CITY_SYNC_TAG = 'city-data-sync';
+const CITY_PACK_DB_NAME = 'travel-packs-db';
+const CITY_PACK_DB_VERSION = 3;
+const CITY_PACK_STORE_NAME = 'city-packs';
+const HADE_INSIGHT_STORE_NAME = 'hade-insights';
 
 /** Path used as start_url in manifest. Must be cached for PWA launch. */
 const START_URL_PATH = '/';
@@ -67,6 +72,64 @@ async function getEntryAssetUrls(): Promise<string[]> {
   }
 }
 
+type CityManifestPayload = {
+  cities?: unknown;
+};
+
+function openCityPackDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(CITY_PACK_DB_NAME, CITY_PACK_DB_VERSION);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
+
+      if (oldVersion < 1 && !db.objectStoreNames.contains(CITY_PACK_STORE_NAME)) {
+        db.createObjectStore(CITY_PACK_STORE_NAME, { keyPath: 'slug' });
+      }
+      if (oldVersion < 3 && !db.objectStoreNames.contains(HADE_INSIGHT_STORE_NAME)) {
+        db.createObjectStore(HADE_INSIGHT_STORE_NAME, { keyPath: 'slug' });
+      }
+    };
+  });
+}
+
+async function setCityPackInIdb(slug: string, pack: unknown): Promise<void> {
+  const db = await openCityPackDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(CITY_PACK_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(CITY_PACK_STORE_NAME);
+    const req = store.put({ slug, pack, savedAt: Date.now() });
+
+    req.onerror = () => reject(req.error);
+    tx.onabort = () => reject(tx.error ?? new Error('IDB write aborted'));
+    tx.oncomplete = () => resolve();
+  }).finally(() => {
+    db.close();
+  });
+}
+
+async function syncCityManifestToIdb(): Promise<void> {
+  const manifestUrl = new URL('/data/cities.json', ctx.location.origin).href;
+  const response = await fetch(manifestUrl, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Manifest fetch failed (${response.status})`);
+
+  const payload = (await response.json()) as CityManifestPayload;
+  const cityRows = Array.isArray(payload.cities) ? payload.cities : [];
+  if (cityRows.length === 0) return;
+
+  await Promise.allSettled(
+    cityRows.map((row) => {
+      if (!row || typeof row !== 'object') return Promise.resolve();
+      const record = row as Record<string, unknown>;
+      const slug = record.slug;
+      if (typeof slug !== 'string' || slug.trim().length === 0) return Promise.resolve();
+      return setCityPackInIdb(slug, row);
+    })
+  );
+}
+
 // --- LIFECYCLE ---
 ctx.addEventListener('install', () => ctx.skipWaiting());
 
@@ -88,6 +151,18 @@ ctx.addEventListener('activate', (event) => {
         console.error('❌ SW: Shell cache failed', err);
       }
     })()
+  );
+});
+
+// --- PERIODIC BACKGROUND SYNC ---
+ctx.addEventListener('periodicsync', (event: Event) => {
+  const periodicEvent = event as ExtendableEvent & { tag?: string };
+  if (periodicEvent.tag !== PERIODIC_CITY_SYNC_TAG) return;
+
+  periodicEvent.waitUntil(
+    syncCityManifestToIdb().catch((error) => {
+      console.warn('⚠️ SW: city-data-sync failed', error);
+    })
   );
 });
 

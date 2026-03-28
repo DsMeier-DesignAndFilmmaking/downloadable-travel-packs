@@ -51,6 +51,7 @@ import { getAirportArrivalInfo } from '@/data/multiAirport';
 import { performGlobalReset } from '@/utils/appReset';
 import { useSelectedAirport } from '@/contexts/SelectedAirportContext';
 import AirportSelectionModal from '@/components/arrival/AirportSelectionModal';
+import { HadeContextProvider, useHadeCtx } from '@/contexts/HadeContextProvider';
 
 import EnvironmentalImpactBlock from '@/components/EnvironmentalImpactBlock'; // ← ADD THIS
 import SourceInfo, { SOURCE_INFO_MOBILE_VISIBILITY_EVENT } from '@/components/SourceInfo';
@@ -705,9 +706,33 @@ const POSTHOG_IDENTIFIED_SESSION_KEY = 'tp_posthog_identified_distinct_id';
 // Main Component
 // ---------------------------------------------------------------------------
 
+/**
+ * Thin outer shell — extracts the slug and provides the HADE context tree.
+ * All logic lives in CityGuideViewInner which has access to useHadeCtx().
+ */
 export default function CityGuideView() {
   const { slug: rawSlug } = useParams<{ slug: string }>();
   const cleanSlug = getCleanSlug(rawSlug);
+
+  if (!cleanSlug) {
+    return null; // inner component handles the real null/redirect
+  }
+
+  return (
+    <HadeContextProvider slug={cleanSlug}>
+      <CityGuideViewInner />
+    </HadeContextProvider>
+  );
+}
+
+function CityGuideViewInner() {
+  const { slug: rawSlug } = useParams<{ slug: string }>();
+  const cleanSlug = getCleanSlug(rawSlug);
+
+  // ── HADE unified context ────────────────────────────────────────────────────
+  // setHadeArrivalStage writes localStorage AND updates React context in one call.
+  // The hade:update event bus has been removed — all updates propagate via React state.
+  const { setArrivalStage: setHadeArrivalStage, setAqi } = useHadeCtx();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -717,8 +742,8 @@ export default function CityGuideView() {
     isOffline,
     isLocalData,
     syncStatus,
+    lastSynced: packLastSynced,
     error,
-    refetch,
   } = useCityPack(cleanSlug ?? undefined);
   const {
     platform,
@@ -762,7 +787,6 @@ const exchangeRateDisplay = useMemo(() => {
   const [showDebug, setShowDebug] = useState(false);
   const [debugTapCount, setDebugTapCount] = useState(0);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
-  const [lastSynced, setLastSynced] = useState<string>(() => new Date().toISOString());
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [dismissedInstallBanner, setDismissedInstallBanner] = useState(false);
   const [isSourceInfoMobileOpen, setIsSourceInfoMobileOpen] = useState(false);
@@ -835,8 +859,10 @@ const exchangeRateDisplay = useMemo(() => {
     const candidate = visaData?.lastUpdated;
     return typeof candidate === 'string' && candidate.trim().length > 0
       ? candidate
-      : lastSynced;
-  }, [lastSynced, visaData]);
+      : packLastSynced
+        ? new Date(packLastSynced).toISOString()
+        : new Date().toISOString();
+  }, [packLastSynced, visaData]);
   
   const currencyCodeDisplay = useMemo(() => {
     const apiCode = visaData?.destination?.currency_code?.toUpperCase().trim();
@@ -924,10 +950,6 @@ const exchangeRateDisplay = useMemo(() => {
       }));
     },
     [cityData?.currencyCode, currencyCodeDisplay, exchangeRateNumeric],
-  );
-  const landedStatusStorageKey = useMemo(
-    () => (cleanSlug ? `landed_${cleanSlug}` : null),
-    [cleanSlug],
   );
   const arrivalTacticalIntel = useMemo(
     () => (cleanSlug ? getArrivalTacticalBySlug(cleanSlug) : undefined),
@@ -1054,27 +1076,23 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
 
   const handleConfirmArrival = useCallback(() => {
     setArrivalStage('entry-immigration');
-    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.setItem(landedStatusStorageKey, 'entry-immigration');
-  }, [landedStatusStorageKey]);
+    setHadeArrivalStage('entry-immigration'); // writes localStorage + updates HADE context
+  }, [setHadeArrivalStage]);
 
   const handleMarkLanded = useCallback(() => {
     setArrivalStage('airport-exit');
-    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.setItem(landedStatusStorageKey, 'airport-exit');
-  }, [landedStatusStorageKey]);
+    setHadeArrivalStage('airport-exit');
+  }, [setHadeArrivalStage]);
 
   const handleProceedToCity = useCallback(() => {
     setArrivalStage('left-airport');
-    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.setItem(landedStatusStorageKey, 'left-airport');
-  }, [landedStatusStorageKey]);
+    setHadeArrivalStage('left-airport');
+  }, [setHadeArrivalStage]);
 
   const handleResetLandedStatus = useCallback(() => {
     setArrivalStage('pre-arrival');
-    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    window.localStorage.removeItem(landedStatusStorageKey);
-  }, [landedStatusStorageKey]);
+    setHadeArrivalStage('pre-arrival');
+  }, [setHadeArrivalStage]);
 
   const handleGlobalReset = useCallback(async () => {
     if (typeof window === 'undefined') return;
@@ -1117,17 +1135,6 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
       if (rafTwo) window.cancelAnimationFrame(rafTwo);
     };
   }, [cleanSlug]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !landedStatusStorageKey) return;
-    if (arrivalStage === 'pre-arrival') {
-      window.localStorage.removeItem(landedStatusStorageKey);
-      window.dispatchEvent(new Event('hade:update'));
-      return;
-    }
-    window.localStorage.setItem(landedStatusStorageKey, arrivalStage);
-    window.dispatchEvent(new Event('hade:update'));
-  }, [arrivalStage, landedStatusStorageKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1312,10 +1319,6 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
   }, [cleanSlug]);
 
   useEffect(() => {
-    setLastSynced(new Date().toISOString());
-  }, [cleanSlug]);
-
-  useEffect(() => {
     if (!cleanSlug || !cityData || isOffline) return;
     saveCityToIndexedDB(cleanSlug, cityData)
       .then(() => setOfflineAvailable(true))
@@ -1449,15 +1452,6 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
     });
   }, [cityData, quickFuelIntel]);
 
-  const handleSync = async () => {
-    try {
-      await refetch();
-      setLastSynced(new Date().toISOString());
-    } catch (err) {
-      console.error("Sync failed", err);
-    }
-  };
-
   // ---------------------------------------------------------------------------
   // 6️⃣ Render loaders, errors, and main content
   // ---------------------------------------------------------------------------
@@ -1555,11 +1549,11 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
               <div className="flex flex-col items-end">
                 <span className="text-[11px] font-black text-slate-500 tracking-[0.2em] uppercase leading-none">Local Intel</span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">
-                  {isOffline ? 'Viewing Offline' : `Updated ${new Date(lastSynced).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`}
+                  {isOffline ? 'Viewing Offline' : 'Live Sync Active'}
                 </span>
               </div>
               <div className="h-8 w-[1px] bg-slate-200" />
-              <SyncButton onSync={handleSync} isOffline={isOffline} status={syncStatus} />
+              <SyncButton status={syncStatus} lastSynced={packLastSynced} />
               <AgenticSystemTrigger onClick={() => setIsDiagnosticsOpen(true)} />
             </div>
           </div>
@@ -1781,6 +1775,7 @@ const selectedAirportCode = cleanSlug ? getAirport(cleanSlug) : null;
             cityId={cleanSlug ?? cityData.slug}
             lat={cityData.coordinates?.lat}
             lng={cityData.coordinates?.lng}
+            onAqiResolved={setAqi}
           />
         </section>
 

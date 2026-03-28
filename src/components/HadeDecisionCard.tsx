@@ -1,18 +1,25 @@
 // HADE Decision Card
 // Deterministic, rule-based recommendation card.
-// Reactive via useArrivalStage hook.
+// Reactive via HadeContextProvider — context updates propagate automatically.
 // No API calls, no loading state.
 
-import { buildHadeContext } from '@/lib/hade/context';
+import { useCallback, useMemo, type MouseEvent } from 'react';
+import { Check, X } from 'lucide-react';
+import { useHadeCtx } from '@/contexts/HadeContextProvider';
 import { getHadeRecommendations } from '@/lib/hade/engine';
-import { useArrivalStage } from '@/lib/hade/useArrivalStage';
 import type { HadeRecommendation } from '@/lib/hade/engine';
-import type { CityPack } from '@/types/cityPack';
+import { SignalsDB, type FeedbackType } from '@/lib/hade/signalsDb';
+import type { CityPack, HadeContext } from '@/types/cityPack';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface HadeDecisionCardProps {
   city: CityPack;
+  /**
+   * Optional explicit AQI value — overrides the context's aqiLevel when provided.
+   * Used for direct data injection (e.g., from a parent that has already fetched
+   * AQI before the EnvironmentalImpactBlock callback fires).
+   */
   aqi?: number | null;
 }
 
@@ -27,16 +34,43 @@ function aqiDotClass(level: 'good' | 'moderate' | 'unhealthy' | 'unknown'): stri
 
 // ─── Recommendation row ───────────────────────────────────────────────────────
 
-function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
+function RecommendationRow({
+  rec,
+  recId,
+  onFeedback,
+}: {
+  rec: HadeRecommendation;
+  recId: string;
+  onFeedback: (event: MouseEvent<HTMLButtonElement>, recId: string, type: FeedbackType) => void;
+}) {
   return (
-    <div>
-      <p className="text-sm font-semibold text-[#222222]">
+    <div className="relative">
+      <div className="absolute right-0 top-0 z-10 flex items-center gap-1 rounded-full border border-white/40 bg-white/55 px-1.5 py-1 backdrop-blur-sm">
+        <button
+          type="button"
+          onClick={(event) => onFeedback(event, recId, 'positive')}
+          aria-label="Done"
+          className="rounded-full p-1 text-emerald-600 transition-colors hover:bg-emerald-50"
+        >
+          <Check size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={(event) => onFeedback(event, recId, 'negative')}
+          aria-label="Not for me"
+          className="rounded-full p-1 text-rose-600 transition-colors hover:bg-rose-50"
+        >
+          <X size={12} />
+        </button>
+      </div>
+
+      <p className="pr-16 text-sm font-semibold text-[#222222]">
         {rec.title}
       </p>
-      <p className="mt-0.5 text-sm text-slate-500 leading-relaxed">
+      <p className="mt-0.5 pr-16 text-sm text-slate-500 leading-relaxed">
         {rec.description}
       </p>
-      <p className="mt-1 text-[11px] font-medium text-slate-400">
+      <p className="mt-1 pr-16 text-[11px] font-medium text-slate-400">
         → {rec.action}
       </p>
     </div>
@@ -45,23 +79,42 @@ function RecommendationRow({ rec }: { rec: HadeRecommendation }) {
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
-  const arrivalStage = useArrivalStage(city.slug);
+export default function HadeDecisionCard({ city: _city, aqi }: HadeDecisionCardProps) {
+  const { context: baseContext, setSignalWeight } = useHadeCtx();
 
-  // ✅ Corrected context input shape
-  const context = buildHadeContext({
-    slug: city.slug,
-    aqi,
-    arrivalStage
-  });
+  // If an explicit `aqi` prop is provided, override the context's aqiLevel.
+  // This supports direct injection (e.g., parent has live AQI before the
+  // EnvironmentalImpactBlock onAqiResolved callback fires).
+  const context = useMemo<HadeContext>(() => {
+    if (typeof aqi !== 'number') return baseContext;
+    const aqiLevel: HadeContext['aqiLevel'] =
+      aqi <= 50 ? 'good' : aqi <= 100 ? 'moderate' : 'unhealthy';
+    return { ...baseContext, aqiLevel };
+  }, [baseContext, aqi]);
 
   const recs = getHadeRecommendations(context);
 
-  // ✅ Safety guard
   if (!recs || recs.length === 0) return null;
 
-  // ✅ Limit to max 2 recommendations
+  // Limit to max 2 recommendations
   const visibleRecs = recs.slice(0, 2);
+
+  const handleFeedback = useCallback((
+    event: MouseEvent<HTMLButtonElement>,
+    recId: string,
+    type: FeedbackType
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const timestamp = Date.now();
+    void SignalsDB.recordFeedback({ recId, type, timestamp });
+
+    setSignalWeight((current) => {
+      const delta = type === 'positive' ? 0.2 : -0.2;
+      return current + delta;
+    });
+  }, [setSignalWeight]);
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 md:p-5">
@@ -84,17 +137,14 @@ export default function HadeDecisionCard({ city, aqi }: HadeDecisionCardProps) {
             {index > 0 && (
               <div className="border-t border-neutral-100 my-3" />
             )}
-            <RecommendationRow rec={rec} />
+            <RecommendationRow
+              rec={rec}
+              recId={`${rec.title}-${rec.action}-${index}`.toLowerCase().replace(/\s+/g, '-')}
+              onFeedback={handleFeedback}
+            />
           </div>
         ))}
       </div>
-
-      {/* Optional Debug View (remove in prod) */}
-      {/* 
-      <pre className="text-xs mt-4 opacity-40">
-        {JSON.stringify(context, null, 2)}
-      </pre> 
-      */}
 
     </div>
   );

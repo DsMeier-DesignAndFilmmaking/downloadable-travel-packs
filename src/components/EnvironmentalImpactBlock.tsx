@@ -95,6 +95,12 @@ export type EnvironmentalImpactBlockProps = {
    * Entries can be undefined to leave a row without a CTA.
    */
   actionCtaOverrides?: (EnvironmentalCta | undefined)[];
+  /**
+   * Optional callback fired when live AQI data resolves. Used by HadeContextProvider
+   * to push AQI into the unified context without prop-drilling through the tree.
+   * Only fires when isLive is true and aqiValue changes.
+   */
+  onAqiResolved?: (aqiValue: number) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -714,9 +720,19 @@ export default function EnvironmentalImpactBlock({
   lng,
   cityName = '',
   actionCtaOverrides,
+  onAqiResolved,
 }: EnvironmentalImpactBlockProps) {
   const [activeTab, setActiveTab] = useState<TabId>('conditions');
   const { report, isLoading, isLive, error } = useEnvironmentalImpact({ cityId, lat, lng });
+
+  // ── AQI callback ─────────────────────────────────────────────────────────────
+  // Fire onAqiResolved when live data arrives so HadeContextProvider can update
+  // the unified context without the parent needing to re-fetch the same data.
+  useEffect(() => {
+    if (isLive && typeof report?.aqiValue === 'number' && onAqiResolved) {
+      onAqiResolved(report.aqiValue);
+    }
+  }, [report?.aqiValue, isLive, onAqiResolved]);
 
   if (error && !report) {
     return (

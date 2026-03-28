@@ -1,90 +1,43 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Clock3 } from 'lucide-react';
+
 import type { SyncStatus } from '@/hooks/useCityPack';
 
 interface SyncButtonProps {
-  onSync: () => Promise<void>;
-  isOffline: boolean;
   status: SyncStatus;
+  lastSynced: number | null;
 }
 
-export default function SyncButton({ onSync, isOffline, status }: SyncButtonProps) {
-  
-  const getStatusConfig = () => {
-    if (isOffline) {
-      return { 
-        icon: <AlertCircle size={14} />, 
-        label: "Offline", 
-        classes: "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" 
-      };
-    }
-    
-    switch (status) {
-      case 'syncing':
-        return { 
-          icon: <Loader2 size={14} className="animate-spin" />, 
-          label: "Syncing...", 
-          classes: "bg-white border-amber-200 text-amber-600" 
-        };
-      case 'success':
-        return { 
-          icon: <Check size={14} />, 
-          label: "Intel Verified", 
-          classes: "bg-[#E8FBF8] border-[#34D399]/30 text-[#065F46]" 
-        };
-      case 'error':
-        return { 
-          icon: <AlertCircle size={14} />, 
-          label: "Retry Pulse", 
-          classes: "bg-rose-50 border-rose-200 text-rose-600" 
-        };
-      default:
-        return { 
-          icon: <RefreshCw size={14} className="text-[#34D399]" />, 
-          label: "Sync Pulse", 
-          classes: "bg-white border-slate-200 text-[#222222] hover:shadow-md hover:border-slate-300" 
-        };
-    }
-  };
+const STALE_SYNC_MS = 24 * 60 * 60 * 1000;
 
-  const config = getStatusConfig();
+export default function SyncButton({ status, lastSynced }: SyncButtonProps) {
+  const isStale = lastSynced == null || Date.now() - lastSynced > STALE_SYNC_MS;
+  const shouldShow = status === 'error' || isStale;
+
+  if (!shouldShow) return null;
+
+  const timestampLabel = lastSynced
+    ? new Date(lastSynced).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'never';
+
+  const icon = status === 'error' ? <AlertCircle size={14} /> : <Clock3 size={14} />;
+  const label = status === 'error'
+    ? `Sync failed. Last updated ${timestampLabel}`
+    : `Last updated ${timestampLabel}`;
+  const classes = status === 'error'
+    ? 'border-rose-200 bg-rose-50 text-rose-700'
+    : 'border-amber-200 bg-amber-50 text-amber-700';
 
   return (
-    <motion.button
-      onClick={onSync}
-      disabled={isOffline || status === 'syncing'}
-      whileTap={!isOffline && status !== 'syncing' ? { scale: 0.95 } : {}}
-      className={`
-        relative flex items-center gap-2 px-4 py-2 rounded-full border transition-all duration-300
-        ${config.classes}
-      `}
-    >
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={status + (isOffline ? 'off' : 'on')}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.15 }}
-          className="flex items-center gap-2"
-        >
-          {config.icon}
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">
-            {config.label}
-          </span>
-        </motion.div>
-      </AnimatePresence>
-
-      {/* Success Pulse Effect */}
-      {status === 'success' && (
-        <motion.div
-          layoutId="pulse"
-          className="absolute inset-0 rounded-full bg-[#34D399]/10"
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1.1, opacity: 1 }}
-          transition={{ duration: 0.4, repeat: 1, repeatType: 'reverse' }}
-        />
-      )}
-    </motion.button>
+    <div className={`flex items-center gap-2 rounded-full border px-3 py-2 ${classes}`}>
+      {icon}
+      <span className="text-[10px] font-black uppercase tracking-[0.12em] whitespace-nowrap">
+        {label}
+      </span>
+    </div>
   );
 }

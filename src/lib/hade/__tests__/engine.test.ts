@@ -83,6 +83,61 @@ describe('Priority 3 — time of day fallback', () => {
   });
 });
 
+// ─── Priority 0: userDisplaced ────────────────────────────────────────────────
+
+describe('Priority 0 — userDisplaced', () => {
+  it('returns DISPLACED_RECS when userDisplaced is true, regardless of arrivalStage', () => {
+    const recs = getHadeRecommendations(ctx({ userDisplaced: true, arrivalStage: 'landed' }));
+    expect(recs[0].title).toBe('Displacement Protocol Active');
+    expect(recs[1].title).toBe('Contact Support Channels');
+  });
+
+  it('returns DISPLACED_RECS when userDisplaced is true, overriding unhealthy AQI', () => {
+    const recs = getHadeRecommendations(ctx({ userDisplaced: true, aqiLevel: 'unhealthy' }));
+    expect(recs[0].title).toBe('Displacement Protocol Active');
+  });
+
+  it('does NOT fire when userDisplaced is false', () => {
+    const recs = getHadeRecommendations(ctx({ userDisplaced: false, arrivalStage: 'exploring', aqiLevel: 'good', timeOfDay: 'morning' }));
+    expect(recs[0].title).toBe('Start Light');
+  });
+
+  it('does NOT fire when userDisplaced is undefined', () => {
+    const recs = getHadeRecommendations(ctx({ arrivalStage: 'exploring', aqiLevel: 'good', timeOfDay: 'morning' }));
+    expect(recs[0].title).toBe('Start Light');
+  });
+});
+
+// ─── Priority 3: crowd-heavy ──────────────────────────────────────────────────
+
+describe('Priority 3 — crowd-heavy', () => {
+  it('returns CROWD_HEAVY_RECS when crowdLevel is heavy and stage is exploring', () => {
+    const recs = getHadeRecommendations(ctx({ crowdLevel: 'heavy', arrivalStage: 'exploring' }));
+    expect(recs[0].title).toBe('Peak Pressure Zone');
+    expect(recs[1].title).toBe('Protect Your Valuables');
+  });
+
+  it('landed stage (priority 1) beats crowd-heavy (priority 3)', () => {
+    const recs = getHadeRecommendations(ctx({ crowdLevel: 'heavy', arrivalStage: 'landed' }));
+    expect(recs[0].title).toBe('Move Efficiently');
+  });
+
+  it('crowd-heavy beats unhealthy AQI (priority 4)', () => {
+    const recs = getHadeRecommendations(ctx({ crowdLevel: 'heavy', aqiLevel: 'unhealthy', arrivalStage: 'exploring' }));
+    expect(recs[0].title).toBe('Peak Pressure Zone');
+  });
+
+  it('does NOT fire when crowdLevel is moderate', () => {
+    const recs = getHadeRecommendations(ctx({ crowdLevel: 'moderate', arrivalStage: 'exploring', aqiLevel: 'good', timeOfDay: 'morning' }));
+    expect(recs[0].title).toBe('Start Light');
+  });
+
+  it('does NOT fire when crowdLevel is undefined', () => {
+    const recs = getHadeRecommendations(ctx({ arrivalStage: 'exploring', aqiLevel: 'good', timeOfDay: 'evening' }));
+    expect(recs[0].title).toBe('Go High-Energy');
+  });
+});
+
 // ─── Shape integrity ──────────────────────────────────────────────────────────
 
 describe('Recommendation shape', () => {

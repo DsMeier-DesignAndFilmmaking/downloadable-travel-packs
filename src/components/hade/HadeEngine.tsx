@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { MapPin } from "lucide-react";
 import { GoogleMap, OverlayView, useJsApiLoader } from "@react-google-maps/api";
-import type { CityPack } from "@/types/cityPack";
+import type { CityPack, HadeContext } from "@/types/cityPack";
 import {
   getHadeInsight,
   saveHadeInsight,
   type HadeDecisionResponse,
 } from "@/utils/cityPackIdb";
-import { resolveArrivalStage } from "@/lib/hade/context";
+import { useHadeCtx } from "@/contexts/HadeContextProvider";
+import { getHadeRecommendations } from "@/lib/hade/engine";
 
 // ─── Types & Theme ────────────────────────────────────────────────────────────
 
@@ -239,98 +239,6 @@ function EngineSettings({ signal, setSignal }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function UnifiedInputStep({ signal, setSignal, onNext, isLoading, cityPack }: any) {
-  const theme = MODULE_THEMES[signal.moduleContext as ModuleContext];
-  const hasSignalInput = signal.combinedSignal.trim().length > 0;
-
-  return (
-    <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] border border-white/40 bg-white/70 p-8 backdrop-blur-2xl shadow-xl md:p-12">
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full animate-pulse" style={{ background: theme.primary }} />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">HADE Live</span>
-        </div>
-        <h3 className="mt-4 text-4xl font-bold tracking-tight text-ink">What's the vibe?</h3>
-        <p className="mt-2 text-sm text-ink/50 max-w-2xl">
-          HADE checks the local pulse and how you're feeling to suggest the perfect next move.
-        </p>
-
-        <textarea
-          value={signal.combinedSignal}
-          onChange={(e) =>
-            setSignal((p: SignalState) => ({ ...p, combinedSignal: e.target.value }))
-          }
-          className="mt-10 w-full resize-none rounded-[1.5rem] border-none bg-ink/[0.03] p-6 text-xl outline-none transition-all focus:bg-ink/[0.05] placeholder:text-ink/10"
-          placeholder="e.g. 'I'm tired of tourist spots, show me where the locals hide when it rains'..."
-          rows={3}
-        />
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-ink/5 bg-white p-5 shadow-sm">
-            <label className="block text-[10px] font-black uppercase text-ink/20 mb-2">
-              Focus On...
-            </label>
-            <select
-              value={signal.moduleContext}
-              onChange={(e) =>
-                setSignal((p: SignalState) => ({
-                  ...p,
-                  moduleContext: e.target.value as ModuleContext,
-                }))
-              }
-              className="w-full bg-transparent text-sm font-bold outline-none cursor-pointer"
-            >
-              {Object.keys(MODULE_THEMES).map((k) => (
-                <option key={k} value={k}>
-                  {MODULE_THEMES[k as ModuleContext].label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* GPS Anchor — bound to cityPack, not hardcoded */}
-          <div className="rounded-2xl border border-ink/5 bg-white/40 p-5 shadow-sm backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-ink/20">
-                GPS Anchor
-              </label>
-              <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[8px] font-bold uppercase text-emerald-500/80 tracking-tighter">
-                  Verified Node
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <MapPin size={14} className="text-ink/30" />
-              <span className="text-sm font-bold text-ink/80">
-                {cityPack.name}, {cityPack.countryName}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <EngineSettings signal={signal} setSignal={setSignal} />
-      </div>
-
-      <div className="mt-8 flex justify-end">
-        <button
-          onClick={onNext}
-          disabled={isLoading || !hasSignalInput}
-          className="group flex items-center gap-3 rounded-full px-10 py-5 text-[11px] font-black uppercase tracking-widest text-white shadow-2xl transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70"
-          style={{
-            background: isLoading ? "#6B7280" : theme.primary,
-            cursor: isLoading || !hasSignalInput ? "not-allowed" : "pointer",
-          }}
-        >
-          {isLoading ? "Orchestrating..." : "Explore the Moment →"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ProcessingStep = React.memo(function ProcessingStep({ signal, onComplete, duration = 3200 }: any) {
   const theme = MODULE_THEMES[signal.moduleContext as ModuleContext];
 
@@ -384,6 +292,88 @@ const ProcessingStep = React.memo(function ProcessingStep({ signal, onComplete, 
   );
 });
 
+function AiRefinePanel({
+  signal,
+  setSignal,
+  onExplore,
+  isLoading,
+}: {
+  signal: SignalState;
+  setSignal: React.Dispatch<React.SetStateAction<SignalState>>;
+  onExplore: () => void;
+  isLoading: boolean;
+}) {
+  const theme = MODULE_THEMES[signal.moduleContext];
+  const hasInput = signal.combinedSignal.trim().length > 0;
+
+  return (
+    <details className="group mt-4 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/60 backdrop-blur-xl">
+      <summary className="flex cursor-pointer list-none select-none items-center justify-between px-6 py-4">
+        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-ink/50">
+          Refine with AI{' '}
+          <span className="font-medium normal-case tracking-normal text-ink/30">
+            (Optional)
+          </span>
+        </span>
+        {/* Chevron — rotates when open via CSS group-open */}
+        <svg
+          className="h-4 w-4 text-ink/30 transition-transform duration-200 group-open:rotate-180"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </summary>
+
+      <div className="px-6 pb-6">
+        <textarea
+          value={signal.combinedSignal}
+          onChange={(e) =>
+            setSignal((p) => ({ ...p, combinedSignal: e.target.value }))
+          }
+          className="mt-4 w-full resize-none rounded-[1.2rem] border-none bg-ink/[0.03] p-5 text-lg outline-none transition-all focus:bg-ink/[0.05] placeholder:text-ink/10"
+          placeholder="e.g. 'I'm tired of tourist spots, show me where the locals hide when it rains'..."
+          rows={3}
+        />
+
+        <div className="mt-4 rounded-2xl border border-ink/5 bg-white p-4 shadow-sm">
+          <label className="mb-2 block text-[10px] font-black uppercase text-ink/20">
+            Focus On…
+          </label>
+          <select
+            value={signal.moduleContext}
+            onChange={(e) =>
+              setSignal((p) => ({
+                ...p,
+                moduleContext: e.target.value as ModuleContext,
+              }))
+            }
+            className="w-full cursor-pointer bg-transparent text-sm font-bold outline-none"
+          >
+            {Object.keys(MODULE_THEMES).map((k) => (
+              <option key={k} value={k}>
+                {MODULE_THEMES[k as ModuleContext].label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <EngineSettings signal={signal} setSignal={setSignal} />
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={onExplore}
+            disabled={isLoading || !hasInput}
+            className="flex items-center gap-3 rounded-full px-8 py-4 text-[11px] font-black uppercase tracking-widest text-white shadow-xl transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ background: isLoading ? '#6B7280' : theme.primary }}
+          >
+            {isLoading ? 'Orchestrating…' : 'Explore the Moment →'}
+          </button>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any) {
   const theme = MODULE_THEMES[signal.moduleContext as ModuleContext];
@@ -400,7 +390,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
   const displayDesc = rawDesc.replace(/\s(\S+)$/, "\u00a0$1");
 
   return (
-    <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-ink p-8 text-white shadow-2xl md:p-12">
+    <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-ink p-8 text-black shadow-2xl md:p-12">
       <div className="flex-1">
         <div className="flex items-center gap-3 mb-10">
           <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
@@ -414,7 +404,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
         </h4>
 
         {/* City name is dynamic — bound to cityPack.name */}
-        <p className="mt-8 text-2xl text-white/50 leading-relaxed font-light max-w-2xl italic">
+        <p className="mt-8 text-2xl text-black/50 leading-relaxed font-light max-w-2xl italic">
           "We've tuned the{" "}
           <span className="text-white not-italic">{cityPack.name}</span>{" "}
           pulse for{" "}
@@ -450,7 +440,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
       <div className="mt-12 flex flex-col md:flex-row items-center gap-6 border-t border-white/5 pt-10">
         <button
           onClick={onGo}
-          className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-white px-12 py-6 text-[13px] font-black uppercase tracking-[0.15em] text-ink transition-all hover:scale-[1.05]"
+          className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-black px-12 py-6 text-[13px] font-black uppercase tracking-[0.15em] text-ink transition-all hover:scale-[1.05]"
         >
           {theme.action}
           <svg
@@ -743,32 +733,58 @@ function TacticalMapStep({ signal, generatedOutput, onRestart, cityPack }: any) 
   );
 }
 
-// ─── Arrival-driven module context resolver ───────────────────────────────────
-//
-// Reads landed_{slug} from localStorage (via the shared resolveArrivalStage
-// helper) and maps the arrival stage to the most contextually useful starting
-// module. This runs once — inside the useState lazy initialiser — so it has
-// zero ongoing overhead.
-//
-//   landed | in_transit  →  "weather-vibe"   (City Pulse: what's around me right now?)
-//   exploring            →  "the-wildcard"   (spontaneous discovery mode)
-//
-function resolveDefaultModuleContext(slug: string): ModuleContext {
-  const stage = resolveArrivalStage(slug);
-  if (stage === "landed" || stage === "in_transit") return "weather-vibe";
-  return "the-wildcard";
+// ─── Ambient (Zero-Tap) output builder ────────────────────────────────────────
+// Converts the first HadeRecommendation from the deterministic engine into the
+// GeneratedOutput shape used by ResultStep. Called synchronously on mount so the
+// result card is always populated before the first paint.
+
+function buildAmbientOutput(
+  context: HadeContext,
+  safeFirstNeighborhood: string,
+): GeneratedOutput {
+  const recs = getHadeRecommendations(context);
+  const primary = recs[0];
+  return {
+    keyword:     primary?.title       ?? 'Discovery',
+    description: primary?.description ?? `Begin in ${safeFirstNeighborhood}.`,
+    subNode:     safeFirstNeighborhood,
+    tags:        ['deterministic', 'instant', 'engine-driven'],
+  };
 }
+
+// ─── LLM Timing Config ────────────────────────────────────────────────────────
+// Single source of truth for per-LLM animation durations. Referenced by both
+// the ProcessingStep `duration` prop and the Claude safety-gap delay in
+// handleExplore so the two sites can never drift apart.
+
+const LLM_TIMING_MS: Record<LlmChoice, number> = {
+  gemini: 3200,
+  claude: 1800,
+  llama: 0,
+} as const;
+
+const CLAUDE_SAFETY_GAP_MS = 150;
 
 // ─── Main Controller ──────────────────────────────────────────────────────────
 
 export default function HadeEngine({ cityPack, accent, className }: HadeEngineProps) {
-  const [step, setStep] = useState<StepId>("input");
+  // Consume the shared HADE context — arrival stage drives the initial module seed
+  // and the engine-aligned fallback description.
+  const { context: hadeContext } = useHadeCtx();
 
-  // Seed location AND moduleContext from cityPack/localStorage on first render
+  const [isAmbientResult, setIsAmbientResult] = useState(true);
+  const [step, setStep] = useState<StepId>("result");
+
+  // Seed location AND moduleContext from cityPack/hadeContext on first render.
+  // hadeContext is already initialised from localStorage by useHadeContext — no
+  // direct localStorage read needed here.
   const [signal, setSignal] = useState<SignalState>(() => ({
     ...DEFAULT_SIGNAL,
     location: `${cityPack.name}, ${cityPack.countryName}`,
-    moduleContext: resolveDefaultModuleContext(cityPack.slug),
+    moduleContext:
+      hadeContext.arrivalStage === "landed" || hadeContext.arrivalStage === "in_transit"
+        ? "weather-vibe"   // City Pulse: what's around me right now?
+        : "the-wildcard",  // spontaneous discovery mode
   }));
 
   // Seed the fallback subNode from the city's safest neighbourhood
@@ -778,12 +794,9 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
     return ns.reduce((best, n) => (n.safetyScore > best.safetyScore ? n : best)).name;
   })();
 
-  const [generatedOutput, setGeneratedOutput] = useState<GeneratedOutput>({
-    keyword: "Discovery",
-    description: "A hidden node has been flagged for your current state.",
-    subNode: safeFirstNeighborhood,
-    tags: ["adaptive", "fallback"],
-  });
+  const [generatedOutput, setGeneratedOutput] = useState<GeneratedOutput>(() =>
+    buildAmbientOutput(hadeContext, safeFirstNeighborhood),
+  );
 
   const [timerDone, setTimerDone] = useState(false);
   const [dataReady, setDataReady] = useState(false);
@@ -830,17 +843,20 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
     );
   };
 
-  const buildClientFallback = useCallback((inputSignal: string): GeneratedOutput => ({
-    // Derive keyword from the user's own words so the fallback still feels intentional
-    keyword: extractHighSignalWord(inputSignal),
-    description:
-      `Start in ${safeFirstNeighborhood} where conditions are usually easiest for first movement.` +
-      (cityPack.survival.currentScams[0]
-        ? ` Keep an eye out for ${cityPack.survival.currentScams[0].toLowerCase()}.`
-        : ""),
-    subNode: safeFirstNeighborhood,
-    tags: ["offline", "heuristic", "instant"],
-  }), [cityPack, safeFirstNeighborhood]);
+  const buildClientFallback = useCallback((inputSignal: string): GeneratedOutput => {
+    // Pull the engine-aligned description so the offline fallback matches what
+    // HadeDecisionCard already shows — no parallel heuristic divergence.
+    const recs = getHadeRecommendations(hadeContext);
+    const primary = recs[0];
+    return {
+      keyword: extractHighSignalWord(inputSignal),
+      description:
+        primary?.description ??
+        `Start in ${safeFirstNeighborhood} where conditions are usually easiest for first movement.`,
+      subNode: safeFirstNeighborhood,
+      tags: ["offline", "engine-aligned", "instant"],
+    };
+  }, [hadeContext, cityPack, safeFirstNeighborhood]);
 
   // Convert HadeDecisionResponse (nested API shape) → GeneratedOutput (flat display shape)
   const toGeneratedOutput = (response: HadeDecisionResponse): GeneratedOutput => ({
@@ -853,6 +869,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
   const applyHeuristicFallback = useCallback((inputSignal: string): boolean => {
     try {
       setGeneratedOutput(buildClientFallback(inputSignal));
+      setIsAmbientResult(false);
       setDataReady(true);
       setStep("result");
       setIsLoading(false);
@@ -892,7 +909,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
         console.warn("[HADE Engine] IDB read failed (offline path).", err);
       }
       if (applyHeuristicFallback(signal.combinedSignal)) return;
-      setStep("input");
+      setStep("result");
       setIsLoading(false);
       setApiError("The HADE engine is offline. Please try again.");
       return;
@@ -946,6 +963,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
 
       const output = toGeneratedOutput(payload);
       setGeneratedOutput(output);
+      setIsAmbientResult(false);
       setDataReady(true);
 
       // Llama fast-path: bypass timer gate immediately
@@ -954,9 +972,10 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
         setTimerDone(true);
         setIsLoading(false);
       } else if (signal.llmChoice === "claude") {
-        // Claude medium-path: ensure at least 1800 ms display time, then 150 ms safety gap
+        // Claude medium-path: ensure at least LLM_TIMING_MS.claude display time,
+        // then CLAUDE_SAFETY_GAP_MS before advancing — synced with ProcessingStep duration.
         const elapsed = Date.now() - exploreStartRef.current;
-        const delay = Math.max(0, 1800 - elapsed) + 150;
+        const delay = Math.max(0, LLM_TIMING_MS.claude - elapsed) + CLAUDE_SAFETY_GAP_MS;
         setTimeout(() => {
           setStep("result");
           setTimerDone(true);
@@ -983,7 +1002,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       if (applyHeuristicFallback(signal.combinedSignal)) return;
 
       // All paths exhausted — API + IDB + heuristic fallback failed
-      setStep("input");
+      setStep("result");
       setIsLoading(false);
       setApiError("The HADE engine couldn't reach the API. Please try again.");
     }
@@ -1000,18 +1019,17 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
   // ─── Reset ──────────────────────────────────────────────────────────────────
 
   const restart = () => {
-    setStep("input");
+    setIsAmbientResult(true);
+    setStep("result");
+    setGeneratedOutput(buildAmbientOutput(hadeContext, safeFirstNeighborhood));
     setSignal({
       ...DEFAULT_SIGNAL,
       location: `${cityPack.name}, ${cityPack.countryName}`,
-      // Re-evaluate the arrival stage at the point of reset — stage may have changed
-      moduleContext: resolveDefaultModuleContext(cityPack.slug),
-    });
-    setGeneratedOutput({
-      keyword: "Discovery",
-      description: "A hidden node has been flagged for your current state.",
-      subNode: safeFirstNeighborhood,
-      tags: ["adaptive", "fallback"],
+      // Re-read arrival stage from live context — stage may have changed since mount
+      moduleContext:
+        hadeContext.arrivalStage === "landed" || hadeContext.arrivalStage === "in_transit"
+          ? "weather-vibe"
+          : "the-wildcard",
     });
     setTimerDone(false);
     setDataReady(false);
@@ -1039,7 +1057,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       </div>
 
       <AnimatePresence>
-        {apiError && step === "input" && (
+        {apiError && (step === "result" || step === "input") && (
           <motion.div
             key="api-error-banner"
             initial={{ opacity: 0, y: -8 }}
@@ -1061,37 +1079,30 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
           exit={{ opacity: 0, scale: 0.98 }}
           transition={{ duration: 0.6, ease: [0.19, 1, 0.22, 1] }}
         >
-          {step === "input" && (
-            <UnifiedInputStep
-              signal={signal}
-              setSignal={setSignal}
-              onNext={() => { void handleExplore(); }}
-              isLoading={isLoading}
-              cityPack={cityPack}
-            />
-          )}
           {step === "processing" && (
             <ProcessingStep
               key={`processing-${signal.llmChoice}`}
               signal={signal}
               onComplete={handleTimerComplete}
-              duration={
-                signal.llmChoice === "llama"
-                  ? 0
-                  : signal.llmChoice === "claude"
-                    ? 1800
-                    : 3200
-              }
+              duration={LLM_TIMING_MS[signal.llmChoice]}
             />
           )}
           {step === "result" && (
-            <ResultStep
-              signal={signal}
-              generatedOutput={safeOutput}
-              onRestart={restart}
-              onGo={() => setStep("mapping")}
-              cityPack={cityPack}
-            />
+            <>
+              <ResultStep
+                signal={signal}
+                generatedOutput={safeOutput}
+                onRestart={restart}
+                onGo={() => setStep("mapping")}
+                cityPack={cityPack}
+              />
+              <AiRefinePanel
+                signal={signal}
+                setSignal={setSignal}
+                onExplore={() => { void handleExplore(); }}
+                isLoading={isLoading}
+              />
+            </>
           )}
           {step === "mapping" && (
             <TacticalMapStep
@@ -1106,7 +1117,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
 
       {/* Step progress indicators */}
       <div className="mt-12 flex justify-center gap-3">
-        {(["input", "processing", "result", "mapping"] as StepId[]).map((s) => (
+        {(["processing", "result", "mapping"] as StepId[]).map((s) => (
           <div
             key={s}
             className={`h-1.5 rounded-full transition-all duration-700 ${

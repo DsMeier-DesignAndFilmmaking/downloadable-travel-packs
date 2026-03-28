@@ -5,12 +5,19 @@
  * (arrival stage from localStorage, AQI from env-impact cache, time of day
  * from system clock). Each test seeds a different real state and asserts
  * different output. No test should pass if the card shows static fallback text.
+ *
+ * After the HadeContextProvider migration, each render is wrapped with the
+ * provider. The provider reads from localStorage on init, so the existing
+ * seed helpers continue to work unchanged.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import HadeDecisionCard from '../HadeDecisionCard';
+import { HadeContextProvider, useHadeCtx } from '@/contexts/HadeContextProvider';
 import type { CityPack } from '@/types/cityPack';
+import type { ArrivalStage } from '@/types/cityPack';
 
 // ─── Minimal CityPack stub ────────────────────────────────────────────────────
 
@@ -61,6 +68,34 @@ function seedAqi(slug: string, aqiValue: number) {
   }));
 }
 
+// ─── Provider wrapper ─────────────────────────────────────────────────────────
+// All renders need the HadeContextProvider. This helper wraps the element
+// so the card's useHadeCtx() call resolves correctly.
+
+function renderWithProvider(slug: string, element: React.ReactElement) {
+  return render(
+    <HadeContextProvider slug={slug}>
+      {element}
+    </HadeContextProvider>
+  );
+}
+
+// ─── Context setter harness (for reactivity tests) ────────────────────────────
+// A thin inner component that exposes context setters via data-testid buttons
+// so reactivity can be triggered without window events.
+
+function ArrivalSetter({ stage }: { stage: ArrivalStage }) {
+  const { setArrivalStage } = useHadeCtx();
+  return (
+    <button
+      data-testid={`set-stage-${stage}`}
+      onClick={() => setArrivalStage(stage)}
+    >
+      {stage}
+    </button>
+  );
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
@@ -78,188 +113,198 @@ afterEach(() => {
 
 describe('Default render (no arrival stage, no AQI cache)', () => {
   it('renders the card header', () => {
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('HADE Decision Engine')).toBeInTheDocument();
   });
 
   it('shows morning time-of-day recs at 09:00 when no overriding signals', () => {
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('Start Light')).toBeInTheDocument();
   });
 
   it('shows afternoon recs at 13:00 when no overriding signals', () => {
     vi.setSystemTime(new Date(2026, 0, 1, 13, 0, 0));
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('Slow the Pace')).toBeInTheDocument();
   });
 
   it('shows evening recs at 19:00', () => {
     vi.setSystemTime(new Date(2026, 0, 1, 19, 0, 0));
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('Go High-Energy')).toBeInTheDocument();
   });
 
   it('shows night recs at 23:00', () => {
     vi.setSystemTime(new Date(2026, 0, 1, 23, 0, 0));
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('Stay Visible')).toBeInTheDocument();
   });
 
   it('renders a grey AQI dot (unknown) when no AQI data is present', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    const { container } = renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     const dot = container.querySelector('.bg-slate-300');
     expect(dot).toBeInTheDocument();
   });
 });
 
-// ─── 2. Landed stage overrides time-of-day ───────────────────────────────────
+// ─── 2. Arrival stage: landed overrides time-of-day ──────────────────────────
 
-describe('Arrival stage: landed', () => {
+describe('Arrival stage priority', () => {
   it('entry-immigration → shows "Move Efficiently", NOT morning recs', () => {
     seedArrival('bangkok-thailand', 'entry-immigration');
-    render(<HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={null} />);
+    renderWithProvider('bangkok-thailand', <HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={null} />);
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
     expect(screen.queryByText('Start Light')).not.toBeInTheDocument();
   });
 
   it('airport-exit → shows "Skip the Exchange"', () => {
     seedArrival('tokyo-japan', 'airport-exit');
-    render(<HadeDecisionCard city={makeCity('tokyo-japan')} aqi={null} />);
+    renderWithProvider('tokyo-japan', <HadeDecisionCard city={makeCity('tokyo-japan')} aqi={null} />);
     expect(screen.getByText('Skip the Exchange')).toBeInTheDocument();
   });
 
   it('landed stage shows exactly 2 recommendations', () => {
     seedArrival('london-uk', 'airport-exit');
-    render(<HadeDecisionCard city={makeCity('london-uk')} aqi={null} />);
+    renderWithProvider('london-uk', <HadeDecisionCard city={makeCity('london-uk')} aqi={null} />);
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
     expect(screen.getByText('Skip the Exchange')).toBeInTheDocument();
   });
 });
 
-// ─── 3. In-transit stage overrides time-of-day ───────────────────────────────
+// ─── 3. Arrival stage: in_transit ────────────────────────────────────────────
 
-describe('Arrival stage: in_transit', () => {
+describe('In-transit recommendations', () => {
   it('left-airport → shows en-route content, NOT time-of-day recs', () => {
     seedArrival('dubai-uae', 'left-airport');
-    render(<HadeDecisionCard city={makeCity('dubai-uae')} aqi={null} />);
+    renderWithProvider('dubai-uae', <HadeDecisionCard city={makeCity('dubai-uae')} aqi={null} />);
     expect(screen.getByText("You're En Route")).toBeInTheDocument();
     expect(screen.queryByText('Start Light')).not.toBeInTheDocument();
-    expect(screen.queryByText('Slow the Pace')).not.toBeInTheDocument();
   });
 
   it('in_transit shows accommodation + eSIM guidance', () => {
     seedArrival('seoul-south-korea', 'left-airport');
-    render(<HadeDecisionCard city={makeCity('seoul-south-korea')} aqi={null} />);
+    renderWithProvider('seoul-south-korea', <HadeDecisionCard city={makeCity('seoul-south-korea')} aqi={null} />);
     expect(screen.getByText('First Stop: SIM or eSIM')).toBeInTheDocument();
   });
 });
 
-// ─── 4. Unhealthy AQI overrides time-of-day (when not landed/in_transit) ─────
+// ─── 4. AQI: unhealthy overrides time-of-day ─────────────────────────────────
 
 describe('AQI: unhealthy overrides time-of-day', () => {
   it('AQI 150 via prop → shows "Shift Indoors", NOT morning recs', () => {
-    render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
+    renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
     expect(screen.getByText('Shift Indoors')).toBeInTheDocument();
     expect(screen.queryByText('Start Light')).not.toBeInTheDocument();
   });
 
   it('AQI 150 via cache → shows "Shift Indoors"', () => {
     seedAqi('mexico-city-mexico', 150);
-    render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={null} />);
+    renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={null} />);
     expect(screen.getByText('Shift Indoors')).toBeInTheDocument();
   });
 
   it('unhealthy AQI shows a red dot', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
+    const { container } = renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
     expect(container.querySelector('.bg-red-500')).toBeInTheDocument();
   });
 
   it('landed stage beats unhealthy AQI — shows airport recs not indoor recs', () => {
     seedArrival('mexico-city-mexico', 'airport-exit');
-    render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
+    renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
     expect(screen.queryByText('Shift Indoors')).not.toBeInTheDocument();
   });
 });
 
-// ─── 5. AQI dot color reflects real data ─────────────────────────────────────
+// ─── 5. AQI dot color reflects live data ─────────────────────────────────────
 
 describe('AQI dot color reflects live data', () => {
   it('AQI 30 → green dot', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('tokyo-japan')} aqi={30} />);
+    const { container } = renderWithProvider('tokyo-japan', <HadeDecisionCard city={makeCity('tokyo-japan')} aqi={30} />);
     expect(container.querySelector('.bg-emerald-500')).toBeInTheDocument();
   });
 
   it('AQI 75 → amber dot', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={75} />);
+    const { container } = renderWithProvider('bangkok-thailand', <HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={75} />);
     expect(container.querySelector('.bg-amber-400')).toBeInTheDocument();
   });
 
   it('AQI 130 → red dot', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={130} />);
+    const { container } = renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={130} />);
     expect(container.querySelector('.bg-red-500')).toBeInTheDocument();
   });
 
   it('null AQI (no data) → grey dot (not falsely green)', () => {
-    const { container } = render(<HadeDecisionCard city={makeCity('new-york-us')} aqi={null} />);
+    const { container } = renderWithProvider('new-york-us', <HadeDecisionCard city={makeCity('new-york-us')} aqi={null} />);
     expect(container.querySelector('.bg-slate-300')).toBeInTheDocument();
     expect(container.querySelector('.bg-emerald-500')).not.toBeInTheDocument();
   });
 });
 
-// ─── 6. Different cities show different content when conditions differ ─────────
+// ─── 6. City isolation ───────────────────────────────────────────────────────
 
-describe('Content varies per city based on real conditions', () => {
-  it('Bangkok (landed) and Paris (exploring morning) show different content', () => {
+describe('City isolation — different slugs do not bleed state', () => {
+  it('Bangkok landed, Paris exploring — each shows different recs', () => {
     seedArrival('bangkok-thailand', 'airport-exit');
 
-    const { unmount } = render(<HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={null} />);
+    const { unmount } = renderWithProvider('bangkok-thailand', <HadeDecisionCard city={makeCity('bangkok-thailand')} aqi={null} />);
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
     unmount();
 
-    render(<HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
     expect(screen.getByText('Start Light')).toBeInTheDocument();
     expect(screen.queryByText('Move Efficiently')).not.toBeInTheDocument();
   });
 
   it('Mexico City (high AQI) and London (low AQI) show different content', () => {
-    const { unmount } = render(<HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
+    const { unmount } = renderWithProvider('mexico-city-mexico', <HadeDecisionCard city={makeCity('mexico-city-mexico')} aqi={150} />);
     expect(screen.getByText('Shift Indoors')).toBeInTheDocument();
     unmount();
 
-    render(<HadeDecisionCard city={makeCity('london-uk')} aqi={30} />);
+    renderWithProvider('london-uk', <HadeDecisionCard city={makeCity('london-uk')} aqi={30} />);
     expect(screen.getByText('Start Light')).toBeInTheDocument();
     expect(screen.queryByText('Shift Indoors')).not.toBeInTheDocument();
   });
 });
 
-// ─── 7. Reactivity — card updates when hade:update fires ─────────────────────
+// ─── 7. Reactivity — card updates via context setters ────────────────────────
+// Previously tested via hade:update window events. Now tests React state reactivity
+// directly through context setters — the correct post-migration pattern.
 
-describe('Reactivity — card updates on hade:update event', () => {
-  it('updates from morning recs to landed recs after stage change + hade:update', async () => {
-    render(<HadeDecisionCard city={makeCity('rome-italy')} aqi={null} />);
+describe('Reactivity — card updates via context setters', () => {
+  it('updates from morning recs to landed recs when setArrivalStage is called', async () => {
+    render(
+      <HadeContextProvider slug="rome-italy">
+        <ArrivalSetter stage="airport-exit" />
+        <HadeDecisionCard city={makeCity('rome-italy')} aqi={null} />
+      </HadeContextProvider>
+    );
 
     // Initially exploring at 09:00 → morning recs
     expect(screen.getByText('Start Light')).toBeInTheDocument();
 
-    // Simulate user tapping "airport-exit" in CityGuideView
-    act(() => {
-      localStorage.setItem('landed_rome-italy', 'airport-exit');
-      window.dispatchEvent(new Event('hade:update'));
+    // Simulate the CityGuideView handler calling setHadeArrivalStage
+    await act(async () => {
+      await userEvent.click(screen.getByTestId('set-stage-airport-exit'));
     });
 
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
     expect(screen.queryByText('Start Light')).not.toBeInTheDocument();
   });
 
-  it('updates from landed to in_transit recs after left-airport + hade:update', async () => {
+  it('updates from landed to in_transit recs when setArrivalStage("left-airport") is called', async () => {
     seedArrival('barcelona-spain', 'airport-exit');
-    render(<HadeDecisionCard city={makeCity('barcelona-spain')} aqi={null} />);
+    render(
+      <HadeContextProvider slug="barcelona-spain">
+        <ArrivalSetter stage="left-airport" />
+        <HadeDecisionCard city={makeCity('barcelona-spain')} aqi={null} />
+      </HadeContextProvider>
+    );
+
     expect(screen.getByText('Move Efficiently')).toBeInTheDocument();
 
-    act(() => {
-      localStorage.setItem('landed_barcelona-spain', 'left-airport');
-      window.dispatchEvent(new Event('hade:update'));
+    await act(async () => {
+      await userEvent.click(screen.getByTestId('set-stage-left-airport'));
     });
 
     expect(screen.getByText("You're En Route")).toBeInTheDocument();
@@ -278,7 +323,7 @@ describe('All city packs render without error', () => {
 
   it.each(slugs)('%s renders the HADE card', (slug) => {
     expect(() =>
-      render(<HadeDecisionCard city={makeCity(slug)} aqi={null} />)
+      renderWithProvider(slug, <HadeDecisionCard city={makeCity(slug)} aqi={null} />)
     ).not.toThrow();
     expect(screen.getByText('HADE Decision Engine')).toBeInTheDocument();
   });
