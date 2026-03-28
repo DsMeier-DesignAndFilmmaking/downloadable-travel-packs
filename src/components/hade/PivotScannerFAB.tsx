@@ -10,7 +10,6 @@
  * - Error toast: shown if GPS is unavailable or the scan fails.
  */
 
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePivotScanner } from '@/hooks/usePivotScanner';
 import type { CityPack, HadeContext } from '@/types/cityPack';
