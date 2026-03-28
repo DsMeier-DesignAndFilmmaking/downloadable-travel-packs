@@ -16,6 +16,7 @@ import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import HadeDecisionCard from '../HadeDecisionCard';
 import { HadeContextProvider, useHadeCtx } from '@/contexts/HadeContextProvider';
+import { SignalsDB } from '@/lib/hade/signalsDb';
 import type { CityPack } from '@/types/cityPack';
 import type { ArrivalStage } from '@/types/cityPack';
 
@@ -107,6 +108,7 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 // ─── 1. Default render — no data — shows time-of-day content ─────────────────
@@ -312,7 +314,62 @@ describe('Reactivity — card updates via context setters', () => {
   });
 });
 
-// ─── 8. All 10 city packs render without crashing ────────────────────────────
+// ─── 8. Micro-feedback persistence + signal weight ───────────────────────────
+
+describe('Micro-feedback controls', () => {
+  it('records "Not for me" feedback and shifts the next recommendation cycle immediately', async () => {
+    const recordFeedbackSpy = vi.spyOn(SignalsDB, 'recordFeedback').mockResolvedValue();
+    const user = userEvent.setup();
+
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+
+    expect(screen.getByText('Start Light')).toBeInTheDocument();
+
+    await act(async () => {
+      await user.click(screen.getAllByLabelText('Not for me')[0]);
+    });
+
+    expect(recordFeedbackSpy).toHaveBeenCalledWith(expect.objectContaining({
+      recId: 'start-light-find-a-starting-point',
+      type: 'negative',
+      timestamp: expect.any(Number),
+    }));
+
+    // Negative signalWeight flips to the alternate recommendation first.
+    expect(screen.getByText('One Anchor')).toBeInTheDocument();
+
+    await act(async () => {
+      await user.click(screen.getAllByLabelText('Not for me')[0]);
+    });
+
+    expect(recordFeedbackSpy).toHaveBeenCalledTimes(2);
+    expect(recordFeedbackSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      recId: 'one-anchor-choose-your-anchor',
+      type: 'negative',
+      timestamp: expect.any(Number),
+    }));
+  });
+
+  it('records "Done" feedback as positive', async () => {
+    const recordFeedbackSpy = vi.spyOn(SignalsDB, 'recordFeedback').mockResolvedValue();
+    const user = userEvent.setup();
+
+    renderWithProvider('paris-france', <HadeDecisionCard city={makeCity('paris-france')} aqi={null} />);
+
+    await act(async () => {
+      await user.click(screen.getAllByLabelText('Done')[0]);
+    });
+
+    expect(recordFeedbackSpy).toHaveBeenCalledTimes(1);
+    expect(recordFeedbackSpy).toHaveBeenCalledWith(expect.objectContaining({
+      recId: 'start-light-find-a-starting-point',
+      type: 'positive',
+      timestamp: expect.any(Number),
+    }));
+  });
+});
+
+// ─── 9. All 10 city packs render without crashing ────────────────────────────
 
 describe('All city packs render without error', () => {
   const slugs = [

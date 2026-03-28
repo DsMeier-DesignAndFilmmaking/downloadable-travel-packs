@@ -45,22 +45,26 @@ function RecommendationRow({
 }) {
   return (
     <div className="relative">
-      <div className="absolute right-0 top-0 z-10 flex items-center gap-1 rounded-full border border-white/40 bg-white/55 px-1.5 py-1 backdrop-blur-sm">
+      <div className="absolute right-0 top-0 z-10 flex items-center gap-1 rounded-full border border-white/30 bg-white/50 px-1.5 py-1 backdrop-blur-md">
         <button
           type="button"
           onClick={(event) => onFeedback(event, recId, 'positive')}
           aria-label="Done"
+          title="Done"
           className="rounded-full p-1 text-emerald-600 transition-colors hover:bg-emerald-50"
         >
           <Check size={12} />
+          <span className="sr-only">Done</span>
         </button>
         <button
           type="button"
           onClick={(event) => onFeedback(event, recId, 'negative')}
           aria-label="Not for me"
+          title="Not for me"
           className="rounded-full p-1 text-rose-600 transition-colors hover:bg-rose-50"
         >
           <X size={12} />
+          <span className="sr-only">Not for me</span>
         </button>
       </div>
 
@@ -98,6 +102,12 @@ export default function HadeDecisionCard({ city: _city, aqi }: HadeDecisionCardP
 
   // Limit to max 2 recommendations
   const visibleRecs = recs.slice(0, 2);
+
+  const recIdFor = useCallback(
+    (rec: HadeRecommendation) =>
+      `${rec.title}-${rec.action}`.toLowerCase().replace(/\s+/g, '-'),
+    []
+  );
 
   const handleFeedback = useCallback((
     event: MouseEvent<HTMLButtonElement>,
@@ -139,7 +149,7 @@ export default function HadeDecisionCard({ city: _city, aqi }: HadeDecisionCardP
             )}
             <RecommendationRow
               rec={rec}
-              recId={`${rec.title}-${rec.action}-${index}`.toLowerCase().replace(/\s+/g, '-')}
+              recId={recIdFor(rec)}
               onFeedback={handleFeedback}
             />
           </div>

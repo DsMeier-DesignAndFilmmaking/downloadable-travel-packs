@@ -5,6 +5,8 @@
 // Returns 1–2 recommendations based on the first matching rule.
 
 import type { HadeContext } from './context';
+import type { CityPackNeighborhood } from '@/types/cityPack';
+import { haversineMeters } from '@/lib/geo';
 
 export type HadeRecommendation = {
   title: string;
@@ -199,4 +201,156 @@ export function getHadeRecommendations(context: HadeContext): HadeRecommendation
   }
 
   return applySignalWeight(matched.recs, context.signalWeight);
+}
+
+// ─── Pivot Scanner ─────────────────────────────────────────────────────────────
+
+export type PivotRiskLevel = 'safe' | 'caution' | 'high-risk' | 'high-crowd';
+
+export interface SafeAlternative {
+  type: 'safe-haven' | 'quiet-zone';
+  name: string;
+  safetyScore: number;
+  vibe: string;
+}
+
+export interface PivotScanInput {
+  gps: { lat: number; lng: number };
+  neighborhoods: CityPackNeighborhood[];
+  hadeContext: HadeContext;
+  /**
+   * Pre-geocoded coordinates for each neighborhood name.
+   * Supplied by the hook after async geocoding + localStorage caching.
+   * If omitted, nearest-neighbor falls back to the highest-safetyScore neighborhood.
+   */
+  neighborhoodCoords?: Record<string, { lat: number; lng: number }>;
+}
+
+export interface PivotScanResult {
+  nearestNeighborhood: CityPackNeighborhood;
+  /** Composite Safety & Vibe score, clamped to 0–10. */
+  compositeScore: number;
+  riskLevel: PivotRiskLevel;
+  /** Non-null when timeOfDay === 'night' && nearestNeighborhood.safetyScore < 7. */
+  warning: string | null;
+  /** Auto-surfaced on 'high-risk' or 'high-crowd' — the agentic pivot suggestion. */
+  safeAlternative: SafeAlternative | null;
+}
+
+// AQI score penalties applied to the composite score.
+const AQI_PENALTY: Record<HadeContext['aqiLevel'], number> = {
+  good: 0, moderate: 1, unhealthy: 2, unknown: 0,
+};
+
+// Vibe keywords that identify a quiet/residential neighborhood.
+const QUIET_KEYWORDS = ['quiet', 'calm', 'residential', 'peaceful', 'local'];
+
+/**
+ * Pivot Scanner — pure, synchronous, deterministic.
+ *
+ * 1. Identifies the nearest neighborhood (by haversine if coords are supplied,
+ *    otherwise falls back to the highest-safetyScore neighborhood).
+ * 2. Computes a composite Safety & Vibe score from safetyScore, AQI, timeOfDay,
+ *    and crowdLevel.
+ * 3. Derives a risk level and optional 'Proceed with Caution' warning.
+ * 4. Agentically surfaces the nearest Safe Haven or Quiet Zone when the result
+ *    is 'high-risk' or 'high-crowd'.
+ *
+ * All async work (GPS, geocoding, caching) is handled by usePivotScanner.
+ */
+export function scanCurrentLocation(input: PivotScanInput): PivotScanResult {
+  const { gps, neighborhoods, hadeContext, neighborhoodCoords } = input;
+
+  if (neighborhoods.length === 0) {
+    throw new Error('[HADE Pivot] No neighborhoods available for this city pack.');
+  }
+
+  // ── 1. Identify nearest neighborhood ──────────────────────────────────────
+
+  let nearest: CityPackNeighborhood;
+
+  if (neighborhoodCoords && Object.keys(neighborhoodCoords).length > 0) {
+    // Use haversine distance against pre-geocoded coords.
+    nearest = neighborhoods.reduce((best, n) => {
+      const nc = neighborhoodCoords[n.name];
+      const bc = neighborhoodCoords[best.name];
+      if (!nc) return best;
+      if (!bc) return n;
+      const dN = haversineMeters(gps.lat, gps.lng, nc.lat, nc.lng);
+      const dB = haversineMeters(gps.lat, gps.lng, bc.lat, bc.lng);
+      return dN < dB ? n : best;
+    });
+  } else {
+    // Geocoding not yet complete — fall back to the safest neighborhood.
+    nearest = neighborhoods.reduce((best, n) =>
+      n.safetyScore > best.safetyScore ? n : best,
+    );
+  }
+
+  // ── 2. Composite Safety & Vibe score ─────────────────────────────────────
+  //
+  //   compositeScore = safetyScore
+  //                  − aqiPenalty   (good=0, moderate=1, unhealthy=2, unknown=0)
+  //                  − timePenalty  (night=1, else=0)
+  //                  − crowdPenalty (heavy=1, else=0)
+  //   Clamped to [0, 10].
+
+  const aqiPenalty   = AQI_PENALTY[hadeContext.aqiLevel];
+  const timePenalty  = hadeContext.timeOfDay === 'night' ? 1 : 0;
+  const crowdPenalty = hadeContext.crowdLevel === 'heavy' ? 1 : 0;
+
+  const compositeScore = Math.min(
+    10,
+    Math.max(0, nearest.safetyScore - aqiPenalty - timePenalty - crowdPenalty),
+  );
+
+  // ── 3. Risk level ─────────────────────────────────────────────────────────
+
+  let riskLevel: PivotRiskLevel;
+  if (compositeScore < 5) {
+    riskLevel = 'high-risk';
+  } else if (hadeContext.crowdLevel === 'heavy') {
+    riskLevel = 'high-crowd';
+  } else if (compositeScore <= 6) {
+    riskLevel = 'caution';
+  } else {
+    riskLevel = 'safe';
+  }
+
+  // ── 4. Warning ────────────────────────────────────────────────────────────
+
+  const warning =
+    hadeContext.timeOfDay === 'night' && nearest.safetyScore < 7
+      ? 'Proceed with Caution'
+      : null;
+
+  // ── 5. Agentic safe alternative ───────────────────────────────────────────
+
+  const others = neighborhoods.filter((n) => n.name !== nearest.name);
+  let safeAlternative: SafeAlternative | null = null;
+
+  if (riskLevel === 'high-risk' && others.length > 0) {
+    const haven = others.reduce((best, n) =>
+      n.safetyScore > best.safetyScore ? n : best,
+    );
+    safeAlternative = {
+      type: 'safe-haven',
+      name: haven.name,
+      safetyScore: haven.safetyScore,
+      vibe: haven.vibe,
+    };
+  } else if (riskLevel === 'high-crowd' && others.length > 0) {
+    const quietZone =
+      others.find((n) =>
+        QUIET_KEYWORDS.some((kw) => n.vibe.toLowerCase().includes(kw)),
+      ) ?? others.reduce((best, n) => (n.safetyScore > best.safetyScore ? n : best));
+    safeAlternative = {
+      type: 'quiet-zone',
+      name: quietZone.name,
+      safetyScore: quietZone.safetyScore,
+      vibe: quietZone.vibe,
+    };
+  }
+
+  return { nearestNeighborhood: nearest, compositeScore, riskLevel, warning, safeAlternative };
 }

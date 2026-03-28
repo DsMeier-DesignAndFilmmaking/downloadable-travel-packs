@@ -9,6 +9,7 @@ import {
 } from "@/utils/cityPackIdb";
 import { useHadeCtx } from "@/contexts/HadeContextProvider";
 import { getHadeRecommendations } from "@/lib/hade/engine";
+import { PivotScannerFAB } from "@/components/hade/PivotScannerFAB";
 
 // ─── Types & Theme ────────────────────────────────────────────────────────────
 
@@ -545,6 +546,8 @@ function VectorMapFallback({ theme, generatedOutput, onRestart, reason, cityPack
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function TacticalMapStep({ signal, generatedOutput, onRestart, cityPack }: any) {
   const theme = MODULE_THEMES[signal.moduleContext as ModuleContext];
+  // Consume live HADE context for the Pivot Scanner — no prop drilling required.
+  const { context: hadeContext } = useHadeCtx();
 
   // Vite-compatible env var: supports both VITE_ prefix and NEXT_PUBLIC_ legacy naming
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -607,6 +610,23 @@ function TacticalMapStep({ signal, generatedOutput, onRestart, cityPack }: any) 
     if (!mapInstance || !center) return;
     mapInstance.panTo(center);
   }, [center, mapInstance]);
+
+  // ── Pivot Scanner: pan map to an alternative neighborhood ─────────────────
+  // Called by PivotScannerFAB when the user taps 'Pivot Here →'.
+  // Reuses the same geocoding pattern as the subNode resolver above.
+  const handlePivotTo = useCallback((neighborhoodName: string) => {
+    if (!isLoaded || !(window as any).google?.maps?.Geocoder) return;
+    const geocoder = new (window as any).google.maps.Geocoder();
+    geocoder.geocode(
+      { address: `${neighborhoodName}, ${signal.location}` },
+      (results: any, status: string) => {
+        if (status === "OK" && results?.[0]?.geometry?.location) {
+          const point = results[0].geometry.location;
+          setCenter({ lat: point.lat(), lng: point.lng() });
+        }
+      },
+    );
+  }, [isLoaded, signal.location]);
 
   if (!googleMapsApiKey) {
     return (
@@ -729,6 +749,14 @@ function TacticalMapStep({ signal, generatedOutput, onRestart, cityPack }: any) 
           </div>
         </motion.div>
       </div>
+
+      {/* ── Pivot Scanner FAB — fixed bottom-right, renders above the map ── */}
+      <PivotScannerFAB
+        cityPack={cityPack}
+        hadeContext={hadeContext}
+        themeColor={theme.primary}
+        onPivotTo={handlePivotTo}
+      />
     </div>
   );
 }
@@ -806,6 +834,13 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
 
   const theme = MODULE_THEMES[signal.moduleContext];
   const themeColor = accent ?? theme.primary;
+
+  // Keep ambient output in sync with micro-feedback signal changes. This lets
+  // feedback buttons immediately affect the next recommendation cycle.
+  useEffect(() => {
+    if (!isAmbientResult || step !== "result") return;
+    setGeneratedOutput(buildAmbientOutput(hadeContext, safeFirstNeighborhood));
+  }, [hadeContext, isAmbientResult, safeFirstNeighborhood, step]);
 
   // Advance from processing → result once both the animation timer AND data are ready.
   // Llama exits immediately; Claude uses its own setTimeout path in handleExplore.
