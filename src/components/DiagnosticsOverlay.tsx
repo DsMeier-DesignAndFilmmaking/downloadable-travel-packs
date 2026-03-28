@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Zap, Database, Activity, RefreshCcw, ChevronRight } from 'lucide-react';
 import SyncButton from '@/components/SyncButton';
+import type { SyncStatus } from '@/hooks/useCityPack';
 
 interface DiagnosticsProps {
   city: string;
   isOpen: boolean;
   onClose: () => void;
-  syncStatus: 'idle' | 'loading' | 'success' | 'error';
+  syncStatus: SyncStatus;
   lastSynced: number | null;
 }
 

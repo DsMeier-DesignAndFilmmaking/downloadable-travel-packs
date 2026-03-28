@@ -51,10 +51,12 @@ export default function HomePage() {
   return (
     <motion.div initial="hidden" animate="visible" exit="exit" className="min-h-screen bg-[#F7F7F7] antialiased">
       {/* Diagnostics Overlay */}
-      <DiagnosticsOverlay 
-        city="Global" 
-        isOpen={isDiagnosticsOpen} 
-        onClose={() => setIsDiagnosticsOpen(false)} 
+      <DiagnosticsOverlay
+        city="Global"
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        syncStatus="idle"
+        lastSynced={null}
       />
 
       <SystemBottomSheet
