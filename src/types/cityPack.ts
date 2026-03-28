@@ -125,6 +125,7 @@ export interface CityPackNeighborhood {
   name: string
   vibe: string
   safetyScore: number
+  eco_score?: number
 }
 
 /** Legacy survival kit (backward compat). */
@@ -166,6 +167,25 @@ export type ArrivalStage =
   | 'airport-exit'
   | 'left-airport';
 
+export type TravelerProfile =
+  | 'Regenerative'
+  | 'Foodie'
+  | 'Wellness'
+  | 'Adventure'
+  | 'SalvagedStay';
+
+export type SectionType =
+  | 'accommodations'
+  | 'food'
+  | 'wellness'
+  | 'adventure'
+  | 'history'
+  | 'transit'
+  | 'emergency'
+  | 'survival'
+  | 'neighborhoods'
+  | 'essentials';
+
 /** HADE runtime context (core + optional 2026 signal delta fields). */
 export interface HadeContext {
   timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night'
@@ -177,6 +197,7 @@ export interface HadeContext {
   userDisplaced?: boolean
   timeWindow?: number
   signalWeight?: number
+  profile?: TravelerProfile
 }
 
 /** 2026 Superior Schema — main city guide type. */

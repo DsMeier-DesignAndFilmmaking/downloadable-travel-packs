@@ -13,8 +13,9 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import type { ArrivalStage, HadeContext } from '@/types/cityPack';
+import type { ArrivalStage, HadeContext, TravelerProfile } from '@/types/cityPack';
 import { buildHadeContext, mapArrivalStageToHade } from './context';
+import { getActiveProfile, setActiveProfile } from './profile';
 
 // ─── Public interface ─────────────────────────────────────────────────────────
 
@@ -58,6 +59,9 @@ export interface UseHadeContextResult {
 
   /** Reserved for future crowdLevel data source integration. Currently undefined. */
   timeWindowMinutes: number | undefined;
+
+  /** Persists a TravelerProfile to localStorage and updates React state. Pass undefined to clear. */
+  setProfile: (profile: TravelerProfile | undefined) => void;
 }
 
 // ─── LocalStorage key helpers ─────────────────────────────────────────────────
@@ -146,6 +150,13 @@ export function useHadeContext(slug: string): UseHadeContextResult {
     });
   }, []);
 
+  // ─── setProfile ───────────────────────────────────────────────────────────
+
+  const setProfile = useCallback((profile: TravelerProfile | undefined) => {
+    setActiveProfile(profile);
+    setContext((prev) => ({ ...prev, profile }));
+  }, []);
+
   // ─── Derived values ───────────────────────────────────────────────────────
 
   const isDisplaced = context.userDisplaced === true;
@@ -163,10 +174,11 @@ export function useHadeContext(slug: string): UseHadeContextResult {
       setLocalEventFlag,
       setAqi,
       setSignalWeight,
+      setProfile,
       isDisplaced,
       timeWindowMinutes,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [context, setArrivalStage, setCrowdLevel, setAccommodationStatus, setLocalEventFlag, setAqi, setSignalWeight]
+    [context, setArrivalStage, setCrowdLevel, setAccommodationStatus, setLocalEventFlag, setAqi, setSignalWeight, setProfile]
   );
 }

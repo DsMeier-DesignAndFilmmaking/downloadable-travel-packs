@@ -5,7 +5,7 @@
 // Returns 1–2 recommendations based on the first matching rule.
 
 import type { HadeContext } from './context';
-import type { CityPackNeighborhood } from '@/types/cityPack';
+import type { CityPackNeighborhood, TravelerProfile, SectionType } from '@/types/cityPack';
 import { haversineMeters } from '@/lib/geo';
 
 export type HadeRecommendation = {
@@ -353,4 +353,68 @@ export function scanCurrentLocation(input: PivotScanInput): PivotScanResult {
   }
 
   return { nearestNeighborhood: nearest, compositeScore, riskLevel, warning, safeAlternative };
+}
+
+// ─── Section Priority ──────────────────────────────────────────────────────────
+
+/**
+ * getSectionPriority
+ *
+ * Returns a numeric priority for a given city-guide section, adjusted by the
+ * traveler profile in HadeContext. Higher number = shown/weighted first.
+ * Base priority for all sections is 0; profile bonuses are additive.
+ *
+ * SalvagedStay:  accommodations +5, history +5
+ * Foodie:        food +5
+ * Wellness:      wellness +5
+ * Adventure:     adventure +5
+ * Regenerative:  neighborhoods +3 (eco-filter handled separately)
+ */
+export function getSectionPriority(
+  section: SectionType,
+  context: HadeContext,
+): number {
+  const profile = context.profile;
+  let priority = 0;
+
+  if (!profile) return priority;
+
+  const PROFILE_BOOSTS: Partial<Record<TravelerProfile, Partial<Record<SectionType, number>>>> = {
+    SalvagedStay:  { accommodations: 5, history: 5 },
+    Foodie:        { food: 5 },
+    Wellness:      { wellness: 5 },
+    Adventure:     { adventure: 5 },
+    Regenerative:  { neighborhoods: 3 },
+  };
+
+  priority += PROFILE_BOOSTS[profile]?.[section] ?? 0;
+  return priority;
+}
+
+// ─── Neighborhood Filter ───────────────────────────────────────────────────────
+
+/**
+ * filterNeighborhoods
+ *
+ * Returns a filtered copy of the neighborhoods array based on the active
+ * traveler profile. Never mutates the input array.
+ *
+ * Regenerative: only neighborhoods with eco_score > 8.
+ *   If no neighborhoods have eco_score defined (legacy data), returns all
+ *   neighborhoods unfiltered so the UI never shows an empty list.
+ *
+ * All other profiles: returns the array unchanged.
+ */
+export function filterNeighborhoods(
+  neighborhoods: CityPackNeighborhood[],
+  profile: TravelerProfile | undefined,
+): CityPackNeighborhood[] {
+  if (profile !== 'Regenerative') return neighborhoods;
+
+  const ecoFiltered = neighborhoods.filter(
+    (n) => typeof n.eco_score === 'number' && n.eco_score > 8,
+  );
+
+  // Graceful fallback: if no neighborhoods carry eco_score data, return all.
+  return ecoFiltered.length > 0 ? ecoFiltered : neighborhoods;
 }

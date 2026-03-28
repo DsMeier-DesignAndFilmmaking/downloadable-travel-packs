@@ -194,7 +194,7 @@ const LLM_OPTIONS: Array<{ id: LlmChoice; label: string; detail: string }> = [
 function EngineSettings({ signal, setSignal }: any) {
   return (
     <div className="mt-6 rounded-2xl border border-ink/10 bg-white/70 p-3">
-      <p className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-ink/40">
+      <p className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-ink/60">
         Neural Backbone
       </p>
       <div className="grid grid-cols-3 gap-2">
@@ -225,7 +225,7 @@ function EngineSettings({ signal, setSignal }: any) {
                 </p>
                 <p
                   className={`mt-1 text-[9px] font-bold uppercase tracking-[0.14em] ${
-                    active ? "text-white/60" : "text-ink/30"
+                    active ? "text-white/60" : "text-ink/60"
                   }`}
                 >
                   {option.detail}
@@ -267,7 +267,7 @@ const ProcessingStep = React.memo(function ProcessingStep({ signal, onComplete, 
         </div>
         <div className="space-y-6">
           <div className="space-y-2 text-center">
-            <span className="text-[10px] font-black uppercase tracking-widest text-ink/40">
+            <span className="text-[10px] font-black uppercase tracking-widest text-ink/60">
               {theme.metricLabel} Check
             </span>
             <div className="h-1 w-full bg-ink/5 rounded-full overflow-hidden mt-4">
@@ -280,10 +280,10 @@ const ProcessingStep = React.memo(function ProcessingStep({ signal, onComplete, 
               />
             </div>
           </div>
-          <p className="text-center text-[10px] font-bold text-ink/30 uppercase tracking-[0.3em]">
+          <p className="text-center text-[10px] font-bold text-ink/60 uppercase tracking-[0.3em]">
             Routing {signal.llmChoice} Vector...
           </p>
-          <p className="text-center text-[10px] font-bold text-ink/20 uppercase tracking-[0.2em]">
+          <p className="text-center text-[10px] font-bold text-ink/60 uppercase tracking-[0.2em]">
             [{signal.combinedSignal.split(" ").slice(0, 5).join(" ")}
             {signal.combinedSignal.split(" ").length > 5 ? "..." : ""}]
           </p>
@@ -310,15 +310,15 @@ function AiRefinePanel({
   return (
     <details className="group mt-4 overflow-hidden rounded-[2rem] border border-ink/10 bg-white/60 backdrop-blur-xl">
       <summary className="flex cursor-pointer list-none select-none items-center justify-between px-6 py-4">
-        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-ink/50">
+        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-ink/60">
           Refine with AI{' '}
-          <span className="font-medium normal-case tracking-normal text-ink/30">
+          <span className="font-medium normal-case tracking-normal text-ink/60">
             (Optional)
           </span>
         </span>
         {/* Chevron — rotates when open via CSS group-open */}
         <svg
-          className="h-4 w-4 text-ink/30 transition-transform duration-200 group-open:rotate-180"
+          className="h-4 w-4 text-ink/60 transition-transform duration-200 group-open:rotate-180"
           viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
         >
           <path d="M6 9l6 6 6-6" />
@@ -331,13 +331,13 @@ function AiRefinePanel({
           onChange={(e) =>
             setSignal((p) => ({ ...p, combinedSignal: e.target.value }))
           }
-          className="mt-4 w-full resize-none rounded-[1.2rem] border-none bg-ink/[0.03] p-5 text-lg outline-none transition-all focus:bg-ink/[0.05] placeholder:text-ink/10"
+          className="mt-4 w-full resize-none rounded-[1.2rem] border-none bg-ink/[0.03] p-5 text-lg outline-none transition-all focus:bg-ink/[0.05] placeholder:text-ink/40"
           placeholder="e.g. 'I'm tired of tourist spots, show me where the locals hide when it rains'..."
           rows={3}
         />
 
         <div className="mt-4 rounded-2xl border border-ink/5 bg-white p-4 shadow-sm">
-          <label className="mb-2 block text-[10px] font-black uppercase text-ink/20">
+          <label className="mb-2 block text-[10px] font-black uppercase text-ink/60">
             Focus On…
           </label>
           <select
@@ -407,7 +407,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
         {/* City name is dynamic — bound to cityPack.name */}
         <p className="mt-8 text-2xl text-black/50 leading-relaxed font-light max-w-2xl italic">
           "We've tuned the{" "}
-          <span className="text-white not-italic">{cityPack.name}</span>{" "}
+          <span className="text-black not-italic">{cityPack.name}</span>{" "}
           pulse for{" "}
           <span
             style={{
@@ -457,7 +457,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
         </button>
         <button
           onClick={onRestart}
-          className="text-[11px] font-black uppercase tracking-widest text-white/20 hover:text-white transition"
+          className="text-[11px] font-black uppercase tracking-widest text-black/50 hover:text-green transition"
         >
           Ignore Recommendation
         </button>
@@ -1084,7 +1084,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
       <div className="mb-12 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-3 rounded-full border border-ink/5 bg-ink/[0.02] px-6 py-2 mb-6">
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: themeColor }} />
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/40">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-ink/60">
             Spontaneity Engine v4.2
           </p>
         </div>

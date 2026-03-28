@@ -4,6 +4,7 @@
 // No side effects — all localStorage reads are guarded and wrapped in try/catch.
 
 import type { ArrivalStage, HadeContext } from '@/types/cityPack';
+import { getActiveProfile } from './profile';
 
 export type { ArrivalStage, HadeContext } from '@/types/cityPack';
 
@@ -105,5 +106,6 @@ export function buildHadeContext(opts: {
     timeOfDay: resolveTimeOfDay(hour),
     aqiLevel: resolvedAqi === null ? 'unknown' : resolveAqiLevel(resolvedAqi),
     arrivalStage: arrivalStage ?? resolveArrivalStage(slug),
+    profile: getActiveProfile(),
   };
 }
