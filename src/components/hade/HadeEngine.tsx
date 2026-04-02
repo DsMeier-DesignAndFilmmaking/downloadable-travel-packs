@@ -381,33 +381,34 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
 
   return (
     <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-black p-8 text-white shadow-2xl md:p-12">
-  <div className="flex-1">
-    <div className="flex items-center gap-3 mb-10">
-      <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
-      <span className="text-[10px] font-white uppercase tracking-[0.2em] text-black/40">
-        {theme.tagline} Output
-      </span>
-    </div>
-
-    <h4 className="text-4xl md:text-5xl font-bold tracking-tighter leading-tight max-w-2xl">
-      {theme.resultTitle}
-    </h4>
-
-    <p className="mt-8 text-xl md:text-2xl text-white/50 leading-relaxed font-light italic max-w-3xl">
-      "We've tuned the Istanbul pulse for{' '}
-      <span style={{ 
-        textDecorationLine: 'underline', 
-        textDecorationColor: theme.primary, 
-        textDecorationThickness: '1px', 
-        textUnderlineOffset: '8px', 
-        color: 'white', 
-        opacity: 1 
-      }}>
-        {displayKeyword}
-      </span>
-      . {displayDesc}"
-    </p>
+<div className="flex-1">
+  <div className="flex items-center gap-3 mb-10">
+    <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
+    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
+      {theme.tagline} Output
+    </span>
   </div>
+
+  <h4 className="text-4xl md:text-5xl font-bold tracking-tighter leading-tight max-w-2xl">
+    {theme.resultTitle}
+  </h4>
+
+  <p className="mt-8 text-xl md:text-2xl text-white/50 leading-relaxed font-light italic max-w-3xl">
+    {/* Dynamic City Name Injection */}
+    "We've tuned the {cityPack.name} pulse for{' '}
+    <span style={{ 
+      textDecorationLine: 'underline', 
+      textDecorationColor: theme.primary, 
+      textDecorationThickness: '1px', 
+      textUnderlineOffset: '8px', 
+      color: 'white', 
+      opacity: 1 
+    }}>
+      {displayKeyword}
+    </span>
+    . {displayDesc}"
+  </p>
+</div>
 
   <div className="mt-12 flex flex-col md:flex-row items-center gap-6 border-t border-white/5 pt-10">
     <button
