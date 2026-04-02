@@ -181,7 +181,7 @@ const LLM_OPTIONS: Array<{ id: LlmChoice; label: string; detail: string }> = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function EngineSettings({ signal, setSignal }: any) {
   return (
-    <div className="mt-6 rounded-2xl border border-ink/10 bg-white/70 p-3">
+    <div className="mt-6 rounded-2xl border border-ink/10 bg-white/70 p-3 backdrop-blur-md">
       <p className="mb-2 px-2 text-[10px] font-black uppercase tracking-[0.2em] text-ink/60">
         Neural Backbone
       </p>
@@ -192,28 +192,29 @@ function EngineSettings({ signal, setSignal }: any) {
             <button
               key={option.id}
               onClick={() =>
-                setSignal((p: SignalState) => ({ ...p, llmChoice: option.id }))
+                setSignal((p: any) => ({ ...p, llmChoice: option.id }))
               }
-              className="relative overflow-hidden rounded-xl border border-ink/10 px-3 py-3 text-left"
+              className="relative overflow-hidden rounded-xl border border-ink/10 px-3 py-3 text-left transition-all"
             >
               {active && (
-                <motion.div
-                  layoutId="active-pill"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  className="absolute inset-0 rounded-xl bg-ink"
-                />
-              )}
+              <motion.div
+                layoutId="active-pill"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                // Add !bg-black to override any inherited styles
+                className="absolute inset-0 rounded-xl !bg-black z-0" 
+              />
+            )}
               <div className="relative z-10">
                 <p
-                  className={`text-[11px] font-black uppercase tracking-widest ${
-                    active ? "text-white" : "text-ink/70"
+                  className={`text-[11px] font-black uppercase tracking-widest transition-colors duration-300 ${
+                    active ? "text-white" : "text-ink/80" // White font for active
                   }`}
                 >
                   {option.label}
                 </p>
                 <p
-                  className={`mt-1 text-[9px] font-bold uppercase tracking-[0.14em] ${
-                    active ? "text-white/60" : "text-ink/60"
+                  className={`mt-1 text-[9px] font-bold uppercase tracking-[0.14em] transition-colors duration-300 ${
+                    active ? "text-white/50" : "text-ink/40" // Muted white for active detail
                   }`}
                 >
                   {option.detail}
@@ -379,11 +380,11 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
   const displayDesc = rawDesc.replace(/\s(\S+)$/, "\u00a0$1");
 
   return (
-    <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-ink p-8 text-black shadow-2xl md:p-12">
+    <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-black p-8 text-white shadow-2xl md:p-12">
   <div className="flex-1">
     <div className="flex items-center gap-3 mb-10">
       <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
-      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">
+      <span className="text-[10px] font-white uppercase tracking-[0.2em] text-black/40">
         {theme.tagline} Output
       </span>
     </div>
@@ -392,14 +393,14 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
       {theme.resultTitle}
     </h4>
 
-    <p className="mt-8 text-xl md:text-2xl text-black/50 leading-relaxed font-light italic max-w-3xl">
+    <p className="mt-8 text-xl md:text-2xl text-white/50 leading-relaxed font-light italic max-w-3xl">
       "We've tuned the Istanbul pulse for{' '}
       <span style={{ 
         textDecorationLine: 'underline', 
         textDecorationColor: theme.primary, 
         textDecorationThickness: '1px', 
         textUnderlineOffset: '8px', 
-        color: 'black', 
+        color: 'white', 
         opacity: 1 
       }}>
         {displayKeyword}
@@ -411,7 +412,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
   <div className="mt-12 flex flex-col md:flex-row items-center gap-6 border-t border-white/5 pt-10">
     <button
       onClick={onGo}
-      className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-white px-12 py-6 text-[13px] font-black uppercase tracking-[0.15em] text-ink whitespace-nowrap transition-all hover:scale-[1.05]"
+      className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-white px-12 py-6 text-[13px] font-white uppercase tracking-[0.15em] text-black font-bold whitespace-nowrap transition-all hover:scale-[1.05]"
     >
       {theme.action}
       <svg
@@ -429,7 +430,7 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
     
     <button 
       onClick={onRestart} 
-      className="text-[11px] font-black uppercase tracking-widest text-black/50 hover:text-white transition"
+      className="text-[11px] font-white uppercase tracking-widest text-white/50 hover:text-white transition"
     >
       Ignore Recommendation
     </button>
@@ -499,7 +500,7 @@ function VectorMapFallback({ theme, generatedOutput, onRestart, reason, cityPack
             HADE has activated the {generatedOutput.subNode} node based on your current signal.
           </p>
           <div className="flex gap-4">
-            <button className="flex-[2] py-5 rounded-2xl bg-white text-ink font-black text-[11px] uppercase tracking-widest">
+            <button className="flex-[2] py-5 rounded-2xl bg-white text-black font-black text-[11px] uppercase tracking-widest">
               Let's Go
             </button>
             <button
@@ -990,7 +991,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className={`w-full py-12 px-0 md:px-6 mx-auto max-w-7xl ${className ?? ""}`}>
+    <section className={`w-full py-12 px-0 mx-auto max-w-7xl ${className ?? ""}`}>
       <div className="mb-12 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-3 rounded-full border border-ink/5 bg-ink/[0.02] px-6 py-2 mb-6">
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: themeColor }} />
