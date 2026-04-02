@@ -81,7 +81,7 @@ const MODULE_THEMES: Record<
     resultTitle: "A Change of Plans?",
     baseDesc: "We've found a hidden node in the city that holds the exact atmosphere you're after.",
     tagline: "Live Environment",
-    action: "See the Spot",
+    action: "Make The Move",
   },
   "expert-network": {
     primary: "#6366F1",
@@ -380,77 +380,61 @@ function ResultStep({ signal, generatedOutput, onRestart, onGo, cityPack }: any)
 
   return (
     <div className="relative flex min-h-[600px] flex-col overflow-hidden rounded-[2.5rem] bg-ink p-8 text-black shadow-2xl md:p-12">
-      <div className="flex-1">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
-            {theme.tagline} Output
-          </span>
-        </div>
-
-        <h4 className="text-5xl font-bold tracking-tighter leading-tight max-w-xl">
-          {theme.resultTitle}
-        </h4>
-
-        {/* City name is dynamic — bound to cityPack.name */}
-        <p className="mt-8 text-2xl text-black/50 leading-relaxed font-light max-w-2xl italic">
-          "We've tuned the{" "}
-          <span className="text-black not-italic">{cityPack.name}</span>{" "}
-          pulse for{" "}
-          <span
-            style={{
-              textDecorationLine: "underline",
-              textDecorationColor: theme.primary,
-              textDecorationThickness: "1px",
-              textUnderlineOffset: "8px",
-              color: "white",
-              opacity: 1,
-            }}
-          >
-            {displayKeyword}
-          </span>
-          . {displayDesc}"
-        </p>
-
-        {generatedOutput.tags?.length > 0 && (
-          <div className="mt-6 flex flex-wrap gap-2">
-            {generatedOutput.tags.slice(0, 4).map((tag: string) => (
-              <span
-                key={tag}
-                className="rounded-full border border-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/70"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-12 flex flex-col md:flex-row items-center gap-6 border-t border-white/5 pt-10">
-        <button
-          onClick={onGo}
-          className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-black px-12 py-6 text-[13px] font-black uppercase tracking-[0.15em] text-ink transition-all hover:scale-[1.05]"
-        >
-          {theme.action}
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-          >
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
-        </button>
-        <button
-          onClick={onRestart}
-          className="text-[11px] font-black uppercase tracking-widest text-black/50 hover:text-green transition"
-        >
-          Ignore Recommendation
-        </button>
-      </div>
+  <div className="flex-1">
+    <div className="flex items-center gap-3 mb-10">
+      <div className="h-1 w-12 rounded-full" style={{ background: theme.primary }} />
+      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">
+        {theme.tagline} Output
+      </span>
     </div>
+
+    <h4 className="text-4xl md:text-5xl font-bold tracking-tighter leading-tight max-w-2xl">
+      {theme.resultTitle}
+    </h4>
+
+    <p className="mt-8 text-xl md:text-2xl text-black/50 leading-relaxed font-light italic max-w-3xl">
+      "We've tuned the Istanbul pulse for{' '}
+      <span style={{ 
+        textDecorationLine: 'underline', 
+        textDecorationColor: theme.primary, 
+        textDecorationThickness: '1px', 
+        textUnderlineOffset: '8px', 
+        color: 'black', 
+        opacity: 1 
+      }}>
+        {displayKeyword}
+      </span>
+      . {displayDesc}"
+    </p>
+  </div>
+
+  <div className="mt-12 flex flex-col md:flex-row items-center gap-6 border-t border-white/5 pt-10">
+    <button
+      onClick={onGo}
+      className="group w-full md:w-auto flex items-center justify-center gap-4 rounded-full bg-white px-12 py-6 text-[13px] font-black uppercase tracking-[0.15em] text-ink whitespace-nowrap transition-all hover:scale-[1.05]"
+    >
+      {theme.action}
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="3"
+        className="flex-shrink-0"
+      >
+        <path d="M5 12h14M12 5l7 7-7 7" />
+      </svg>
+    </button>
+    
+    <button 
+      onClick={onRestart} 
+      className="text-[11px] font-black uppercase tracking-widest text-black/50 hover:text-white transition"
+    >
+      Ignore Recommendation
+    </button>
+  </div>
+</div>
   );
 }
 
@@ -1006,7 +990,7 @@ export default function HadeEngine({ cityPack, accent, className }: HadeEnginePr
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <section className={`w-full py-12 px-6 md:px-0 mx-auto max-w-7xl ${className ?? ""}`}>
+    <section className={`w-full py-12 px-0 md:px-6 mx-auto max-w-7xl ${className ?? ""}`}>
       <div className="mb-12 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-3 rounded-full border border-ink/5 bg-ink/[0.02] px-6 py-2 mb-6">
           <div className="h-1.5 w-1.5 rounded-full" style={{ background: themeColor }} />
